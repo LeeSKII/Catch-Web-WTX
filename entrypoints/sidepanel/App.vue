@@ -6,9 +6,8 @@ import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
 import { useAISummary } from "./composables/useAISummary";
 import { marked } from "marked";
+import { browser } from 'wxt/browser';
 
-// 声明全局变量
-declare const chrome: any;
 
 // 使用 Composables
 const { success, error, warning, info } = useToast();
@@ -104,7 +103,7 @@ const handleExtractData = async () => {
     saveExtractedData(result.data);
 
     // 加载当前页面的AI总结
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs && tabs[0] && tabs[0].url) {
       await loadAndDisplayAISummary(tabs[0].url, "数据提取");
     }
@@ -188,7 +187,7 @@ const handleExportData = () => {
   const date = new Date().toISOString().slice(0, 10);
   const filename = `${title}-${urlPart}-${date}.json`;
 
-  chrome.downloads.download({
+  browser.downloads.download({
     url: url,
     filename: filename,
     saveAs: true,
@@ -203,7 +202,7 @@ const handleClearData = () => {
 };
 
 const handleClearCache = async () => {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
     clearAISummaryCache(tabs[0].url, aiSummaryType.value);
     aiSummaryContent.value = "";
@@ -218,8 +217,8 @@ const handleViewAllImages = () => {
     return;
   }
 
-  chrome.tabs.create({
-    url: chrome.runtime.getURL("image-viewer.html"),
+  browser.tabs.create({
+    url: browser.runtime.getURL("image-viewer.html"),
   });
 };
 
@@ -233,7 +232,7 @@ const handleDownloadAllImages = () => {
 
   extractedData.value.images?.forEach((img, index) => {
     if (img && img.src) {
-      chrome.downloads.download({
+      browser.downloads.download({
         url: img.src,
         filename: `image-${index + 1}.${
           img.src.split(".").pop()?.split("?")[0] || "jpg"
@@ -250,8 +249,8 @@ const handleViewAllLinks = () => {
     return;
   }
 
-  chrome.tabs.create({
-    url: chrome.runtime.getURL("link-viewer.html"),
+  browser.tabs.create({
+    url: browser.runtime.getURL("link-viewer.html"),
   });
 };
 
@@ -282,14 +281,14 @@ let isTabSwitching = false; // 标记是否正在切换tab
 // 监听器
 const setupTabListeners = () => {
   // 监听浏览器tab切换事件
-  chrome.tabs.onActivated.addListener(async (activeInfo: any) => {
+  browser.tabs.onActivated.addListener(async (activeInfo: any) => {
     console.log(
       "[DEBUG-AI] chrome.tabs.onActivated 被调用，tabId:",
       activeInfo.tabId
     );
 
     // 获取当前tab的URL
-    chrome.tabs.get(activeInfo.tabId, async (tab: any) => {
+    browser.tabs.get(activeInfo.tabId, async (tab: any) => {
       if (tab && tab.url && tab.url !== lastProcessedUrl && !isProcessing) {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
         lastProcessedUrl = tab.url;
@@ -357,12 +356,12 @@ const setupTabListeners = () => {
     1000
   ); // 1秒防抖延迟
 
-  chrome.tabs.onUpdated.addListener(debouncedUpdateHandler);
+  browser.tabs.onUpdated.addListener(debouncedUpdateHandler);
 };
 
 const removeTabListeners = () => {
-  chrome.tabs.onActivated.removeListener(() => {});
-  chrome.tabs.onUpdated.removeListener(() => {});
+  browser.tabs.onActivated.removeListener(() => {});
+  browser.tabs.onUpdated.removeListener(() => {});
 };
 
 const clearPanelData = () => {
@@ -381,7 +380,7 @@ const refreshDataForNewTab = async () => {
   clearPanelData();
 
   // 获取当前tab的加载状态
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (!tabs || !tabs[0]) {
     console.log("[DEBUG] 无法获取当前tab信息");
     return;
@@ -430,7 +429,7 @@ onUnmounted(() => {
 
 // 监听器
 watch(aiSummaryType, async () => {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
     await loadAndDisplayAISummary(tabs[0].url, "总结类型切换");
   }

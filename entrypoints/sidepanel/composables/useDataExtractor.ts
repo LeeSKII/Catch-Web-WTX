@@ -1,7 +1,6 @@
 import { ref, Ref } from 'vue';
 import { ExtractedData } from '../types';
-
-declare const chrome: any;
+import { browser } from 'wxt/browser';
 
 export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
@@ -25,7 +24,7 @@ export function useDataExtractor() {
     isLoading.value = true;
 
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       
       // 检查tab是否存在且URL是否有效
       if (!tabs[0] || !tabs[0].url) {
@@ -43,7 +42,7 @@ export function useDataExtractor() {
       }
 
       // 如果通过了所有检查，则执行提取
-      const results = await chrome.scripting.executeScript(
+      const results = await browser.scripting.executeScript(
         {
           target: { tabId: tabs[0].id },
           function: getPageData,
