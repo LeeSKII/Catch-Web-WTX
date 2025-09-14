@@ -55,6 +55,7 @@ const currentTab = ref("results");
 const imageFilter = ref("");
 const linkFilter = ref("");
 const isDarkModeToggle = ref(false);
+const isPageLoading = ref(false); // 新增：页面加载状态
 
 // 计算属性
 const stats = computed(() => ({
@@ -266,7 +267,11 @@ const setupTabListeners = () => {
 
     // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
     if (tab.active) {
-      logger.debug("新创建的标签页是活动标签页，等待加载完成");
+      logger.debug("新创建的标签页是活动标签页，设置loading状态");
+      
+      // 立即设置loading状态并清空UI数据
+      isPageLoading.value = true;
+      clearPanelData();
       
       // 等待一小段时间确保tab信息已经更新
       setTimeout(async () => {
@@ -288,10 +293,12 @@ const setupTabListeners = () => {
               await loadAndDisplayAISummary(currentTab.url, "新标签页创建");
             } finally {
               isProcessing = false;
+              isPageLoading.value = false;
             }
           }
         } catch (error) {
           logger.error("处理新创建标签页时出错", error);
+          isPageLoading.value = false;
         }
       }, PERFORMANCE_CONFIG.TAB_PROCESSING_DELAY);
     }
@@ -317,12 +324,20 @@ const setupTabListeners = () => {
         lastProcessedUrl = tab.url;
         isProcessing = true;
 
+        // 检查切换到的tab是否正在加载
+        if (tab.status === "loading") {
+          logger.debug("切换到的tab正在加载，设置loading状态");
+          isPageLoading.value = true;
+          clearPanelData();
+        }
+
         try {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
           await refreshDataForNewTab();
           await loadAndDisplayAISummary(tab.url, "Tab切换");
         } finally {
           isProcessing = false;
+          isPageLoading.value = false;
         }
       } else {
         logger.debug("Tab切换时跳过处理", {
@@ -346,33 +361,36 @@ const setupTabListeners = () => {
         isProcessing
       });
 
-      // 只处理当前活动标签页的URL变化，且页面加载完成时
-      if (
-        tab.active &&
-        changeInfo.status === "complete" &&
-        tab.url &&
-        !isProcessing
-      ) {
-        logger.debug("检测到URL变化且页面加载完成，处理URL", { url: tab.url });
-        lastProcessedUrl = tab.url;
-        isProcessing = true;
-
-        try {
-          // 清空面板内容
+      // 处理当前活动标签页的URL变化
+      if (tab.active && tab.url && !isProcessing) {
+        // 检测页面开始loading状态
+        if (changeInfo.status === "loading") {
+          logger.debug("检测到页面开始loading，清空UI数据", { url: tab.url });
+          isPageLoading.value = true;
           clearPanelData();
+        }
+        
+        // 页面加载完成时
+        if (changeInfo.status === "complete") {
+          logger.debug("检测到URL变化且页面加载完成，处理URL", { url: tab.url });
+          lastProcessedUrl = tab.url;
+          isProcessing = true;
+          isPageLoading.value = false;
 
-          // 刷新数据
-          await refreshDataForNewTab();
+          try {
+            // 刷新数据
+            await refreshDataForNewTab();
 
-          // 加载AI总结
-          await loadAndDisplayAISummary(tab.url, "URL更新");
-        } finally {
-          isProcessing = false;
+            // 加载AI总结
+            await loadAndDisplayAISummary(tab.url, "URL更新");
+          } finally {
+            isProcessing = false;
+          }
         }
       } else {
         logger.debug("onUpdated跳过处理", {
           isActive: tab.active,
-          statusComplete: changeInfo.status === "complete",
+          status: changeInfo.status,
           hasUrl: !!tab.url,
           isProcessing
         });
@@ -508,8 +526,14 @@ watch(isDarkMode, (newValue) => {
     <!-- 标签页导航 -->
     <TabNavigation :current-tab="currentTab" @tab-change="switchTab" />
 
+    <!-- 页面加载状态指示器 -->
+    <div v-if="isPageLoading" class="loading-indicator">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">页面加载中，请稍候...</div>
+    </div>
+
     <!-- 网页标签页内容 -->
-    <div v-show="currentTab === 'results'" class="tab-content active">
+    <div v-show="currentTab === 'results' && !isPageLoading" class="tab-content active">
       <!-- 统计信息 -->
       <StatsDisplay :stats="stats" />
 
@@ -539,7 +563,7 @@ watch(isDarkMode, (newValue) => {
     </div>
 
     <!-- AI标签页内容 -->
-    <div v-show="currentTab === 'ai'" class="tab-content active">
+    <div v-show="currentTab === 'ai' && !isPageLoading" class="tab-content active">
       <AISummaryPanel
         :ai-summary-content="aiSummaryContent"
         :ai-summary-status="aiSummaryStatus"
@@ -554,7 +578,7 @@ watch(isDarkMode, (newValue) => {
     </div>
 
     <!-- 设置标签页内容 -->
-    <div v-show="currentTab === 'settings'" class="tab-content active">
+    <div v-show="currentTab === 'settings' && !isPageLoading" class="tab-content active">
       <SettingsPanel
         :settings="settings"
         :is-dark-mode="isDarkModeToggle"
@@ -859,5 +883,36 @@ input:checked + .slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 页面加载状态指示器 */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+.loading-text {
+  color: var(--markdown-text-light);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
