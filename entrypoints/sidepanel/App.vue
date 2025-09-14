@@ -277,6 +277,7 @@ const debounce = (func: Function, delay: number) => {
 // 记录上一次处理的URL，避免重复处理
 let lastProcessedUrl = "";
 let isProcessing = false;
+let isTabSwitching = false; // 标记是否正在切换tab
 
 // 监听器
 const setupTabListeners = () => {
@@ -293,6 +294,7 @@ const setupTabListeners = () => {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
         lastProcessedUrl = tab.url;
         isProcessing = true;
+        isTabSwitching = true; // 标记正在切换tab
 
         try {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
@@ -300,6 +302,10 @@ const setupTabListeners = () => {
           await loadAndDisplayAISummary(tab.url, "Tab切换");
         } finally {
           isProcessing = false;
+          // 延迟重置tab切换标记，确保onUpdated监听器不会重复处理
+          setTimeout(() => {
+            isTabSwitching = false;
+          }, 1000);
         }
       }
     });
@@ -318,12 +324,14 @@ const setupTabListeners = () => {
       );
 
       // 只处理当前活动标签页的URL变化，且页面加载完成时
+      // 如果是tab切换触发的更新，则跳过处理，避免重复toast
       if (
         tab.active &&
         changeInfo.status === "complete" &&
         tab.url &&
         tab.url !== lastProcessedUrl &&
-        !isProcessing
+        !isProcessing &&
+        !isTabSwitching
       ) {
         console.log(
           "[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:",
@@ -384,67 +392,14 @@ const refreshDataForNewTab = async () => {
 
   // 检查页面是否正在加载
   if (currentTab.status === "loading") {
-    console.log("[DEBUG] 页面正在加载中，等待加载完成");
-    // 等待页面加载完成，但不在这里调用handleExtractData
-    // 因为onUpdated监听器会在页面加载完成后触发
-    await waitForPageLoadComplete(currentTab.id);
+    console.log("[DEBUG] 页面正在加载中，等待onUpdated监听器处理");
+    // 不再调用waitForPageLoadComplete，因为onUpdated监听器会处理页面加载完成的情况
+    return;
   } else {
     console.log("[DEBUG] 页面已加载完成，立即提取数据");
     // 页面已加载完成，直接提取数据
     await handleExtractData();
   }
-};
-
-const waitForPageLoadComplete = (tabId: number) => {
-  console.log("[DEBUG] 开始等待页面加载完成，tabId:", tabId);
-
-  // 设置超时时间，防止无限等待
-  const timeout = setTimeout(() => {
-    console.log("[DEBUG] 页面加载超时，强制执行数据提取");
-    // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
-    // 这里只是记录日志，避免重复调用
-  }, 30000); // 30秒超时
-
-  // 监听tab更新事件
-  const updateListener = (updatedTabId: number, changeInfo: any, tab: any) => {
-    if (updatedTabId === tabId && changeInfo.status === "complete") {
-      console.log("[DEBUG] 检测到页面加载完成");
-      clearTimeout(timeout);
-      chrome.tabs.onUpdated.removeListener(updateListener);
-      // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
-      // 这里只是记录日志，避免重复调用
-    }
-  };
-
-  chrome.tabs.onUpdated.addListener(updateListener);
-
-  // 检查当前tab是否已经加载完成（防止在添加监听器之前就已经完成）
-  chrome.tabs.get(tabId, (tab: any) => {
-    if (chrome.runtime.lastError) {
-      console.error("[DEBUG] 获取tab信息失败:", chrome.runtime.lastError);
-      clearTimeout(timeout);
-      chrome.tabs.onUpdated.removeListener(updateListener);
-      return;
-    }
-
-    if (tab.status === "complete") {
-      console.log("[DEBUG] 当前tab已经加载完成");
-      clearTimeout(timeout);
-      chrome.tabs.onUpdated.removeListener(updateListener);
-      // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
-      // 这里只是记录日志，避免重复调用
-    }
-  });
-};
-
-const proceedWithDataExtraction = async () => {
-  console.log("[DEBUG-AI] proceedWithDataExtraction() 开始执行");
-
-  // 提取新页面的数据
-  await handleExtractData();
-
-  // 注意：不再在这里调用loadAndDisplayAISummary，因为监听器已经处理了
-  // 避免重复调用导致多次toast提示
 };
 
 // 生命周期钩子
