@@ -19,6 +19,7 @@ export default defineConfig({
       "storage",
       "sidePanel",
       "tabs",
+      "webNavigation",
     ],
     host_permissions: ["https://*/*", "http://*/*"],
     commands: {

@@ -5,7 +5,7 @@ import { useTheme } from "./composables/useTheme";
 import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
 import { useAISummary } from "./composables/useAISummary";
-import { browser } from 'wxt/browser';
+import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
 import { UI_CONFIG, PERFORMANCE_CONFIG } from "./constants";
@@ -20,8 +20,7 @@ import AISummaryPanel from "./components/AISummaryPanel.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 
 // 创建日志器
-const logger = createLogger('App');
-
+const logger = createLogger("App");
 
 // 使用 Composables
 const { success, error, warning, info } = useToast();
@@ -88,7 +87,10 @@ const handleExtractData = async () => {
     saveExtractedData(result.data);
 
     // 加载当前页面的AI总结
-    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tabs = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (tabs && tabs[0] && tabs[0].url) {
       await loadAndDisplayAISummary(tabs[0].url, "数据提取");
     }
@@ -262,17 +264,17 @@ const setupTabListeners = () => {
       id: tab.id,
       url: tab.url,
       active: tab.active,
-      openerTabId: tab.openerTabId
+      openerTabId: tab.openerTabId,
     });
 
     // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
     if (tab.active) {
       logger.debug("新创建的标签页是活动标签页，设置loading状态");
-      
+
       // 立即设置loading状态并清空UI数据
       isPageLoading.value = true;
       clearPanelData();
-      
+
       // 等待一小段时间确保tab信息已经更新
       setTimeout(async () => {
         try {
@@ -280,10 +282,15 @@ const setupTabListeners = () => {
           logger.debug("获取新创建的tab信息", {
             id: currentTab.id,
             url: currentTab.url,
-            status: currentTab.status
+            status: currentTab.status,
           });
 
-          if (currentTab && currentTab.url && currentTab.url !== lastProcessedUrl && !isProcessing) {
+          if (
+            currentTab &&
+            currentTab.url &&
+            currentTab.url !== lastProcessedUrl &&
+            !isProcessing
+          ) {
             logger.debug("处理新创建的活动标签页", { url: currentTab.url });
             lastProcessedUrl = currentTab.url;
             isProcessing = true;
@@ -316,7 +323,7 @@ const setupTabListeners = () => {
         status: tab.status,
         title: tab.title,
         lastProcessedUrl,
-        isProcessing
+        isProcessing,
       });
 
       if (tab && tab.url && !isProcessing) {
@@ -343,7 +350,7 @@ const setupTabListeners = () => {
         logger.debug("Tab切换时跳过处理", {
           hasTab: !!tab,
           hasUrl: !!tab?.url,
-          isProcessing
+          isProcessing,
         });
       }
     });
@@ -358,7 +365,7 @@ const setupTabListeners = () => {
         tabActive: tab.active,
         tabUrl: tab.url,
         lastProcessedUrl,
-        isProcessing
+        isProcessing,
       });
 
       // 处理当前活动标签页的URL变化
@@ -369,10 +376,12 @@ const setupTabListeners = () => {
           isPageLoading.value = true;
           clearPanelData();
         }
-        
+
         // 页面加载完成时
         if (changeInfo.status === "complete") {
-          logger.debug("检测到URL变化且页面加载完成，处理URL", { url: tab.url });
+          logger.debug("检测到URL变化且页面加载完成，处理URL", {
+            url: tab.url,
+          });
           lastProcessedUrl = tab.url;
           isProcessing = true;
           isPageLoading.value = false;
@@ -392,7 +401,7 @@ const setupTabListeners = () => {
           isActive: tab.active,
           status: changeInfo.status,
           hasUrl: !!tab.url,
-          isProcessing
+          isProcessing,
         });
       }
     },
@@ -464,20 +473,24 @@ const waitForTabToLoad = (tabId: number) => {
           resolve();
         } else {
           // 继续检查
-          setTimeout(checkTabStatus, PERFORMANCE_CONFIG.DOM_READY_CHECK_INTERVAL);
+          setTimeout(
+            checkTabStatus,
+            PERFORMANCE_CONFIG.DOM_READY_CHECK_INTERVAL
+          );
         }
       } catch (error) {
         logger.error("检查标签页状态时出错", error);
         resolve(); // 出错时也resolve，避免无限等待
       }
     };
-    
+
     checkTabStatus();
   });
 };
 
 // 生命周期钩子
 onMounted(async () => {
+  console.log("[DEBUG MODE:browser]", browser);
   // 初始化主题
   initializeTheme();
 
@@ -495,7 +508,7 @@ onMounted(async () => {
 
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();
-  
+
   // 加载当前页面的AI总结
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
@@ -533,7 +546,10 @@ watch(isDarkMode, (newValue) => {
     </div>
 
     <!-- 网页标签页内容 -->
-    <div v-show="currentTab === 'results' && !isPageLoading" class="tab-content active">
+    <div
+      v-show="currentTab === 'results' && !isPageLoading"
+      class="tab-content active"
+    >
       <!-- 统计信息 -->
       <StatsDisplay :stats="stats" />
 
@@ -548,7 +564,7 @@ watch(isDarkMode, (newValue) => {
       <ImageGrid
         :extracted-data="extractedData"
         :image-filter="imageFilter"
-        @update:image-filter="value => imageFilter = value"
+        @update:image-filter="(value) => (imageFilter = value)"
         @view-all-images="handleViewAllImages"
         @download-all-images="handleDownloadAllImages"
       />
@@ -557,13 +573,16 @@ watch(isDarkMode, (newValue) => {
       <LinkList
         :extracted-data="extractedData"
         :link-filter="linkFilter"
-        @update:link-filter="value => linkFilter = value"
+        @update:link-filter="(value) => (linkFilter = value)"
         @view-all-links="handleViewAllLinks"
       />
     </div>
 
     <!-- AI标签页内容 -->
-    <div v-show="currentTab === 'ai' && !isPageLoading" class="tab-content active">
+    <div
+      v-show="currentTab === 'ai' && !isPageLoading"
+      class="tab-content active"
+    >
       <AISummaryPanel
         :ai-summary-content="aiSummaryContent"
         :ai-summary-status="aiSummaryStatus"
@@ -573,19 +592,22 @@ watch(isDarkMode, (newValue) => {
         @generate-ai-summary="handleGenerateAISummary"
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"
-        @update:aiSummaryType="value => aiSummaryType = value"
+        @update:aiSummaryType="(value) => (aiSummaryType = value)"
       />
     </div>
 
     <!-- 设置标签页内容 -->
-    <div v-show="currentTab === 'settings' && !isPageLoading" class="tab-content active">
+    <div
+      v-show="currentTab === 'settings' && !isPageLoading"
+      class="tab-content active"
+    >
       <SettingsPanel
         :settings="settings"
         :is-dark-mode="isDarkModeToggle"
         @save-settings="handleSaveSettings"
         @clear-data="handleClearData"
         @toggle-dark-mode="handleToggleDarkMode"
-        @update:settings="value => Object.assign(settings, value)"
+        @update:settings="(value) => Object.assign(settings, value)"
       />
     </div>
   </div>
@@ -912,7 +934,11 @@ input:checked + .slider:before {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
