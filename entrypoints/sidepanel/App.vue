@@ -280,6 +280,48 @@ let isTabSwitching = false; // 标记是否正在切换tab
 
 // 监听器
 const setupTabListeners = () => {
+  // 监听新标签页创建事件
+  browser.tabs.onCreated.addListener(async (tab: any) => {
+    console.log("[DEBUG-AI] chrome.tabs.onCreated 被调用，tab:", {
+      id: tab.id,
+      url: tab.url,
+      active: tab.active,
+      openerTabId: tab.openerTabId
+    });
+
+    // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
+    if (tab.active) {
+      console.log("[DEBUG-AI] 新创建的标签页是活动标签页，等待加载完成");
+      
+      // 等待一小段时间确保tab信息已经更新
+      setTimeout(async () => {
+        try {
+          const currentTab = await browser.tabs.get(tab.id);
+          console.log("[DEBUG-AI] 获取新创建的tab信息:", {
+            id: currentTab.id,
+            url: currentTab.url,
+            status: currentTab.status
+          });
+
+          if (currentTab && currentTab.url && currentTab.url !== lastProcessedUrl && !isProcessing) {
+            console.log("[DEBUG-AI] 处理新创建的活动标签页:", currentTab.url);
+            lastProcessedUrl = currentTab.url;
+            isProcessing = true;
+
+            try {
+              await refreshDataForNewTab();
+              await loadAndDisplayAISummary(currentTab.url, "新标签页创建");
+            } finally {
+              isProcessing = false;
+            }
+          }
+        } catch (error) {
+          console.error("[DEBUG-AI] 处理新创建标签页时出错:", error);
+        }
+      }, 500); // 等待500ms确保tab信息已经更新
+    }
+  });
+
   // 监听浏览器tab切换事件
   browser.tabs.onActivated.addListener(async (activeInfo: any) => {
     console.log(
@@ -289,7 +331,16 @@ const setupTabListeners = () => {
 
     // 获取当前tab的URL
     browser.tabs.get(activeInfo.tabId, async (tab: any) => {
-      if (tab && tab.url && tab.url !== lastProcessedUrl && !isProcessing) {
+      console.log("[DEBUG-AI] Tab切换时获取到的tab信息:", {
+        id: tab.id,
+        url: tab.url,
+        status: tab.status,
+        title: tab.title,
+        lastProcessedUrl: lastProcessedUrl,
+        isProcessing: isProcessing
+      });
+
+      if (tab && tab.url && !isProcessing) {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
         lastProcessedUrl = tab.url;
         isProcessing = true;
@@ -301,6 +352,12 @@ const setupTabListeners = () => {
         } finally {
           isProcessing = false;
         }
+      } else {
+        console.log("[DEBUG-AI] Tab切换时跳过处理，原因:", {
+          hasTab: !!tab,
+          hasUrl: !!tab?.url,
+          isProcessing: isProcessing
+        });
       }
     });
   });
@@ -314,16 +371,20 @@ const setupTabListeners = () => {
         "changeInfo:",
         changeInfo,
         "tab.active:",
-        tab.active
+        tab.active,
+        "tab.url:",
+        tab.url,
+        "lastProcessedUrl:",
+        lastProcessedUrl,
+        "isProcessing:",
+        isProcessing
       );
 
       // 只处理当前活动标签页的URL变化，且页面加载完成时
-      // 如果是tab切换触发的更新，则跳过处理，避免重复toast
       if (
         tab.active &&
         changeInfo.status === "complete" &&
         tab.url &&
-        tab.url !== lastProcessedUrl &&
         !isProcessing
       ) {
         console.log(
@@ -345,15 +406,23 @@ const setupTabListeners = () => {
         } finally {
           isProcessing = false;
         }
+      } else {
+        console.log("[DEBUG-AI] onUpdated跳过处理，原因:", {
+          isActive: tab.active,
+          statusComplete: changeInfo.status === "complete",
+          hasUrl: !!tab.url,
+          isProcessing: isProcessing
+        });
       }
     },
-    1000
-  ); // 1秒防抖延迟
+    500
+  ); // 减少防抖延迟到500毫秒，提高响应速度
 
   browser.tabs.onUpdated.addListener(debouncedUpdateHandler);
 };
 
 const removeTabListeners = () => {
+  browser.tabs.onCreated.removeListener(() => {});
   browser.tabs.onActivated.removeListener(() => {});
   browser.tabs.onUpdated.removeListener(() => {});
 };
