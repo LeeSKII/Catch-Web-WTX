@@ -293,7 +293,6 @@ const setupTabListeners = () => {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
         lastProcessedUrl = tab.url;
         isProcessing = true;
-        isTabSwitching = true; // 标记正在切换tab
 
         try {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
@@ -301,10 +300,6 @@ const setupTabListeners = () => {
           await loadAndDisplayAISummary(tab.url, "Tab切换");
         } finally {
           isProcessing = false;
-          // 延迟重置tab切换标记，确保onUpdated监听器不会重复处理
-          setTimeout(() => {
-            isTabSwitching = false;
-          }, 1000);
         }
       }
     });
@@ -329,8 +324,7 @@ const setupTabListeners = () => {
         changeInfo.status === "complete" &&
         tab.url &&
         tab.url !== lastProcessedUrl &&
-        !isProcessing &&
-        !isTabSwitching
+        !isProcessing
       ) {
         console.log(
           "[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:",
@@ -391,14 +385,45 @@ const refreshDataForNewTab = async () => {
 
   // 检查页面是否正在加载
   if (currentTab.status === "loading") {
-    console.log("[DEBUG] 页面正在加载中，等待onUpdated监听器处理");
-    // 不再调用waitForPageLoadComplete，因为onUpdated监听器会处理页面加载完成的情况
-    return;
+    console.log("[DEBUG] 页面正在加载中，等待页面加载完成");
+    // 等待页面加载完成
+    if (currentTab.id) {
+      await waitForTabToLoad(currentTab.id);
+      console.log("[DEBUG] 页面加载完成，开始提取数据");
+      // 页面加载完成，提取数据
+      await handleExtractData();
+    } else {
+      console.log("[DEBUG] 无法获取tab ID，直接尝试提取数据");
+      await handleExtractData();
+    }
   } else {
     console.log("[DEBUG] 页面已加载完成，立即提取数据");
     // 页面已加载完成，直接提取数据
+    // extractData函数内部会等待DOM完全加载
     await handleExtractData();
   }
+};
+
+// 等待标签页加载完成的函数
+const waitForTabToLoad = (tabId: number) => {
+  return new Promise<void>((resolve) => {
+    const checkTabStatus = async () => {
+      try {
+        const tab = await browser.tabs.get(tabId);
+        if (tab && tab.status === "complete") {
+          resolve();
+        } else {
+          // 继续检查
+          setTimeout(checkTabStatus, 100);
+        }
+      } catch (error) {
+        console.error("[DEBUG] 检查标签页状态时出错:", error);
+        resolve(); // 出错时也resolve，避免无限等待
+      }
+    };
+    
+    checkTabStatus();
+  });
 };
 
 // 生命周期钩子
@@ -418,8 +443,14 @@ onMounted(async () => {
   // 设置标签页监听器
   setupTabListeners();
 
-  // 移除了默认自动提取，避免与监听器冲突
-  // 监听器会自动触发数据提取
+  // 初始加载时自动提取当前页面数据
+  await refreshDataForNewTab();
+  
+  // 加载当前页面的AI总结
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  if (tabs && tabs[0] && tabs[0].url) {
+    await loadAndDisplayAISummary(tabs[0].url, "初始加载");
+  }
 });
 
 onUnmounted(() => {

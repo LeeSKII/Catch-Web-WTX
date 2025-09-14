@@ -42,27 +42,53 @@ export function useDataExtractor() {
       }
 
       // 如果通过了所有检查，则执行提取
-      const results = await browser.scripting.executeScript(
-        {
-          target: { tabId: tabs[0].id },
-          function: getPageData,
-          args: [options],
-        }
-      );
+      // 先注入一个函数来确保DOM完全加载
+      if (tabs[0].id) {
+        await browser.scripting.executeScript(
+          {
+            target: { tabId: tabs[0].id },
+            func: waitForDOMReady,
+          }
+        );
 
-      if (results && results[0]) {
-        extractedData.value = results[0].result;
-        isLoading.value = false;
-        return { success: true, data: extractedData.value };
+        // DOM准备就绪后，执行数据提取
+        const results = await browser.scripting.executeScript(
+          {
+            target: { tabId: tabs[0].id },
+            func: getPageData,
+            args: [options],
+          }
+        );
+
+        if (results && results[0] && results[0].result) {
+          extractedData.value = results[0].result as ExtractedData;
+          isLoading.value = false;
+          return { success: true, data: extractedData.value };
+        } else {
+          isLoading.value = false;
+          return { success: false, message: '提取数据失败' };
+        }
       } else {
         isLoading.value = false;
-        return { success: false, message: '提取数据失败' };
+        return { success: false, message: '无法获取标签页ID' };
       }
     } catch (error) {
       console.error('提取错误:', error);
       isLoading.value = false;
       return { success: false, message: '提取数据时发生错误' };
     }
+  };
+
+  // 等待DOM完全加载的函数
+  const waitForDOMReady = () => {
+    return new Promise<void>((resolve) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+      } else {
+        // 如果已经加载完成，直接resolve
+        resolve();
+      }
+    });
   };
 
   // 在页面上执行的数据提取函数
