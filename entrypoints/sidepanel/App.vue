@@ -594,7 +594,7 @@ watch(isDarkMode, (newValue) => {
               display: flex;
               align-items: center;
               justify-content: center;
-              background: #f0f0f0;
+              background: var(--markdown-bg-light);
             "
           >
             <div>+{{ extractedData.images.length - 12 }}更多</div>
@@ -697,7 +697,7 @@ watch(isDarkMode, (newValue) => {
             id="streaming-content"
             v-html="marked.parse(aiSummaryContent)"
           ></div>
-          <div v-else style="text-align: center; color: #666; padding: 20px">
+          <div v-else style="text-align: center; color: var(--markdown-text-light); padding: 20px">
             点击"AI总结"按钮开始生成网页内容总结
           </div>
         </div>
@@ -706,7 +706,7 @@ watch(isDarkMode, (newValue) => {
           v-if="aiSummaryStatus"
           style="
             font-size: 12px;
-            color: #666;
+            color: var(--markdown-text-light);
             margin-top: 10px;
             text-align: center;
             padding: 0 15px 15px;
@@ -845,7 +845,7 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="输入您的OpenAI API密钥"
           />
-          <div style="font-size: 11px; color: #666; margin-top: 5px">
+          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
             您的API密钥将安全存储在本地，不会上传到任何服务器
           </div>
         </div>
@@ -858,7 +858,7 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="https://api.openai.com/v1"
           />
-          <div style="font-size: 11px; color: #666; margin-top: 5px">
+          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
             如需使用自定义API端点，请修改此URL
           </div>
         </div>
@@ -871,7 +871,7 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="gpt-3.5-turbo"
           />
-          <div style="font-size: 11px; color: #666; margin-top: 5px">
+          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
             输入要使用的AI模型名称，如：gpt-3.5-turbo, gpt-4,
             claude-3-sonnet-20240229等
           </div>
@@ -896,37 +896,7 @@ watch(isDarkMode, (newValue) => {
 </template>
 
 <style scoped>
-/* 从 sidepanel.css 迁移样式 */
-:root {
-  --primary-color: #4361ee;
-  --secondary-color: #3a0ca3;
-  --accent-color: #7209b7;
-  --light-color: #f8f9fa;
-  --dark-color: #212529;
-  --success-color: #4cc9f0;
-  --warning-color: #f72585;
-  --border-radius: 8px;
-  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --section-bg: white;
-  --section-content-bg: #f9f9f9;
-  --border-color: #eee;
-  --tab-bg: white;
-  --section-title-color: var(--secondary-color);
-  --section-title-dark-color: #8b9cff;
-  --tab-text-color: var(--dark-color);
-  --tab-text-dark-color: #ffffff;
-  --markdown-bg-light: #f0f0f0;
-  --markdown-bg-dark: #2d2d2d;
-  --markdown-border-light: #ddd;
-  --markdown-border-dark: #555;
-  --markdown-text-light: #666;
-  --markdown-text-dark: #ccc;
-}
-
-* {
-  box-sizing: border-box;
-  transition: all 0.3s ease;
-}
+/* 组件特定样式 - 全局颜色变量已移至 style.css */
 
 .container {
   padding: 15px;
@@ -1058,7 +1028,7 @@ watch(isDarkMode, (newValue) => {
 .filter-input {
   flex: 1;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-size: 13px;
 }
@@ -1083,7 +1053,7 @@ watch(isDarkMode, (newValue) => {
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: var(--markdown-text-light);
 }
 
 .image-grid {
@@ -1126,7 +1096,7 @@ watch(isDarkMode, (newValue) => {
 }
 
 .settings-panel {
-  background: #f5f5f5;
+  background: var(--section-content-bg);
   padding: 15px;
   border-radius: var(--border-radius);
   margin-top: 15px;
@@ -1188,245 +1158,9 @@ input:checked + .slider:before {
   transform: translateX(26px);
 }
 
-/* 加载动画 */
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
+/* 加载动画和Markdown样式已移至全局 style.css */
 
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-/* Markdown样式 */
-#streaming-content h1,
-#streaming-content h2,
-#streaming-content h3,
-#streaming-content h4,
-#streaming-content h5,
-#streaming-content h6 {
-  color: var(--section-title-color);
-  margin-top: 4px;
-  margin-bottom: 2px;
-  font-size: 1.05em;
-}
-
-#streaming-content p {
-  margin-bottom: 3px;
-  line-height: 1.5;
-}
-
-#streaming-content ul,
-#streaming-content ol {
-  margin-bottom: 3px;
-  padding-left: 16px;
-}
-
-#streaming-content li {
-  margin-bottom: 1px;
-}
-
-#streaming-content blockquote {
-  border-left: 3px solid var(--primary-color);
-  padding-left: 6px;
-  margin: 3px 0;
-  color: var(--markdown-text-light);
-  font-size: 0.9em;
-}
-
-#streaming-content code {
-  background-color: var(--markdown-bg-light);
-  padding: 1px 2px;
-  border-radius: 2px;
-  font-family: monospace;
-  font-size: 0.85em;
-}
-
-#streaming-content pre {
-  background-color: var(--markdown-bg-light);
-  padding: 4px;
-  border-radius: 3px;
-  overflow-x: auto;
-  margin-bottom: 4px;
-  font-size: 0.85em;
-}
-
-#streaming-content pre code {
-  background-color: transparent;
-  padding: 0;
-}
-
-#streaming-content strong {
-  font-weight: bold;
-}
-
-#streaming-content em {
-  font-style: italic;
-}
-
-#streaming-content hr {
-  border: none;
-  border-top: 1px solid var(--markdown-border-light);
-  margin: 5px 0;
-}
-
-#streaming-content table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 4px;
-  font-size: 0.85em;
-}
-
-#streaming-content th,
-#streaming-content td {
-  border: 1px solid var(--markdown-border-light);
-  padding: 2px 4px;
-  text-align: left;
-}
-
-#streaming-content th {
-  background-color: var(--markdown-bg-light);
-  font-weight: bold;
-}
-
-/* 暗色模式下的Markdown样式 */
-:global([data-theme="dark"]) #streaming-content blockquote {
-  color: var(--markdown-text-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content code {
-  background-color: var(--markdown-bg-dark);
-  color: var(--markdown-text-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content pre {
-  background-color: var(--markdown-bg-dark);
-  color: var(--markdown-text-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content hr {
-  border-top: 1px solid var(--markdown-border-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content th,
-:global([data-theme="dark"]) #streaming-content td {
-  border: 1px solid var(--markdown-border-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content th {
-  background-color: var(--markdown-bg-dark);
-  color: var(--markdown-text-dark);
-}
-
-:global([data-theme="dark"]) #streaming-content td {
-  color: var(--markdown-text-dark);
-}
-
-/* Toast通知系统样式 */
-.toast-container {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.toast {
-  min-width: 250px;
-  padding: 12px 20px;
-  border-radius: 8px;
-  color: white;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  animation: slideIn 0.3s ease-out;
-}
-
-.toast-success {
-  background-color: var(--success-color);
-}
-
-.toast-error {
-  background-color: var(--warning-color);
-}
-
-.toast-warning {
-  background-color: #ff9800;
-}
-
-.toast-info {
-  background-color: var(--primary-color);
-}
-
-.toast-close {
-  margin-left: 15px;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOut {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-/* 响应式设计 */
-@media (max-width: 400px) {
-  .tabs {
-    flex-direction: row;
-  }
-
-  .tab {
-    margin-bottom: 2px;
-  }
-
-  .image-grid {
-    grid-template-columns: repeat(1, 1fr);
-  }
-}
-
-@media (min-width: 401px) and (max-width: 600px) {
-  .image-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 601px) {
-  .image-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
+/* 响应式设计已移至全局 style.css */
 
 /* 防止内容溢出 */
 .section-title {
