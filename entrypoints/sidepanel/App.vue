@@ -5,8 +5,22 @@ import { useTheme } from "./composables/useTheme";
 import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
 import { useAISummary } from "./composables/useAISummary";
-import { marked } from "marked";
 import { browser } from 'wxt/browser';
+import { debounce } from "./utils/debounce";
+import { createLogger } from "./utils/logger";
+import { UI_CONFIG, PERFORMANCE_CONFIG } from "./constants";
+
+// 导入组件
+import TabNavigation from "./components/TabNavigation.vue";
+import StatsDisplay from "./components/StatsDisplay.vue";
+import WebInfoSection from "./components/WebInfoSection.vue";
+import ImageGrid from "./components/ImageGrid.vue";
+import LinkList from "./components/LinkList.vue";
+import AISummaryPanel from "./components/AISummaryPanel.vue";
+import SettingsPanel from "./components/SettingsPanel.vue";
+
+// 创建日志器
+const logger = createLogger('App');
 
 
 // 使用 Composables
@@ -43,36 +57,6 @@ const linkFilter = ref("");
 const isDarkModeToggle = ref(false);
 
 // 计算属性
-const filteredImages = computed(() => {
-  if (!extractedData.value.images) return [];
-
-  if (!imageFilter.value) {
-    return extractedData.value.images.slice(0, 12);
-  }
-
-  return extractedData.value.images.filter(
-    (img) =>
-      img.src.toLowerCase().includes(imageFilter.value.toLowerCase()) ||
-      (img.alt &&
-        img.alt.toLowerCase().includes(imageFilter.value.toLowerCase()))
-  );
-});
-
-const filteredLinks = computed(() => {
-  if (!extractedData.value.links) return [];
-
-  if (!linkFilter.value) {
-    return extractedData.value.links.slice(0, 10);
-  }
-
-  return extractedData.value.links.filter(
-    (link) =>
-      link.href.toLowerCase().includes(linkFilter.value.toLowerCase()) ||
-      (link.text &&
-        link.text.toLowerCase().includes(linkFilter.value.toLowerCase()))
-  );
-});
-
 const stats = computed(() => ({
   imagesCount: extractedData.value.images?.length || 0,
   linksCount: extractedData.value.links?.length || 0,
@@ -136,7 +120,7 @@ const handleCopyAllData = () => {
       success("数据已复制到剪贴板！");
     })
     .catch((err) => {
-      console.error("复制失败:", err);
+      logger.error("复制失败", err);
       error("复制失败，请重试");
     });
 };
@@ -153,7 +137,7 @@ const handleCopySummary = () => {
       success("AI总结已复制到剪贴板！");
     })
     .catch((err) => {
-      console.error("复制失败:", err);
+      logger.error("复制失败", err);
       error("复制失败，请重试");
     });
 };
@@ -217,9 +201,8 @@ const handleViewAllImages = () => {
     return;
   }
 
-  browser.tabs.create({
-    url: browser.runtime.getURL("image-viewer.html"),
-  });
+  // 功能暂未实现
+  warning("查看全部图片功能正在开发中");
 };
 
 const handleDownloadAllImages = () => {
@@ -249,9 +232,8 @@ const handleViewAllLinks = () => {
     return;
   }
 
-  browser.tabs.create({
-    url: browser.runtime.getURL("link-viewer.html"),
-  });
+  // 功能暂未实现
+  warning("查看全部链接功能正在开发中");
 };
 
 const handleToggleDarkMode = () => {
@@ -264,14 +246,7 @@ const handleSaveSettings = () => {
   success("设置已保存！");
 };
 
-// 防抖函数
-const debounce = (func: Function, delay: number) => {
-  let timeoutId: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(null, args), delay);
-  };
-};
+// 防抖函数已移至 utils/debounce.ts，这里直接导入使用
 
 // 记录上一次处理的URL，避免重复处理
 let lastProcessedUrl = "";
@@ -282,7 +257,7 @@ let isTabSwitching = false; // 标记是否正在切换tab
 const setupTabListeners = () => {
   // 监听新标签页创建事件
   browser.tabs.onCreated.addListener(async (tab: any) => {
-    console.log("[DEBUG-AI] chrome.tabs.onCreated 被调用，tab:", {
+    logger.debug("chrome.tabs.onCreated 被调用", {
       id: tab.id,
       url: tab.url,
       active: tab.active,
@@ -291,20 +266,20 @@ const setupTabListeners = () => {
 
     // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
     if (tab.active) {
-      console.log("[DEBUG-AI] 新创建的标签页是活动标签页，等待加载完成");
+      logger.debug("新创建的标签页是活动标签页，等待加载完成");
       
       // 等待一小段时间确保tab信息已经更新
       setTimeout(async () => {
         try {
           const currentTab = await browser.tabs.get(tab.id);
-          console.log("[DEBUG-AI] 获取新创建的tab信息:", {
+          logger.debug("获取新创建的tab信息", {
             id: currentTab.id,
             url: currentTab.url,
             status: currentTab.status
           });
 
           if (currentTab && currentTab.url && currentTab.url !== lastProcessedUrl && !isProcessing) {
-            console.log("[DEBUG-AI] 处理新创建的活动标签页:", currentTab.url);
+            logger.debug("处理新创建的活动标签页", { url: currentTab.url });
             lastProcessedUrl = currentTab.url;
             isProcessing = true;
 
@@ -316,32 +291,29 @@ const setupTabListeners = () => {
             }
           }
         } catch (error) {
-          console.error("[DEBUG-AI] 处理新创建标签页时出错:", error);
+          logger.error("处理新创建标签页时出错", error);
         }
-      }, 500); // 等待500ms确保tab信息已经更新
+      }, PERFORMANCE_CONFIG.TAB_PROCESSING_DELAY);
     }
   });
 
   // 监听浏览器tab切换事件
   browser.tabs.onActivated.addListener(async (activeInfo: any) => {
-    console.log(
-      "[DEBUG-AI] chrome.tabs.onActivated 被调用，tabId:",
-      activeInfo.tabId
-    );
+    logger.debug("chrome.tabs.onActivated 被调用", { tabId: activeInfo.tabId });
 
     // 获取当前tab的URL
     browser.tabs.get(activeInfo.tabId, async (tab: any) => {
-      console.log("[DEBUG-AI] Tab切换时获取到的tab信息:", {
+      logger.debug("Tab切换时获取到的tab信息", {
         id: tab.id,
         url: tab.url,
         status: tab.status,
         title: tab.title,
-        lastProcessedUrl: lastProcessedUrl,
-        isProcessing: isProcessing
+        lastProcessedUrl,
+        isProcessing
       });
 
       if (tab && tab.url && !isProcessing) {
-        console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
+        logger.debug("Tab切换时URL", { url: tab.url });
         lastProcessedUrl = tab.url;
         isProcessing = true;
 
@@ -353,10 +325,10 @@ const setupTabListeners = () => {
           isProcessing = false;
         }
       } else {
-        console.log("[DEBUG-AI] Tab切换时跳过处理，原因:", {
+        logger.debug("Tab切换时跳过处理", {
           hasTab: !!tab,
           hasUrl: !!tab?.url,
-          isProcessing: isProcessing
+          isProcessing
         });
       }
     });
@@ -365,20 +337,14 @@ const setupTabListeners = () => {
   // 监听当前tab的URL变化 - 使用防抖
   const debouncedUpdateHandler = debounce(
     async (tabId: number, changeInfo: any, tab: any) => {
-      console.log(
-        "[DEBUG-AI] chrome.tabs.onUpdated 被调用（防抖后），tabId:",
+      logger.debug("chrome.tabs.onUpdated 被调用（防抖后）", {
         tabId,
-        "changeInfo:",
         changeInfo,
-        "tab.active:",
-        tab.active,
-        "tab.url:",
-        tab.url,
-        "lastProcessedUrl:",
+        tabActive: tab.active,
+        tabUrl: tab.url,
         lastProcessedUrl,
-        "isProcessing:",
         isProcessing
-      );
+      });
 
       // 只处理当前活动标签页的URL变化，且页面加载完成时
       if (
@@ -387,10 +353,7 @@ const setupTabListeners = () => {
         tab.url &&
         !isProcessing
       ) {
-        console.log(
-          "[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:",
-          tab.url
-        );
+        logger.debug("检测到URL变化且页面加载完成，处理URL", { url: tab.url });
         lastProcessedUrl = tab.url;
         isProcessing = true;
 
@@ -407,16 +370,16 @@ const setupTabListeners = () => {
           isProcessing = false;
         }
       } else {
-        console.log("[DEBUG-AI] onUpdated跳过处理，原因:", {
+        logger.debug("onUpdated跳过处理", {
           isActive: tab.active,
           statusComplete: changeInfo.status === "complete",
           hasUrl: !!tab.url,
-          isProcessing: isProcessing
+          isProcessing
         });
       }
     },
-    500
-  ); // 减少防抖延迟到500毫秒，提高响应速度
+    UI_CONFIG.DEBOUNCE_DELAY
+  );
 
   browser.tabs.onUpdated.addListener(debouncedUpdateHandler);
 };
@@ -437,7 +400,7 @@ const clearPanelData = () => {
 };
 
 const refreshDataForNewTab = async () => {
-  console.log("[DEBUG] refreshDataForNewTab() 函数被调用");
+  logger.debug("refreshDataForNewTab() 函数被调用");
 
   // 立即清空当前panel数据
   clearPanelData();
@@ -445,28 +408,28 @@ const refreshDataForNewTab = async () => {
   // 获取当前tab的加载状态
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (!tabs || !tabs[0]) {
-    console.log("[DEBUG] 无法获取当前tab信息");
+    logger.debug("无法获取当前tab信息");
     return;
   }
 
   const currentTab = tabs[0];
-  console.log("[DEBUG] 当前tab状态:", currentTab.status);
+  logger.debug("当前tab状态", { status: currentTab.status });
 
   // 检查页面是否正在加载
   if (currentTab.status === "loading") {
-    console.log("[DEBUG] 页面正在加载中，等待页面加载完成");
+    logger.debug("页面正在加载中，等待页面加载完成");
     // 等待页面加载完成
     if (currentTab.id) {
       await waitForTabToLoad(currentTab.id);
-      console.log("[DEBUG] 页面加载完成，开始提取数据");
+      logger.debug("页面加载完成，开始提取数据");
       // 页面加载完成，提取数据
       await handleExtractData();
     } else {
-      console.log("[DEBUG] 无法获取tab ID，直接尝试提取数据");
+      logger.debug("无法获取tab ID，直接尝试提取数据");
       await handleExtractData();
     }
   } else {
-    console.log("[DEBUG] 页面已加载完成，立即提取数据");
+    logger.debug("页面已加载完成，立即提取数据");
     // 页面已加载完成，直接提取数据
     // extractData函数内部会等待DOM完全加载
     await handleExtractData();
@@ -483,10 +446,10 @@ const waitForTabToLoad = (tabId: number) => {
           resolve();
         } else {
           // 继续检查
-          setTimeout(checkTabStatus, 100);
+          setTimeout(checkTabStatus, PERFORMANCE_CONFIG.DOM_READY_CHECK_INTERVAL);
         }
       } catch (error) {
-        console.error("[DEBUG] 检查标签页状态时出错:", error);
+        logger.error("检查标签页状态时出错", error);
         resolve(); // 出错时也resolve，避免无限等待
       }
     };
@@ -543,436 +506,63 @@ watch(isDarkMode, (newValue) => {
 <template>
   <div class="container">
     <!-- 标签页导航 -->
-    <div class="tabs">
-      <button
-        class="tab"
-        :class="{ active: currentTab === 'results' }"
-        @click="switchTab('results')"
-      >
-        网页
-      </button>
-      <button
-        class="tab"
-        :class="{ active: currentTab === 'ai' }"
-        @click="switchTab('ai')"
-      >
-        AI
-      </button>
-      <button
-        class="tab"
-        :class="{ active: currentTab === 'settings' }"
-        @click="switchTab('settings')"
-      >
-        设置
-      </button>
-    </div>
+    <TabNavigation :current-tab="currentTab" @tab-change="switchTab" />
 
     <!-- 网页标签页内容 -->
     <div v-show="currentTab === 'results'" class="tab-content active">
       <!-- 统计信息 -->
-      <div class="stats">
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.imagesCount }}</div>
-          <div class="stat-label">图片</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.linksCount }}</div>
-          <div class="stat-label">链接</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.wordsCount }}</div>
-          <div class="stat-label">字数</div>
-        </div>
-      </div>
+      <StatsDisplay :stats="stats" />
 
       <!-- 网页信息 -->
-      <div class="section">
-        <div class="section-title">
-          <span>网页信息</span>
-          <div>
-            <button class="btn btn-secondary" @click="handleCopyAllData">
-              复制全部
-            </button>
-            <button class="btn btn-primary" @click="handleExportData">
-              导出数据
-            </button>
-          </div>
-        </div>
-        <div class="section-content">
-          <div v-if="extractedData.title">
-            <strong>标题:</strong>
-            <span :title="extractedData.title">
-              {{
-                extractedData.title.length > 50
-                  ? extractedData.title.substring(0, 50) + "..."
-                  : extractedData.title
-              }}
-            </span>
-          </div>
-          <div v-if="extractedData.host">
-            <strong>主域名:</strong> {{ extractedData.host }}
-          </div>
-          <div v-if="extractedData.wordCount">
-            <strong>字数:</strong> {{ extractedData.wordCount }}
-          </div>
-          <div v-if="extractedData.article !== undefined">
-            <strong>文章内容:</strong>
-            <span v-if="extractedData.article" :title="extractedData.article">
-              {{
-                extractedData.article.length > 100
-                  ? extractedData.article.substring(0, 100) + "..."
-                  : extractedData.article
-              }}
-            </span>
-            <span v-else>未找到article标签</span>
-          </div>
-        </div>
-      </div>
+      <WebInfoSection
+        :extracted-data="extractedData"
+        @copy-all-data="handleCopyAllData"
+        @export-data="handleExportData"
+      />
 
       <!-- 图片 -->
-      <div
-        v-if="extractedData.images && extractedData.images.length > 0"
-        class="section"
-      >
-        <div class="section-title">
-          <span>图片</span>
-          <div>
-            <button class="btn btn-secondary" @click="handleViewAllImages">
-              查看全部
-            </button>
-            <button class="btn btn-success" @click="handleDownloadAllImages">
-              下载全部
-            </button>
-          </div>
-        </div>
-        <div class="filter-box">
-          <input
-            type="text"
-            class="filter-input"
-            v-model="imageFilter"
-            placeholder="过滤图片..."
-          />
-        </div>
-        <div class="image-grid">
-          <div
-            v-for="(img, index) in filteredImages"
-            :key="index"
-            class="image-item"
-          >
-            <img :src="img.src" :alt="img.alt || '无描述'" />
-            <div class="image-info">{{ img.width }}x{{ img.height }}</div>
-          </div>
-          <div
-            v-if="
-              extractedData.images.length > 12 && filteredImages.length === 12
-            "
-            class="image-item"
-            style="
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background: var(--markdown-bg-light);
-            "
-          >
-            <div>+{{ extractedData.images.length - 12 }}更多</div>
-          </div>
-        </div>
-      </div>
+      <ImageGrid
+        :extracted-data="extractedData"
+        :image-filter="imageFilter"
+        @update:image-filter="value => imageFilter = value"
+        @view-all-images="handleViewAllImages"
+        @download-all-images="handleDownloadAllImages"
+      />
 
       <!-- 链接 -->
-      <div
-        v-if="extractedData.links && extractedData.links.length > 0"
-        class="section"
-      >
-        <div class="section-title">
-          <span>链接</span>
-          <button class="btn btn-secondary" @click="handleViewAllLinks">
-            查看全部
-          </button>
-        </div>
-        <div class="filter-box">
-          <input
-            type="text"
-            class="filter-input"
-            v-model="linkFilter"
-            placeholder="过滤链接..."
-          />
-        </div>
-        <div class="section-content">
-          <div v-for="(link, index) in filteredLinks" :key="index">
-            <strong :title="link.text"
-              >{{
-                link.text.length > 30
-                  ? link.text.substring(0, 30) + "..."
-                  : link.text
-              }}:</strong
-            >
-            <a :href="link.href" target="_blank" :title="link.href">
-              {{
-                link.href.length > 50
-                  ? link.href.substring(0, 50) + "..."
-                  : link.href
-              }}
-            </a>
-          </div>
-          <div
-            v-if="
-              extractedData.links.length > 10 && filteredLinks.length === 10
-            "
-          >
-            ... 还有 {{ extractedData.links.length - 10 }} 个链接
-          </div>
-        </div>
-      </div>
+      <LinkList
+        :extracted-data="extractedData"
+        :link-filter="linkFilter"
+        @update:link-filter="value => linkFilter = value"
+        @view-all-links="handleViewAllLinks"
+      />
     </div>
 
     <!-- AI标签页内容 -->
     <div v-show="currentTab === 'ai'" class="tab-content active">
-      <div class="section">
-        <div class="section-title">
-          <span>AI总结选项</span>
-        </div>
-
-        <div style="display: flex; gap: 10px; margin-bottom: 15px">
-          <label style="flex: 1; text-align: center; margin: 0">
-            <input type="radio" v-model="aiSummaryType" value="full" /> 全文总结
-          </label>
-          <label style="flex: 1; text-align: center; margin: 0">
-            <input type="radio" v-model="aiSummaryType" value="keyinfo" />
-            关键信息
-          </label>
-        </div>
-
-        <div style="display: flex; gap: 10px">
-          <button
-            class="btn btn-primary"
-            style="flex: 1"
-            @click="handleGenerateAISummary"
-            :disabled="isLoadingAISummary || isExtracting"
-          >
-            <span v-if="isLoadingAISummary">生成中...</span>
-            <span v-else>AI总结</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">
-          <span>AI总结结果</span>
-          <div>
-            <button class="btn btn-secondary" @click="handleCopySummary">
-              复制
-            </button>
-            <button class="btn btn-warning" @click="handleClearCache">
-              清除缓存
-            </button>
-          </div>
-        </div>
-        <div class="section-content">
-          <div
-            v-if="aiSummaryContent"
-            id="streaming-content"
-            v-html="marked.parse(aiSummaryContent)"
-          ></div>
-          <div
-            v-else
-            style="
-              text-align: center;
-              color: var(--markdown-text-light);
-              padding: 20px;
-            "
-          >
-            点击"AI总结"按钮开始生成网页内容总结
-          </div>
-        </div>
-        <!-- 缓存状态和生成时间显示区域 -->
-        <div
-          v-if="aiSummaryStatus"
-          style="
-            font-size: 12px;
-            color: var(--markdown-text-light);
-            margin-top: 10px;
-            text-align: center;
-            padding: 0 15px 15px;
-          "
-        >
-          {{ aiSummaryStatus }}
-        </div>
-      </div>
-
-      <div v-if="isLoadingAISummary" class="section">
-        <div class="section-title">
-          <span>处理状态</span>
-        </div>
-        <div>
-          <div style="display: flex; align-items: center; gap: 10px">
-            <div class="loading-spinner"></div>
-            <span>正在生成AI总结...</span>
-          </div>
-        </div>
-      </div>
+      <AISummaryPanel
+        :ai-summary-content="aiSummaryContent"
+        :ai-summary-status="aiSummaryStatus"
+        :ai-summary-type="aiSummaryType"
+        :isLoadingAISummary="isLoadingAISummary"
+        :isExtracting="isExtracting"
+        @generate-ai-summary="handleGenerateAISummary"
+        @copy-summary="handleCopySummary"
+        @clear-cache="handleClearCache"
+        @update:aiSummaryType="value => aiSummaryType = value"
+      />
     </div>
 
     <!-- 设置标签页内容 -->
     <div v-show="currentTab === 'settings'" class="tab-content active">
-      <div class="section">
-        <div class="section-title">提取选项</div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractHtml" /> HTML内容
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractText" /> 文本内容
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractImages" /> 图片信息
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractLinks" /> 链接信息
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractMeta" /> 元数据
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractArticle" /> 文章内容
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractStyles" /> CSS样式
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">
-            <input type="checkbox" v-model="settings.extractScripts" /> 脚本信息
-          </label>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">应用设置</div>
-
-        <div class="setting-item">
-          <label class="setting-label">显示图片预览</label>
-          <label class="toggle-switch">
-            <input type="checkbox" v-model="settings.showPreviews" />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">暗色模式</label>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              v-model="isDarkModeToggle"
-              @change="handleToggleDarkMode"
-            />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">数据保留时间</label>
-          <select v-model="settings.dataRetention" class="filter-input">
-            <option value="1">1天</option>
-            <option value="7">7天</option>
-            <option value="30">30天</option>
-            <option value="0">永久</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">AI设置</div>
-
-        <div class="setting-item">
-          <label class="setting-label">OpenAI API密钥</label>
-          <input
-            type="password"
-            v-model="settings.openaiApiKey"
-            class="filter-input"
-            placeholder="输入您的OpenAI API密钥"
-          />
-          <div
-            style="
-              font-size: 11px;
-              color: var(--markdown-text-light);
-              margin-top: 5px;
-            "
-          >
-            您的API密钥将安全存储在本地，不会上传到任何服务器
-          </div>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">OpenAI Base URL</label>
-          <input
-            type="text"
-            v-model="settings.openaiBaseUrl"
-            class="filter-input"
-            placeholder="https://api.openai.com/v1"
-          />
-          <div
-            style="
-              font-size: 11px;
-              color: var(--markdown-text-light);
-              margin-top: 5px;
-            "
-          >
-            如需使用自定义API端点，请修改此URL
-          </div>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label">AI模型</label>
-          <input
-            type="text"
-            v-model="settings.aiModel"
-            class="filter-input"
-            placeholder="gpt-3.5-turbo"
-          />
-          <div
-            style="
-              font-size: 11px;
-              color: var(--markdown-text-light);
-              margin-top: 5px;
-            "
-          >
-            输入要使用的AI模型名称，如：gpt-3.5-turbo, gpt-4,
-            claude-3-sonnet-20240229等
-          </div>
-        </div>
-
-        <button class="btn btn-primary" @click="handleSaveSettings">
-          保存设置
-        </button>
-        <button
-          class="btn btn-warning"
-          style="margin-top: 10px"
-          @click="handleClearData"
-        >
-          清除数据
-        </button>
-      </div>
+      <SettingsPanel
+        :settings="settings"
+        :is-dark-mode="isDarkModeToggle"
+        @save-settings="handleSaveSettings"
+        @clear-data="handleClearData"
+        @toggle-dark-mode="handleToggleDarkMode"
+        @update:settings="value => Object.assign(settings, value)"
+      />
     </div>
   </div>
 

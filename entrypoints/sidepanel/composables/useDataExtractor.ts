@@ -1,6 +1,10 @@
 import { ref, Ref } from 'vue';
 import { ExtractedData } from '../types';
 import { browser } from 'wxt/browser';
+import { createLogger } from '../utils/logger';
+
+// 创建日志器
+const logger = createLogger('DataExtractor');
 
 export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
@@ -73,7 +77,7 @@ export function useDataExtractor() {
         return { success: false, message: '无法获取标签页ID' };
       }
     } catch (error) {
-      console.error('提取错误:', error);
+      logger.error('提取错误', error);
       isLoading.value = false;
       return { success: false, message: '提取数据时发生错误' };
     }
@@ -104,17 +108,24 @@ export function useDataExtractor() {
   }): ExtractedData => {
     const data: ExtractedData = {};
 
+    // 缓存常用DOM查询结果
+    const documentElement = document.documentElement;
+    const documentBody = document.body;
+    const documentTitle = document.title;
+
     if (options.html) {
-      data.html = document.documentElement.outerHTML;
+      data.html = documentElement.outerHTML;
     }
 
     if (options.text) {
-      data.text = document.body.innerText;
+      data.text = documentBody.innerText;
       data.wordCount = data.text.length;
     }
 
     if (options.images) {
-      data.images = Array.from(document.images).map(img => ({
+      // 使用Array.from一次性转换HTMLCollection，减少多次访问
+      const images = Array.from(document.images);
+      data.images = images.map(img => ({
         src: img.src,
         alt: img.alt,
         width: img.width,
@@ -125,7 +136,9 @@ export function useDataExtractor() {
     }
 
     if (options.links) {
-      data.links = Array.from(document.links)
+      // 使用Array.from一次性转换HTMLCollection，减少多次访问
+      const links = Array.from(document.links);
+      data.links = links
         .map(link => ({
           href: link.href,
           text: link.textContent.trim(),
@@ -137,6 +150,7 @@ export function useDataExtractor() {
 
     if (options.meta) {
       data.meta = {};
+      // 缓存meta标签查询结果
       const metaTags = document.querySelectorAll('meta');
       metaTags.forEach(tag => {
         const name =
@@ -146,7 +160,7 @@ export function useDataExtractor() {
           data.meta![name] = content;
         }
       });
-      data.title = document.title;
+      data.title = documentTitle;
       data.url = window.location.href;
 
       // 提取主域名
@@ -159,18 +173,20 @@ export function useDataExtractor() {
     }
 
     if (options.styles) {
+      // 缓存样式表查询结果
+      const styleSheets = Array.from(document.styleSheets);
+      const styleElements = Array.from(document.querySelectorAll('style'));
+      
       data.styles = {
-        styleSheets: Array.from(document.styleSheets).map(
-          sheet => sheet.href || 'inline'
-        ),
-        styles: Array.from(document.querySelectorAll('style')).map(
-          style => style.innerHTML
-        ),
+        styleSheets: styleSheets.map(sheet => sheet.href || 'inline'),
+        styles: styleElements.map(style => style.innerHTML),
       };
     }
 
     if (options.scripts) {
-      data.scripts = Array.from(document.scripts).map(script => ({
+      // 缓存脚本查询结果
+      const scripts = Array.from(document.scripts);
+      data.scripts = scripts.map(script => ({
         src: script.src,
         type: script.type,
         async: script.async,

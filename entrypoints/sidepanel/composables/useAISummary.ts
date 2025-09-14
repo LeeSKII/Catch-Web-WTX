@@ -1,10 +1,15 @@
 import { ref, Ref } from 'vue';
 import { AISummaryData, NewsData } from '../types';
 import {createClient} from '@supabase/supabase-js';
+import { createLogger } from '../utils/logger';
+import { API_CONFIG } from '../constants';
 
 declare const chrome: any;
 declare const marked: any;
 declare const supabase: any;
+
+// 创建日志器
+const logger = createLogger('AISummary');
 
 export function useAISummary() {
   const isLoadingAISummary: Ref<boolean> = ref(false);
@@ -19,7 +24,7 @@ export function useAISummary() {
   );
 
   const getNews = async (url: string): Promise<NewsData[]> => {
-    console.log('[DEBUG-AI] getNews() 被调用，URL:', url);
+    logger.debug('getNews() 被调用', { url });
     try {
       const { data, error } = await client
         .from('News')
@@ -27,29 +32,29 @@ export function useAISummary() {
         .eq('url', url);
       
       if (error) {
-        console.error('[DEBUG-AI] 数据库查询错误:', error);
+        logger.error('数据库查询错误', error);
         return [];
       }
       
-      console.log('[DEBUG-AI] 数据库查询结果:', data);
+      logger.debug('数据库查询结果', data);
       return data || [];
     } catch (error) {
-      console.error('[DEBUG-AI] getNews() 异常:', error);
+      logger.error('getNews() 异常', error);
       return [];
     }
   };
 
   const displayNewsSummarizer = (summarizerData: NewsData[]): boolean => {
-    console.log('[DEBUG-AI] displayNewsSummarizer() 被调用，数据:', summarizerData);
+    logger.debug('displayNewsSummarizer() 被调用', { data: summarizerData });
     
     if (!summarizerData || summarizerData.length === 0) {
-      console.log('[DEBUG-AI] 没有summarizer数据，返回false');
+      logger.debug('没有summarizer数据，返回false');
       return false; // 没有数据，返回false
     }
 
     const summarizer = summarizerData[0].summarizer;
     if (!summarizer) {
-      console.log('[DEBUG-AI] summarizer内容为空，返回false');
+      logger.debug('summarizer内容为空，返回false');
       return false; // 没有summarizer内容，返回false
     }
 
@@ -69,14 +74,14 @@ export function useAISummary() {
 
     try {
       if (!content) {
-        console.log('[DEBUG] 未识别到任何需要总结的数据');
+        logger.debug('未识别到任何需要总结的数据');
         isLoadingAISummary.value = false;
         return { success: false, message: '未识别到任何需要总结的数据' };
       }
 
       // 检查是否已提取数据
       if (Object.keys(extractedData).length === 0) {
-        console.log('[DEBUG] 请先提取网页数据');
+        logger.debug('请先提取网页数据');
         isLoadingAISummary.value = false;
         return { success: false, message: '请先提取网页数据' };
       }
@@ -84,7 +89,7 @@ export function useAISummary() {
       // 检查API密钥
       const apiKey = localStorage.getItem('openaiApiKey');
       if (!apiKey) {
-        console.log('[DEBUG] 请先在设置中配置OpenAI API密钥');
+        logger.debug('请先在设置中配置OpenAI API密钥');
         isLoadingAISummary.value = false;
         return { success: false, message: '请先在设置中配置OpenAI API密钥' };
       }
@@ -111,15 +116,15 @@ export function useAISummary() {
       isLoadingAISummary.value = false;
       return result;
     } catch (error) {
-      console.error('生成AI总结时出错:', error);
+      logger.error('生成AI总结时出错', error);
       isLoadingAISummary.value = false;
       return { success: false, message: '生成AI总结时出错' };
     }
   };
 
   const callOpenAI = async (apiKey: string, system_prompt: string, input: string) => {
-    const model = localStorage.getItem('aiModel') || 'deepseek-chat';
-    const baseUrl = localStorage.getItem('openaiBaseUrl') || 'https://api.deepseek.com';
+    const model = localStorage.getItem('aiModel') || API_CONFIG.DEFAULT_MODEL;
+    const baseUrl = localStorage.getItem('openaiBaseUrl') || API_CONFIG.DEFAULT_BASE_URL;
     const apiUrl = `${baseUrl}/chat/completions`;
 
     try {
@@ -139,8 +144,8 @@ export function useAISummary() {
             },
           ],
           stream: true,
-          max_tokens: 5000,
-          temperature: 0.7,
+          max_tokens: API_CONFIG.MAX_TOKENS,
+          temperature: API_CONFIG.TEMPERATURE,
         }),
       });
 
@@ -192,7 +197,7 @@ export function useAISummary() {
         }
       }
     } catch (error) {
-      console.error('OpenAI API调用失败:', error);
+      logger.error('OpenAI API调用失败', error);
       return { success: false, message: error instanceof Error ? error.message : 'API调用失败' };
     }
   };
@@ -230,10 +235,10 @@ export function useAISummary() {
   };
 
   const loadAndDisplayAISummary = async (url: string, source: string = 'unknown') => {
-    console.log(`[DEBUG-AI] loadAndDisplayAISummary() 被调用，来源: ${source}, URL: ${url}`);
+    logger.debug('loadAndDisplayAISummary() 被调用', { source, url });
     
     if (isLoadingAISummary.value) {
-      console.log('[DEBUG-AI] 正在加载AI总结，跳过此次请求');
+      logger.debug('正在加载AI总结，跳过此次请求');
       return { success: false, message: '正在加载AI总结' };
     }
     
@@ -244,22 +249,22 @@ export function useAISummary() {
       const summaryData = loadAISummary(url, aiSummaryType.value);
       
       if (summaryData) {
-        console.log(`[DEBUG-AI] 从${source}的storage中找到总结数据`);
+        logger.debug(`从${source}的storage中找到总结数据`);
         aiSummaryContent.value = summaryData.content;
         aiSummaryStatus.value = `缓存内容 - ${new Date(summaryData.createdAt).toLocaleString()}`;
         isLoadingAISummary.value = false;
         return { success: true, fromCache: true };
       } else {
-        console.log(`[DEBUG-AI] 从${source}的storage中没有数据，尝试从数据库加载`);
+        logger.debug(`从${source}的storage中没有数据，尝试从数据库加载`);
         // 如果storage中没有，再从数据库加载summarizer
         const newsData = await getNews(url);
         
         if (displayNewsSummarizer(newsData)) {
-          console.log(`[DEBUG-AI] 从${source}的数据库中成功显示summarizer数据`);
+          logger.debug(`从${source}的数据库中成功显示summarizer数据`);
           isLoadingAISummary.value = false;
           return { success: true, fromDatabase: true };
         } else {
-          console.log(`[DEBUG-AI] 从${source}的数据库中也没有summarizer数据`);
+          logger.debug(`从${source}的数据库中也没有summarizer数据`);
           aiSummaryContent.value = '';
           aiSummaryStatus.value = '';
           isLoadingAISummary.value = false;
@@ -267,7 +272,7 @@ export function useAISummary() {
         }
       }
     } catch (error) {
-      console.error(`[DEBUG-AI] 从${source}加载AI总结时出错:`, error);
+      logger.error(`从${source}加载AI总结时出错`, error);
       aiSummaryContent.value = '';
       aiSummaryStatus.value = '';
       isLoadingAISummary.value = false;
