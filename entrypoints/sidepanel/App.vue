@@ -5,7 +5,7 @@ import { useTheme } from "./composables/useTheme";
 import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
 import { useAISummary } from "./composables/useAISummary";
-import { marked } from 'marked';
+import { marked } from "marked";
 
 // 声明全局变量
 declare const chrome: any;
@@ -265,11 +265,6 @@ const handleSaveSettings = () => {
   success("设置已保存！");
 };
 
-const handleSaveExtractSettings = () => {
-  saveSettings();
-  success("提取设置已保存！");
-};
-
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
   let timeoutId: NodeJS.Timeout;
@@ -298,7 +293,7 @@ const setupTabListeners = () => {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
         lastProcessedUrl = tab.url;
         isProcessing = true;
-        
+
         try {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
           await refreshDataForNewTab();
@@ -311,36 +306,48 @@ const setupTabListeners = () => {
   });
 
   // 监听当前tab的URL变化 - 使用防抖
-  const debouncedUpdateHandler = debounce(async (tabId: number, changeInfo: any, tab: any) => {
-    console.log(
-      "[DEBUG-AI] chrome.tabs.onUpdated 被调用（防抖后），tabId:",
-      tabId,
-      "changeInfo:",
-      changeInfo,
-      "tab.active:",
-      tab.active
-    );
+  const debouncedUpdateHandler = debounce(
+    async (tabId: number, changeInfo: any, tab: any) => {
+      console.log(
+        "[DEBUG-AI] chrome.tabs.onUpdated 被调用（防抖后），tabId:",
+        tabId,
+        "changeInfo:",
+        changeInfo,
+        "tab.active:",
+        tab.active
+      );
 
-    // 只处理当前活动标签页的URL变化，且页面加载完成时
-    if (tab.active && changeInfo.status === "complete" && tab.url && tab.url !== lastProcessedUrl && !isProcessing) {
-      console.log("[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:", tab.url);
-      lastProcessedUrl = tab.url;
-      isProcessing = true;
-      
-      try {
-        // 清空面板内容
-        clearPanelData();
-        
-        // 刷新数据
-        await refreshDataForNewTab();
-        
-        // 加载AI总结
-        await loadAndDisplayAISummary(tab.url, "URL更新");
-      } finally {
-        isProcessing = false;
+      // 只处理当前活动标签页的URL变化，且页面加载完成时
+      if (
+        tab.active &&
+        changeInfo.status === "complete" &&
+        tab.url &&
+        tab.url !== lastProcessedUrl &&
+        !isProcessing
+      ) {
+        console.log(
+          "[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:",
+          tab.url
+        );
+        lastProcessedUrl = tab.url;
+        isProcessing = true;
+
+        try {
+          // 清空面板内容
+          clearPanelData();
+
+          // 刷新数据
+          await refreshDataForNewTab();
+
+          // 加载AI总结
+          await loadAndDisplayAISummary(tab.url, "URL更新");
+        } finally {
+          isProcessing = false;
+        }
       }
-    }
-  }, 1000); // 1秒防抖延迟
+    },
+    1000
+  ); // 1秒防抖延迟
 
   chrome.tabs.onUpdated.addListener(debouncedUpdateHandler);
 };
@@ -713,7 +720,14 @@ watch(isDarkMode, (newValue) => {
             id="streaming-content"
             v-html="marked.parse(aiSummaryContent)"
           ></div>
-          <div v-else style="text-align: center; color: var(--markdown-text-light); padding: 20px">
+          <div
+            v-else
+            style="
+              text-align: center;
+              color: var(--markdown-text-light);
+              padding: 20px;
+            "
+          >
             点击"AI总结"按钮开始生成网页内容总结
           </div>
         </div>
@@ -797,23 +811,6 @@ watch(isDarkMode, (newValue) => {
             <input type="checkbox" v-model="settings.extractScripts" /> 脚本信息
           </label>
         </div>
-
-        <div style="display: flex; gap: 10px; margin-top: 10px">
-          <button
-            class="btn btn-primary"
-            style="flex: 1"
-            @click="handleExtractData"
-          >
-            <span>🔍</span> 开始提取
-          </button>
-          <button
-            class="btn btn-secondary"
-            style="flex: 1"
-            @click="handleSaveExtractSettings"
-          >
-            <span>💾</span> 保存设置
-          </button>
-        </div>
       </div>
 
       <div class="section">
@@ -861,7 +858,13 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="输入您的OpenAI API密钥"
           />
-          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
+          <div
+            style="
+              font-size: 11px;
+              color: var(--markdown-text-light);
+              margin-top: 5px;
+            "
+          >
             您的API密钥将安全存储在本地，不会上传到任何服务器
           </div>
         </div>
@@ -874,7 +877,13 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="https://api.openai.com/v1"
           />
-          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
+          <div
+            style="
+              font-size: 11px;
+              color: var(--markdown-text-light);
+              margin-top: 5px;
+            "
+          >
             如需使用自定义API端点，请修改此URL
           </div>
         </div>
@@ -887,7 +896,13 @@ watch(isDarkMode, (newValue) => {
             class="filter-input"
             placeholder="gpt-3.5-turbo"
           />
-          <div style="font-size: 11px; color: var(--markdown-text-light); margin-top: 5px">
+          <div
+            style="
+              font-size: 11px;
+              color: var(--markdown-text-light);
+              margin-top: 5px;
+            "
+          >
             输入要使用的AI模型名称，如：gpt-3.5-turbo, gpt-4,
             claude-3-sonnet-20240229等
           </div>
