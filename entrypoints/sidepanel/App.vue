@@ -270,6 +270,19 @@ const handleSaveExtractSettings = () => {
   success("提取设置已保存！");
 };
 
+// 防抖函数
+const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  };
+};
+
+// 记录上一次处理的URL，避免重复处理
+let lastProcessedUrl = "";
+let isProcessing = false;
+
 // 监听器
 const setupTabListeners = () => {
   // 监听浏览器tab切换事件
@@ -279,46 +292,57 @@ const setupTabListeners = () => {
       activeInfo.tabId
     );
 
-    // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
-    await refreshDataForNewTab();
-
-    // 获取当前tab的URL并调用统一的AI总结加载函数
+    // 获取当前tab的URL
     chrome.tabs.get(activeInfo.tabId, async (tab: any) => {
-      if (tab && tab.url) {
+      if (tab && tab.url && tab.url !== lastProcessedUrl && !isProcessing) {
         console.log("[DEBUG-AI] Tab切换时URL:", tab.url);
-        await loadAndDisplayAISummary(tab.url, "Tab切换");
+        lastProcessedUrl = tab.url;
+        isProcessing = true;
+        
+        try {
+          // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
+          await refreshDataForNewTab();
+          await loadAndDisplayAISummary(tab.url, "Tab切换");
+        } finally {
+          isProcessing = false;
+        }
       }
     });
   });
 
-  // 监听当前tab的URL变化
-  chrome.tabs.onUpdated.addListener(
-    async (tabId: number, changeInfo: any, tab: any) => {
-      console.log(
-        "[DEBUG-AI] chrome.tabs.onUpdated 被调用，tabId:",
-        tabId,
-        "changeInfo:",
-        changeInfo,
-        "tab.active:",
-        tab.active
-      );
+  // 监听当前tab的URL变化 - 使用防抖
+  const debouncedUpdateHandler = debounce(async (tabId: number, changeInfo: any, tab: any) => {
+    console.log(
+      "[DEBUG-AI] chrome.tabs.onUpdated 被调用（防抖后），tabId:",
+      tabId,
+      "changeInfo:",
+      changeInfo,
+      "tab.active:",
+      tab.active
+    );
 
-      // 如果URL发生变化且是当前活动标签页，立即清空面板内容
-      if (changeInfo.url && tab.active) {
-        console.log("[DEBUG-AI] 检测到URL变化，立即清空面板内容");
+    // 只处理当前活动标签页的URL变化，且页面加载完成时
+    if (tab.active && changeInfo.status === "complete" && tab.url && tab.url !== lastProcessedUrl && !isProcessing) {
+      console.log("[DEBUG-AI] 检测到URL变化且页面加载完成，处理URL:", tab.url);
+      lastProcessedUrl = tab.url;
+      isProcessing = true;
+      
+      try {
+        // 清空面板内容
         clearPanelData();
-      }
-
-      // 立即刷新数据
-      await refreshDataForNewTab();
-
-      // 获取当前URL并调用统一的AI总结加载函数
-      if (tab.url) {
-        console.log("[DEBUG-AI] URL更新时处理URL:", tab.url);
+        
+        // 刷新数据
+        await refreshDataForNewTab();
+        
+        // 加载AI总结
         await loadAndDisplayAISummary(tab.url, "URL更新");
+      } finally {
+        isProcessing = false;
       }
     }
-  );
+  }, 1000); // 1秒防抖延迟
+
+  chrome.tabs.onUpdated.addListener(debouncedUpdateHandler);
 };
 
 const removeTabListeners = () => {
@@ -353,21 +377,14 @@ const refreshDataForNewTab = async () => {
 
   // 检查页面是否正在加载
   if (currentTab.status === "loading") {
-    console.log("[DEBUG] 页面正在加载中，保持loading状态");
-
-    // 等待页面加载完成
+    console.log("[DEBUG] 页面正在加载中，等待加载完成");
+    // 等待页面加载完成，但不在这里调用handleExtractData
+    // 因为onUpdated监听器会在页面加载完成后触发
     await waitForPageLoadComplete(currentTab.id);
   } else {
     console.log("[DEBUG] 页面已加载完成，立即提取数据");
-
-    // 延迟执行以确保新页面已完全加载
-    setTimeout(async () => {
-      console.log(
-        "[DEBUG] 在refreshDataForNewTab的setTimeout中调用extractData()"
-      );
-      // 提取新页面的数据
-      await handleExtractData();
-    }, 500);
+    // 页面已加载完成，直接提取数据
+    await handleExtractData();
   }
 };
 
@@ -377,7 +394,8 @@ const waitForPageLoadComplete = (tabId: number) => {
   // 设置超时时间，防止无限等待
   const timeout = setTimeout(() => {
     console.log("[DEBUG] 页面加载超时，强制执行数据提取");
-    proceedWithDataExtraction();
+    // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
+    // 这里只是记录日志，避免重复调用
   }, 30000); // 30秒超时
 
   // 监听tab更新事件
@@ -386,7 +404,8 @@ const waitForPageLoadComplete = (tabId: number) => {
       console.log("[DEBUG] 检测到页面加载完成");
       clearTimeout(timeout);
       chrome.tabs.onUpdated.removeListener(updateListener);
-      proceedWithDataExtraction();
+      // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
+      // 这里只是记录日志，避免重复调用
     }
   };
 
@@ -405,7 +424,8 @@ const waitForPageLoadComplete = (tabId: number) => {
       console.log("[DEBUG] 当前tab已经加载完成");
       clearTimeout(timeout);
       chrome.tabs.onUpdated.removeListener(updateListener);
-      proceedWithDataExtraction();
+      // 不再调用proceedWithDataExtraction，因为onUpdated监听器会处理
+      // 这里只是记录日志，避免重复调用
     }
   });
 };
@@ -416,12 +436,8 @@ const proceedWithDataExtraction = async () => {
   // 提取新页面的数据
   await handleExtractData();
 
-  // 获取当前URL的新闻数据
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tabs && tabs[0] && tabs[0].url) {
-    console.log("[DEBUG-AI] proceedWithDataExtraction中处理URL:", tabs[0].url);
-    await loadAndDisplayAISummary(tabs[0].url, "proceedWithDataExtraction");
-  }
+  // 注意：不再在这里调用loadAndDisplayAISummary，因为监听器已经处理了
+  // 避免重复调用导致多次toast提示
 };
 
 // 生命周期钩子
@@ -441,8 +457,8 @@ onMounted(async () => {
   // 设置标签页监听器
   setupTabListeners();
 
-  // 默认自动提取
-  await handleExtractData();
+  // 移除了默认自动提取，避免与监听器冲突
+  // 监听器会自动触发数据提取
 });
 
 onUnmounted(() => {
