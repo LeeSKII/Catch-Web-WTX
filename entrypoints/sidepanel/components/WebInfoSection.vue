@@ -6,15 +6,23 @@
         <button class="btn btn-secondary" @click="$emit('copy-all-data')">
           复制全部
         </button>
-        <button class="btn btn-refresh" @click="$emit('refresh-data')">
-          刷新数据
+        <button
+          :class="['btn btn-refresh', { 'btn-loading': isRefreshButtonDisabled }]"
+          @click="handleRefreshData"
+          :disabled="isRefreshButtonDisabled"
+        >
+          {{ isRefreshButtonDisabled ? '刷新中' : '刷新数据' }}
         </button>
         <button
           v-if="extractedData.isBookmarked !== undefined"
-          :class="extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark'"
+          :class="[
+            extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark',
+            { 'btn-loading': isBookmarkButtonDisabled }
+          ]"
           @click="handleBookmarkAction"
+          :disabled="isBookmarkButtonDisabled"
         >
-          {{ extractedData.isBookmarked ? '更新' : '收藏' }}
+          {{ isBookmarkButtonDisabled ? (extractedData.isBookmarked ? '更新中' : '收藏中') : (extractedData.isBookmarked ? '更新' : '收藏') }}
         </button>
         <button class="btn btn-primary" @click="$emit('export-data')">
           导出数据
@@ -67,11 +75,34 @@ const emit = defineEmits<{
   'bookmark-action': [isBookmarked: boolean];
 }>();
 
+// 按钮禁用状态
+const isBookmarkButtonDisabled = ref(false);
+const isRefreshButtonDisabled = ref(false);
+
 const handleBookmarkAction = () => {
-  if (props.extractedData.isBookmarked !== undefined) {
+  if (props.extractedData.isBookmarked !== undefined && !isBookmarkButtonDisabled.value) {
+    isBookmarkButtonDisabled.value = true;
     emit('bookmark-action', props.extractedData.isBookmarked);
   }
 };
+
+const handleRefreshData = () => {
+  if (!isRefreshButtonDisabled.value) {
+    isRefreshButtonDisabled.value = true;
+    emit('refresh-data');
+  }
+};
+
+// 重置按钮状态的方法
+const resetButtonStates = () => {
+  isBookmarkButtonDisabled.value = false;
+  isRefreshButtonDisabled.value = false;
+};
+
+// 暴露方法给父组件
+defineExpose({
+  resetButtonStates
+});
 </script>
 
 <style scoped>
@@ -164,5 +195,19 @@ const handleBookmarkAction = () => {
 .btn-update:hover {
   background: #138496;
   border-color: #138496;
+}
+
+.btn-loading {
+  background: #6c757d !important;
+  color: white !important;
+  border-color: #6c757d !important;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.btn-loading:hover {
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+  transform: none;
 }
 </style>

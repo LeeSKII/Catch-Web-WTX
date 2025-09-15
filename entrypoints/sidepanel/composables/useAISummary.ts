@@ -316,6 +316,7 @@ export function useAISummary() {
     generateAISummary,
     saveAISummary,
     loadAISummary,
+    getNews,
     clearAISummaryCache,
     loadAndDisplayAISummary,
   };

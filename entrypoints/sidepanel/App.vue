@@ -15,6 +15,7 @@ import { createClient } from "@supabase/supabase-js";
 import TabNavigation from "./components/TabNavigation.vue";
 import StatsDisplay from "./components/StatsDisplay.vue";
 import WebInfoSection from "./components/WebInfoSection.vue";
+import type { ExtractedData } from "./types";
 import ImageGrid from "./components/ImageGrid.vue";
 import LinkList from "./components/LinkList.vue";
 import AISummaryPanel from "./components/AISummaryPanel.vue";
@@ -53,6 +54,8 @@ const {
   aiSummaryStatus,
   aiSummaryType,
   generateAISummary,
+  loadAISummary,
+  getNews,
   loadAndDisplayAISummary,
   clearAISummaryCache,
 } = useAISummary();
@@ -63,6 +66,7 @@ const imageFilter = ref("");
 const linkFilter = ref("");
 const isDarkModeToggle = ref(false);
 const isPageLoading = ref(false); // 新增：页面加载状态
+const webInfoSectionRef = ref<InstanceType<typeof WebInfoSection> | null>(null);
 
 // 计算属性
 const stats = computed(() => ({
@@ -77,33 +81,43 @@ const switchTab = (tabName: string) => {
 };
 
 const handleExtractData = async () => {
-  const options = {
-    html: settings.extractHtml,
-    text: settings.extractText,
-    images: settings.extractImages,
-    links: settings.extractLinks,
-    meta: settings.extractMeta,
-    styles: settings.extractStyles,
-    scripts: settings.extractScripts,
-    article: settings.extractArticle,
-  };
+  try {
+    const options = {
+      html: settings.extractHtml,
+      text: settings.extractText,
+      images: settings.extractImages,
+      links: settings.extractLinks,
+      meta: settings.extractMeta,
+      styles: settings.extractStyles,
+      scripts: settings.extractScripts,
+      article: settings.extractArticle,
+    };
 
-  const result = await extractData(options);
+    const result = await extractData(options);
 
-  if (result.success && result.data) {
-    success("数据提取成功！");
-    saveExtractedData(result.data);
+    if (result.success && result.data) {
+      success("数据提取成功！");
+      saveExtractedData(result.data);
 
-    // 加载当前页面的AI总结
-    const tabs = await browser.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (tabs && tabs[0] && tabs[0].url) {
-      await loadAndDisplayAISummary(tabs[0].url, "数据提取");
+      // 加载当前页面的AI总结
+      const tabs = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (tabs && tabs[0] && tabs[0].url) {
+        await loadAndDisplayAISummary(tabs[0].url, "数据提取");
+      }
+    } else {
+      error(result.message || "数据提取失败");
     }
-  } else {
-    error(result.message || "数据提取失败");
+  } catch (err) {
+    logger.error("数据提取过程中出错", err);
+    error("数据提取失败，请重试");
+  } finally {
+    // 重置刷新按钮状态
+    if (webInfoSectionRef.value) {
+      webInfoSectionRef.value.resetButtonStates();
+    }
   }
 };
 
@@ -273,18 +287,72 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
       const originalType = aiSummaryType.value;
       aiSummaryType.value = "keyinfo";
       
-      // 生成关键信息总结
-      const result = await generateAISummary(
-        extractedData.value.text || "",
-        extractedData.value
-      );
-      
-      if (result && result.success) {
-        aiKeyInfo = aiSummaryContent.value;
+      try {
+        // 生成关键信息总结
+        const result = await generateAISummary(
+          extractedData.value.text || "",
+          extractedData.value
+        );
+        
+        if (result && result.success) {
+          aiKeyInfo = aiSummaryContent.value;
+        }
+      } catch (summaryError) {
+        logger.error("生成关键信息总结失败", summaryError);
+        // 继续执行，不阻止收藏/更新操作
+      } finally {
+        // 恢复原始类型
+        aiSummaryType.value = originalType;
       }
-      
-      // 恢复原始类型
-      aiSummaryType.value = originalType;
+    }
+
+    // 获取AI全文总结
+    let summarizer = null;
+    
+    // 首先尝试从缓存中获取全文总结
+    const fullSummaryFromCache = loadAISummary(extractedData.value.url || "", "full");
+    if (fullSummaryFromCache && fullSummaryFromCache.content) {
+      summarizer = fullSummaryFromCache.content;
+      logger.debug("从缓存中获取到全文总结");
+    } else {
+      // 如果缓存中没有，尝试从数据库获取
+      try {
+        const newsData = await getNews(extractedData.value.url || "");
+        if (newsData && newsData.length > 0 && newsData[0].summarizer) {
+          summarizer = newsData[0].summarizer;
+          logger.debug("从数据库中获取到全文总结");
+        } else if (aiSummaryType.value === "full" && aiSummaryContent.value) {
+          // 如果数据库中没有，但当前显示的是全文总结，则使用当前内容
+          summarizer = aiSummaryContent.value;
+          logger.debug("使用当前显示的全文总结");
+        } else if (extractedData.value.text) {
+          // 如果以上都没有，但文本内容存在，尝试生成全文总结
+          const originalType = aiSummaryType.value;
+          aiSummaryType.value = "full";
+          
+          try {
+            // 生成全文总结
+            const result = await generateAISummary(
+              extractedData.value.text,
+              extractedData.value
+            );
+            
+            if (result && result.success) {
+              summarizer = aiSummaryContent.value;
+              logger.debug("成功生成新的全文总结");
+            }
+          } catch (summaryError) {
+            logger.error("生成全文总结失败", summaryError);
+            // 继续执行，不阻止收藏/更新操作
+          } finally {
+            // 恢复原始类型
+            aiSummaryType.value = originalType;
+          }
+        }
+      } catch (error) {
+        logger.error("获取全文总结时出错", error);
+        // 继续执行，不阻止收藏/更新操作
+      }
     }
 
     if (isBookmarked) {
@@ -303,6 +371,7 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
           host: extractedData.value.host,
           word_count: extractedData.value.wordCount,
           ai_key_info: aiKeyInfo,
+          summarizer: summarizer,
         })
         .eq("url", extractedData.value.url)
         .select();
@@ -329,6 +398,7 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
           host: extractedData.value.host,
           word_count: extractedData.value.wordCount,
           ai_key_info: aiKeyInfo,
+          summarizer: summarizer,
         })
         .select();
 
@@ -344,6 +414,11 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
   } catch (err) {
     logger.error("收藏/更新操作出错", err);
     error("操作失败，请重试");
+  } finally {
+    // 重置收藏/更新按钮状态
+    if (webInfoSectionRef.value) {
+      webInfoSectionRef.value.resetButtonStates();
+    }
   }
 };
 
@@ -641,6 +716,7 @@ watch(isDarkMode, (newValue) => {
 
       <!-- 网页信息 -->
       <WebInfoSection
+        ref="webInfoSectionRef"
         :extracted-data="extractedData"
         @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
