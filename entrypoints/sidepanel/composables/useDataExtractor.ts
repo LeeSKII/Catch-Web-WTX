@@ -2,9 +2,16 @@ import { ref, Ref } from 'vue';
 import { ExtractedData } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
+import { createClient } from '@supabase/supabase-js';
 
 // 创建日志器
 const logger = createLogger('DataExtractor');
+
+// Supabase初始化
+const client = createClient(
+  "https://jnzoquhmgpjbqcabgxrd.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
+);
 
 export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
@@ -66,6 +73,13 @@ export function useDataExtractor() {
 
         if (results && results[0] && results[0].result) {
           extractedData.value = results[0].result as ExtractedData;
+          
+          // 查询收藏状态
+          if (extractedData.value.url) {
+            const isBookmarked = await checkBookmarkStatus(extractedData.value.url);
+            extractedData.value.isBookmarked = isBookmarked;
+          }
+          
           isLoading.value = false;
           return { success: true, data: extractedData.value };
         } else {
@@ -80,6 +94,26 @@ export function useDataExtractor() {
       logger.error('提取错误', error);
       isLoading.value = false;
       return { success: false, message: '提取数据时发生错误' };
+    }
+  };
+
+  // 查询URL是否在News表中
+  const checkBookmarkStatus = async (url: string): Promise<boolean> => {
+    try {
+      const { data, error } = await client
+        .from("News")
+        .select("url")
+        .eq("url", url);
+
+      if (error) {
+        logger.error("数据库查询错误", error);
+        return false;
+      }
+
+      return data && data.length > 0;
+    } catch (error) {
+      logger.error("checkBookmarkStatus() 异常", error);
+      return false;
     }
   };
 

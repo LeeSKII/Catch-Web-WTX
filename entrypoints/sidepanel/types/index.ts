@@ -14,6 +14,7 @@ export interface ExtractedData {
   scripts?: ScriptData[];
   article?: string | null;
   extractedAt?: string;
+  isBookmarked?: boolean;
 }
 
 export interface ImageData {

@@ -183,8 +183,10 @@ export function useAISummary() {
               });
               if (tabs && tabs[0]) {
                 const url = tabs[0].url;
-                saveAISummary(url, accumulatedContent, aiSummaryType.value);
-                aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
+                if (url) {
+                  saveAISummary(url, accumulatedContent, aiSummaryType.value);
+                  aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
+                }
               }
               return { success: true, content: accumulatedContent };
             }
