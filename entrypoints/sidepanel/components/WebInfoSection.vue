@@ -6,6 +6,9 @@
         <button class="btn btn-secondary" @click="$emit('copy-all-data')">
           复制全部
         </button>
+        <button class="btn btn-refresh" @click="$emit('refresh-data')">
+          刷新数据
+        </button>
         <button class="btn btn-primary" @click="$emit('export-data')">
           导出数据
         </button>
@@ -52,6 +55,7 @@ defineProps<{
 
 defineEmits<{
   'copy-all-data': [];
+  'refresh-data': [];
   'export-data': [];
 }>();
 </script>
@@ -112,5 +116,19 @@ defineEmits<{
 .btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+}
+
+.btn-refresh {
+  background: #ff6b35;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #ff6b35;
+  box-shadow: 0 2px 5px rgba(255, 107, 53, 0.3);
+}
+
+.btn-refresh:hover {
+  background: #e55a2b;
+  border-color: #e55a2b;
+  box-shadow: 0 4px 8px rgba(255, 107, 53, 0.4);
 }
 </style>

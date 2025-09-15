@@ -546,6 +546,7 @@ watch(isDarkMode, (newValue) => {
       <WebInfoSection
         :extracted-data="extractedData"
         @copy-all-data="handleCopyAllData"
+        @refresh-data="handleExtractData"
         @export-data="handleExportData"
       />
 
