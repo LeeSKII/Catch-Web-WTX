@@ -356,59 +356,6 @@ const setupTabListeners = () => {
     });
   });
 
-  // 监听当前tab的URL变化 - 使用防抖
-  const debouncedUpdateHandler = debounce(
-    async (tabId: number, changeInfo: any, tab: any) => {
-      logger.debug("chrome.tabs.onUpdated 被调用（防抖后）", {
-        tabId,
-        changeInfo,
-        tabActive: tab.active,
-        tabUrl: tab.url,
-        lastProcessedUrl,
-        isProcessing,
-      });
-
-      // 处理当前活动标签页的URL变化
-      if (tab.active && tab.url && !isProcessing) {
-        // 检测页面开始loading状态
-        if (changeInfo.status === "loading") {
-          logger.debug("检测到页面开始loading，清空UI数据", { url: tab.url });
-          isPageLoading.value = true;
-          clearPanelData();
-        }
-
-        // 页面加载完成时
-        if (changeInfo.status === "complete") {
-          logger.debug("检测到URL变化且页面加载完成，处理URL", {
-            url: tab.url,
-          });
-          lastProcessedUrl = tab.url;
-          isProcessing = true;
-          isPageLoading.value = false;
-
-          try {
-            // 刷新数据
-            await refreshDataForNewTab();
-
-            // 加载AI总结
-            await loadAndDisplayAISummary(tab.url, "URL更新");
-          } finally {
-            isProcessing = false;
-          }
-        }
-      } else {
-        logger.debug("onUpdated跳过处理", {
-          isActive: tab.active,
-          status: changeInfo.status,
-          hasUrl: !!tab.url,
-          isProcessing,
-        });
-      }
-    },
-    UI_CONFIG.DEBOUNCE_DELAY
-  );
-
-  browser.tabs.onUpdated.addListener(debouncedUpdateHandler);
 
   // 添加webNavigation API监听器
   if (browser.webNavigation) {
@@ -495,7 +442,13 @@ const setupTabListeners = () => {
 const removeTabListeners = () => {
   browser.tabs.onCreated.removeListener(() => {});
   browser.tabs.onActivated.removeListener(() => {});
-  browser.tabs.onUpdated.removeListener(() => {});
+  
+  // 移除webNavigation监听器
+  if (browser.webNavigation) {
+    browser.webNavigation.onCommitted.removeListener(() => {});
+    browser.webNavigation.onCompleted.removeListener(() => {});
+    browser.webNavigation.onErrorOccurred.removeListener(() => {});
+  }
 };
 
 const clearPanelData = () => {
