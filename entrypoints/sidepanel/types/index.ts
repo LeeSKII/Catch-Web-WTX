@@ -83,4 +83,5 @@ export interface AISummaryData {
 export interface NewsData {
   url: string;
   summarizer: string;
+  ai_key_info?: string;
 }

@@ -1,5 +1,5 @@
 import { ref, Ref } from 'vue';
-import { ExtractedData } from '../types';
+import { ExtractedData, NewsData } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
 import { createClient } from '@supabase/supabase-js';
@@ -97,12 +97,12 @@ export function useDataExtractor() {
     }
   };
 
-  // 查询URL是否在News表中
+  // 查询URL是否在News表中，并获取相关数据
   const checkBookmarkStatus = async (url: string): Promise<boolean> => {
     try {
       const { data, error } = await client
         .from("News")
-        .select("url")
+        .select("url, summarizer, ai_key_info")
         .eq("url", url);
 
       if (error) {
@@ -110,7 +110,37 @@ export function useDataExtractor() {
         return false;
       }
 
-      return data && data.length > 0;
+      if (data && data.length > 0) {
+        const newsData = data[0] as NewsData;
+        
+        // 如果有summarizer数据，保存到storage中
+        if (newsData.summarizer) {
+          const summaryData = {
+            content: newsData.summarizer,
+            summaryType: "full",
+            createdAt: new Date().toISOString(),
+            url: url,
+          };
+          localStorage.setItem(`aiSummary_${url}_full`, JSON.stringify(summaryData));
+          logger.debug("已将summarizer数据保存到storage", { url });
+        }
+        
+        // 如果有ai_key_info数据，保存到storage中
+        if (newsData.ai_key_info) {
+          const keyInfoData = {
+            content: newsData.ai_key_info,
+            summaryType: "keyinfo",
+            createdAt: new Date().toISOString(),
+            url: url,
+          };
+          localStorage.setItem(`aiSummary_${url}_keyinfo`, JSON.stringify(keyInfoData));
+          logger.debug("已将ai_key_info数据保存到storage", { url });
+        }
+        
+        return true;
+      }
+
+      return false;
     } catch (error) {
       logger.error("checkBookmarkStatus() 异常", error);
       return false;

@@ -26,7 +26,7 @@ export function useAISummary() {
     try {
       const { data, error } = await client
         .from("News")
-        .select("url,summarizer")
+        .select("url,summarizer,ai_key_info")
         .eq("url", url);
 
       if (error) {
@@ -50,15 +50,34 @@ export function useAISummary() {
       return false; // 没有数据，返回false
     }
 
-    const summarizer = summarizerData[0].summarizer;
-    if (!summarizer) {
-      logger.debug("summarizer内容为空，返回false");
-      return false; // 没有summarizer内容，返回false
+    const newsData = summarizerData[0];
+    let content = "";
+    
+    // 根据当前选择的总结类型获取相应内容
+    if (aiSummaryType.value === "keyinfo" && newsData.ai_key_info) {
+      content = newsData.ai_key_info;
+      logger.debug("使用ai_key_info内容");
+    } else if (newsData.summarizer) {
+      content = newsData.summarizer;
+      logger.debug("使用summarizer内容");
+    } else {
+      logger.debug("没有找到相应内容，返回false");
+      return false; // 没有内容，返回false
     }
 
-    // 显示summarizer内容
-    aiSummaryContent.value = summarizer;
+    // 显示内容
+    aiSummaryContent.value = content;
     aiSummaryStatus.value = "数据库内容";
+
+    // 将数据库中的内容保存到storage中，以便下次快速访问
+    const summaryData = {
+      content: content,
+      summaryType: aiSummaryType.value,
+      createdAt: new Date().toISOString(),
+      url: newsData.url,
+    };
+    localStorage.setItem(`aiSummary_${newsData.url}_${aiSummaryType.value}`, JSON.stringify(summaryData));
+    logger.debug("已将数据库内容保存到storage", { url: newsData.url, type: aiSummaryType.value });
 
     return true; // 成功显示，返回true
   };
@@ -281,17 +300,17 @@ export function useAISummary() {
         // 设置数据库查询状态
         isQueryingDatabase.value = true;
 
-        // 从数据库加载summarizer
+        // 从数据库加载summarizer和ai_key_info
         const newsData = await getNews(url);
 
         // 结束数据库查询状态
         isQueryingDatabase.value = false;
 
         if (displayNewsSummarizer(newsData)) {
-          logger.debug(`从${source}的数据库中成功显示summarizer数据`);
+          logger.debug(`从${source}的数据库中成功显示数据并保存到storage`);
           return { success: true, fromDatabase: true };
         } else {
-          logger.debug(`从${source}的数据库中也没有summarizer数据`);
+          logger.debug(`从${source}的数据库中也没有找到数据`);
           aiSummaryContent.value = "";
           aiSummaryStatus.value = "";
           return { success: false, message: "没有找到AI总结数据" };
@@ -307,6 +326,68 @@ export function useAISummary() {
     }
   };
 
+  // 新增函数：预加载数据库中的summarizer和ai_key_info到storage
+  const preloadDataToStorage = async (url: string) => {
+    logger.debug("preloadDataToStorage() 被调用", { url });
+    
+    try {
+      // 检查是否已经存在缓存
+      const fullSummary = loadAISummary(url, "full");
+      const keyInfoSummary = loadAISummary(url, "keyinfo");
+      
+      // 如果都已经缓存，则不需要重复加载
+      if (fullSummary && keyInfoSummary) {
+        logger.debug("summarizer和ai_key_info都已缓存，跳过预加载");
+        return { success: true, message: "数据已缓存" };
+      }
+      
+      // 从数据库加载数据
+      const newsData = await getNews(url);
+      
+      if (newsData && newsData.length > 0) {
+        const data = newsData[0];
+        let hasNewData = false;
+        
+        // 如果有summarizer且未缓存，则缓存
+        if (data.summarizer && !fullSummary) {
+          const summaryData = {
+            content: data.summarizer,
+            summaryType: "full",
+            createdAt: new Date().toISOString(),
+            url: url,
+          };
+          localStorage.setItem(`aiSummary_${url}_full`, JSON.stringify(summaryData));
+          logger.debug("已预加载summarizer到storage");
+          hasNewData = true;
+        }
+        
+        // 如果有ai_key_info且未缓存，则缓存
+        if (data.ai_key_info && !keyInfoSummary) {
+          const keyInfoData = {
+            content: data.ai_key_info,
+            summaryType: "keyinfo",
+            createdAt: new Date().toISOString(),
+            url: url,
+          };
+          localStorage.setItem(`aiSummary_${url}_keyinfo`, JSON.stringify(keyInfoData));
+          logger.debug("已预加载ai_key_info到storage");
+          hasNewData = true;
+        }
+        
+        if (hasNewData) {
+          return { success: true, message: "数据预加载成功" };
+        } else {
+          return { success: true, message: "没有新数据需要预加载" };
+        }
+      } else {
+        return { success: false, message: "数据库中没有找到数据" };
+      }
+    } catch (error) {
+      logger.error("预加载数据到storage时出错", error);
+      return { success: false, message: "预加载数据失败" };
+    }
+  };
+
   return {
     isLoadingAISummary,
     isQueryingDatabase,
@@ -319,5 +400,6 @@ export function useAISummary() {
     getNews,
     clearAISummaryCache,
     loadAndDisplayAISummary,
+    preloadDataToStorage,
   };
 }

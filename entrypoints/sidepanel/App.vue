@@ -58,6 +58,7 @@ const {
   getNews,
   loadAndDisplayAISummary,
   clearAISummaryCache,
+  preloadDataToStorage,
 } = useAISummary();
 
 // 响应式数据
@@ -105,7 +106,16 @@ const handleExtractData = async () => {
         currentWindow: true,
       });
       if (tabs && tabs[0] && tabs[0].url) {
-        await loadAndDisplayAISummary(tabs[0].url, "数据提取");
+        const url = tabs[0].url;
+        
+        // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
+        if (result.data.isBookmarked) {
+          logger.debug("检测到收藏数据，预加载summarizer和ai_key_info到storage");
+          await preloadDataToStorage(url);
+        }
+        
+        // 加载并显示AI总结
+        await loadAndDisplayAISummary(url, "数据提取");
       }
     } else {
       error(result.message || "数据提取失败");
@@ -409,6 +419,12 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
         success("收藏成功！");
         // 更新本地状态
         extractedData.value.isBookmarked = true;
+        
+        // 收藏成功后，将summarizer和ai_key_info数据保存到storage中
+        if (extractedData.value.url) {
+          logger.debug("收藏成功后，预加载summarizer和ai_key_info到storage");
+          await preloadDataToStorage(extractedData.value.url);
+        }
       }
     }
   } catch (err) {
@@ -460,6 +476,13 @@ const setupTabListeners = () => {
         try {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
           await refreshDataForNewTab();
+          
+          // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
+          if (extractedData.value.isBookmarked && tab.url) {
+            logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+            await preloadDataToStorage(tab.url);
+          }
+          
           await loadAndDisplayAISummary(tab.url, "Tab切换");
         } finally {
           isProcessing = false;
@@ -528,6 +551,12 @@ const setupTabListeners = () => {
           try {
             // 刷新数据
             await refreshDataForNewTab();
+
+            // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
+            if (extractedData.value.isBookmarked && details.url) {
+              logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+              await preloadDataToStorage(details.url);
+            }
 
             // 加载AI总结
             await loadAndDisplayAISummary(details.url, "导航完成");
