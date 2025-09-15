@@ -4,10 +4,10 @@
 
 // API相关配置
 export const API_CONFIG = {
-  DEFAULT_BASE_URL: 'https://api.openai.com/v1',
-  DEFAULT_MODEL: 'gpt-3.5-turbo',
+  DEFAULT_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  DEFAULT_MODEL: "qwen-turbo",
   REQUEST_TIMEOUT: 30000,
-  MAX_TOKENS: 5000,
+  MAX_TOKENS: 8000,
   TEMPERATURE: 0.7,
 } as const;
 
@@ -26,16 +26,16 @@ export const UI_CONFIG = {
 
 // 数据存储配置
 export const STORAGE_CONFIG = {
-  EXTRACTED_DATA_KEY: 'extractedData',
-  SETTINGS_PREFIX: 'setting_',
-  AI_SUMMARY_PREFIX: 'aiSummary_',
+  EXTRACTED_DATA_KEY: "extractedData",
+  SETTINGS_PREFIX: "setting_",
+  AI_SUMMARY_PREFIX: "aiSummary_",
   DEFAULT_DATA_RETENTION_DAYS: 7,
 } as const;
 
 // 调试配置
 export const DEBUG_CONFIG = {
-  ENABLED: process.env.NODE_ENV === 'development',
-  LOG_LEVEL: process.env.NODE_ENV === 'development' ? 'debug' : 'error',
+  ENABLED: process.env.NODE_ENV === "development",
+  LOG_LEVEL: process.env.NODE_ENV === "development" ? "debug" : "error",
 } as const;
 
 // 性能配置
