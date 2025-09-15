@@ -20,9 +20,10 @@
           class="btn btn-primary"
           style="flex: 1"
           @click="$emit('generate-ai-summary')"
-          :disabled="isLoadingAISummary || isExtracting"
+          :disabled="isLoadingAISummary || isExtracting || isPageLoading"
         >
           <span v-if="isLoadingAISummary">生成中...</span>
+          <span v-else-if="isPageLoading">页面加载中...</span>
           <span v-else>AI总结</span>
         </button>
       </div>
@@ -72,17 +73,6 @@
       </div>
     </div>
 
-    <div v-if="isLoadingAISummary" class="section">
-      <div class="section-title">
-        <span>处理状态</span>
-      </div>
-      <div>
-        <div style="display: flex; align-items: center; gap: 10px">
-          <div class="loading-spinner"></div>
-          <span>正在生成AI总结...</span>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -96,6 +86,7 @@ const props = defineProps<{
   aiSummaryType: string;
   isLoadingAISummary: boolean;
   isExtracting: boolean;
+  isPageLoading: boolean;
 }>();
 
 const emit = defineEmits<{

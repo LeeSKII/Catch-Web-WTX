@@ -577,6 +577,7 @@ watch(isDarkMode, (newValue) => {
         :ai-summary-type="aiSummaryType"
         :isLoadingAISummary="isLoadingAISummary"
         :isExtracting="isExtracting"
+        :isPageLoading="isPageLoading"
         @generate-ai-summary="handleGenerateAISummary"
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"
