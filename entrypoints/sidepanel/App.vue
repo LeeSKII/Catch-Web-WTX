@@ -409,6 +409,87 @@ const setupTabListeners = () => {
   );
 
   browser.tabs.onUpdated.addListener(debouncedUpdateHandler);
+
+  // 添加webNavigation API监听器
+  if (browser.webNavigation) {
+    console.log("webNavigation API is available");
+    
+    // 监听导航开始事件
+    browser.webNavigation.onCommitted.addListener(async (details) => {
+      logger.debug("webNavigation.onCommitted 被调用", {
+        tabId: details.tabId,
+        url: details.url,
+        frameId: details.frameId,
+        transitionType: details.transitionType,
+        transitionQualifiers: details.transitionQualifiers
+      });
+
+      // 只处理主框架的导航变化
+      if (details.frameId === 0) {
+        // 获取当前活动标签页
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
+          logger.debug("检测到导航开始，清空面板数据", { url: details.url });
+          isPageLoading.value = true;
+          clearPanelData();
+          lastProcessedUrl = details.url;
+        }
+      }
+    });
+    
+    // 监听导航完成事件
+    browser.webNavigation.onCompleted.addListener(async (details) => {
+      logger.debug("webNavigation.onCompleted 被调用", {
+        tabId: details.tabId,
+        url: details.url,
+        frameId: details.frameId
+      });
+
+      // 只处理主框架的导航完成
+      if (details.frameId === 0) {
+        // 获取当前活动标签页
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
+          logger.debug("检测到导航完成，重新提取数据", { url: details.url });
+          isProcessing = true;
+          isPageLoading.value = false;
+
+          try {
+            // 刷新数据
+            await refreshDataForNewTab();
+
+            // 加载AI总结
+            await loadAndDisplayAISummary(details.url, "导航完成");
+          } finally {
+            isProcessing = false;
+          }
+        }
+      }
+    });
+    
+    // 监听导航错误事件
+    browser.webNavigation.onErrorOccurred.addListener((details) => {
+      logger.debug("webNavigation.onErrorOccurred 被调用", {
+        tabId: details.tabId,
+        url: details.url,
+        frameId: details.frameId,
+        error: details.error
+      });
+
+      // 只处理主框架的导航错误
+      if (details.frameId === 0) {
+        // 获取当前活动标签页
+        browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+          if (tabs && tabs[0] && tabs[0].id === details.tabId) {
+            logger.debug("检测到导航错误，取消加载状态", { url: details.url });
+            isPageLoading.value = false;
+          }
+        });
+      }
+    });
+  } else {
+    console.error("webNavigation API is not available");
+  }
 };
 
 const removeTabListeners = () => {
