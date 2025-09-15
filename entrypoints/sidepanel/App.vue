@@ -716,13 +716,25 @@ onUnmounted(() => {
 watch(aiSummaryType, async () => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
-    // 使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
-    const result = await switchSummaryType(tabs[0].url, aiSummaryType.value);
+    const url = tabs[0].url;
     
-    // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
-    if (!result.success) {
-      logger.debug("storage中没有找到数据");
-      await loadAndDisplayAISummary(tabs[0].url, "总结类型切换");
+    // 检查页面是否已收藏
+    const isBookmarked = extractedData.value.isBookmarked;
+    
+    if (isBookmarked) {
+      // 如果页面已收藏，使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
+      const result = await switchSummaryType(url, aiSummaryType.value);
+      
+      // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
+      if (!result.success) {
+        logger.debug("storage中没有找到数据，尝试从数据库加载");
+        await loadAndDisplayAISummary(url, "总结类型切换");
+      }
+    } else {
+      // 如果页面未收藏，直接使用switchSummaryType函数，不查询数据库
+      // 因为未收藏的页面必然没有在数据库内存储相关数据
+      logger.debug("页面未收藏，仅从storage中查找数据，不查询数据库");
+      await switchSummaryType(url, aiSummaryType.value);
     }
   }
 });
