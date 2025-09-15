@@ -9,6 +9,13 @@
         <button class="btn btn-refresh" @click="$emit('refresh-data')">
           刷新数据
         </button>
+        <button
+          v-if="extractedData.isBookmarked !== undefined"
+          :class="extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark'"
+          @click="handleBookmarkAction"
+        >
+          {{ extractedData.isBookmarked ? '更新' : '收藏' }}
+        </button>
         <button class="btn btn-primary" @click="$emit('export-data')">
           导出数据
         </button>
@@ -49,15 +56,22 @@
 <script lang="ts" setup>
 import type { ExtractedData } from '../types';
 
-defineProps<{
+const props = defineProps<{
   extractedData: ExtractedData;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'copy-all-data': [];
   'refresh-data': [];
   'export-data': [];
+  'bookmark-action': [isBookmarked: boolean];
 }>();
+
+const handleBookmarkAction = () => {
+  if (props.extractedData.isBookmarked !== undefined) {
+    emit('bookmark-action', props.extractedData.isBookmarked);
+  }
+};
 </script>
 
 <style scoped>
@@ -130,5 +144,25 @@ defineEmits<{
   background: #e55a2b;
   border-color: #e55a2b;
   box-shadow: 0 4px 8px rgba(255, 107, 53, 0.4);
+}
+
+.btn-bookmark {
+  background: #28a745;
+  color: white;
+}
+
+.btn-bookmark:hover {
+  background: #218838;
+  border-color: #218838;
+}
+
+.btn-update {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-update:hover {
+  background: #138496;
+  border-color: #138496;
 }
 </style>

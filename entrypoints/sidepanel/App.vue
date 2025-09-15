@@ -9,6 +9,7 @@ import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
 import { UI_CONFIG, PERFORMANCE_CONFIG } from "./constants";
+import { createClient } from "@supabase/supabase-js";
 
 // 导入组件
 import TabNavigation from "./components/TabNavigation.vue";
@@ -21,6 +22,12 @@ import SettingsPanel from "./components/SettingsPanel.vue";
 
 // 创建日志器
 const logger = createLogger("App");
+
+// Supabase初始化
+const client = createClient(
+  "https://jnzoquhmgpjbqcabgxrd.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
+);
 
 // 使用 Composables
 const { success, error, warning, info } = useToast();
@@ -248,6 +255,96 @@ const handleToggleDarkMode = () => {
 const handleSaveSettings = () => {
   saveSettings();
   success("设置已保存！");
+};
+
+const handleBookmarkAction = async (isBookmarked: boolean) => {
+  try {
+    if (!extractedData.value.url) {
+      error("无法获取URL，请先提取数据");
+      return;
+    }
+
+    // 获取AI关键信息总结
+    let aiKeyInfo = null;
+    if (aiSummaryType.value === "keyinfo" && aiSummaryContent.value) {
+      aiKeyInfo = aiSummaryContent.value;
+    } else if (aiSummaryContent.value) {
+      // 如果当前不是keyinfo类型，但有AI总结内容，尝试获取keyinfo类型的总结
+      const originalType = aiSummaryType.value;
+      aiSummaryType.value = "keyinfo";
+      
+      // 生成关键信息总结
+      const result = await generateAISummary(
+        extractedData.value.text || "",
+        extractedData.value
+      );
+      
+      if (result && result.success) {
+        aiKeyInfo = aiSummaryContent.value;
+      }
+      
+      // 恢复原始类型
+      aiSummaryType.value = originalType;
+    }
+
+    if (isBookmarked) {
+      // 更新功能
+      const { data, error: updateError } = await client
+        .from("News")
+        .update({
+          text: extractedData.value.text,
+          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
+          html: extractedData.value.html,
+          images: extractedData.value.images,
+          links: extractedData.value.links,
+          title: extractedData.value.title,
+          url: extractedData.value.url,
+          article: extractedData.value.article,
+          host: extractedData.value.host,
+          word_count: extractedData.value.wordCount,
+          ai_key_info: aiKeyInfo,
+        })
+        .eq("url", extractedData.value.url)
+        .select();
+
+      if (updateError) {
+        logger.error("更新数据失败", updateError);
+        error("更新数据失败");
+      } else {
+        success("数据更新成功！");
+      }
+    } else {
+      // 收藏功能
+      const { data, error: insertError } = await client
+        .from("News")
+        .insert({
+          text: extractedData.value.text,
+          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
+          html: extractedData.value.html,
+          images: extractedData.value.images,
+          links: extractedData.value.links,
+          title: extractedData.value.title,
+          url: extractedData.value.url,
+          article: extractedData.value.article,
+          host: extractedData.value.host,
+          word_count: extractedData.value.wordCount,
+          ai_key_info: aiKeyInfo,
+        })
+        .select();
+
+      if (insertError) {
+        logger.error("收藏失败", insertError);
+        error("收藏失败");
+      } else {
+        success("收藏成功！");
+        // 更新本地状态
+        extractedData.value.isBookmarked = true;
+      }
+    }
+  } catch (err) {
+    logger.error("收藏/更新操作出错", err);
+    error("操作失败，请重试");
+  }
 };
 
 // 防抖函数已移至 utils/debounce.ts，这里直接导入使用
@@ -548,6 +645,7 @@ watch(isDarkMode, (newValue) => {
         @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
         @export-data="handleExportData"
+        @bookmark-action="handleBookmarkAction"
       />
 
       <!-- 图片 -->
