@@ -326,6 +326,45 @@ export function useAISummary() {
     }
   };
 
+  // 新增函数：仅在storage中查找总结数据，不查询数据库
+  const switchSummaryType = async (url: string, summaryType: string) => {
+    logger.debug("switchSummaryType() 被调用", { url, summaryType });
+
+    if (isLoadingAISummary.value) {
+      logger.debug("正在加载AI总结，跳过此次请求");
+      return { success: false, message: "正在加载AI总结" };
+    }
+
+    isLoadingAISummary.value = true;
+
+    try {
+      // 仅从storage中查找总结数据，不查询数据库
+      const summaryData = loadAISummary(url, summaryType);
+
+      if (summaryData) {
+        logger.debug(`从storage中找到${summaryType}类型的总结数据`);
+        aiSummaryContent.value = summaryData.content;
+        aiSummaryStatus.value = `缓存内容 - ${new Date(
+          summaryData.createdAt
+        ).toLocaleString()}`;
+        isLoadingAISummary.value = false;
+        return { success: true, fromCache: true };
+      } else {
+        logger.debug(`storage中没有找到${summaryType}类型的总结数据`);
+        aiSummaryContent.value = "";
+        aiSummaryStatus.value = "没有找到缓存数据";
+        isLoadingAISummary.value = false;
+        return { success: false, message: "没有找到缓存数据" };
+      }
+    } catch (error) {
+      logger.error("切换总结类型时出错", error);
+      aiSummaryContent.value = "";
+      aiSummaryStatus.value = "";
+      isLoadingAISummary.value = false;
+      return { success: false, message: "切换总结类型时出错" };
+    }
+  };
+
   // 新增函数：预加载数据库中的summarizer和ai_key_info到storage
   const preloadDataToStorage = async (url: string) => {
     logger.debug("preloadDataToStorage() 被调用", { url });
@@ -401,5 +440,6 @@ export function useAISummary() {
     clearAISummaryCache,
     loadAndDisplayAISummary,
     preloadDataToStorage,
+    switchSummaryType,
   };
 }

@@ -59,6 +59,7 @@ const {
   loadAndDisplayAISummary,
   clearAISummaryCache,
   preloadDataToStorage,
+  switchSummaryType,
 } = useAISummary();
 
 // 响应式数据
@@ -715,7 +716,14 @@ onUnmounted(() => {
 watch(aiSummaryType, async () => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
-    await loadAndDisplayAISummary(tabs[0].url, "总结类型切换");
+    // 使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
+    const result = await switchSummaryType(tabs[0].url, aiSummaryType.value);
+    
+    // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
+    if (!result.success) {
+      logger.debug("storage中没有找到数据");
+      await loadAndDisplayAISummary(tabs[0].url, "总结类型切换");
+    }
   }
 });
 
