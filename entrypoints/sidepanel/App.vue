@@ -41,6 +41,7 @@ const {
 } = useDataExtractor();
 const {
   isLoadingAISummary,
+  isQueryingDatabase,
   aiSummaryContent,
   aiSummaryStatus,
   aiSummaryType,
@@ -578,6 +579,7 @@ watch(isDarkMode, (newValue) => {
         :isLoadingAISummary="isLoadingAISummary"
         :isExtracting="isExtracting"
         :isPageLoading="isPageLoading"
+        :isQueryingDatabase="isQueryingDatabase"
         @generate-ai-summary="handleGenerateAISummary"
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"

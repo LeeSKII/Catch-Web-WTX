@@ -13,6 +13,7 @@ const logger = createLogger('AISummary');
 
 export function useAISummary() {
   const isLoadingAISummary: Ref<boolean> = ref(false);
+  const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref('');
   const aiSummaryStatus: Ref<string> = ref('');
   const aiSummaryType: Ref<string> = ref('full');
@@ -256,18 +257,25 @@ export function useAISummary() {
         return { success: true, fromCache: true };
       } else {
         logger.debug(`从${source}的storage中没有数据，尝试从数据库加载`);
-        // 如果storage中没有，再从数据库加载summarizer
+        // 如果storage中没有，先结束isLoadingAISummary状态，恢复按钮可用状态
+        isLoadingAISummary.value = false;
+        
+        // 设置数据库查询状态
+        isQueryingDatabase.value = true;
+        
+        // 从数据库加载summarizer
         const newsData = await getNews(url);
+        
+        // 结束数据库查询状态
+        isQueryingDatabase.value = false;
         
         if (displayNewsSummarizer(newsData)) {
           logger.debug(`从${source}的数据库中成功显示summarizer数据`);
-          isLoadingAISummary.value = false;
           return { success: true, fromDatabase: true };
         } else {
           logger.debug(`从${source}的数据库中也没有summarizer数据`);
           aiSummaryContent.value = '';
           aiSummaryStatus.value = '';
-          isLoadingAISummary.value = false;
           return { success: false, message: '没有找到AI总结数据' };
         }
       }
@@ -276,12 +284,14 @@ export function useAISummary() {
       aiSummaryContent.value = '';
       aiSummaryStatus.value = '';
       isLoadingAISummary.value = false;
+      isQueryingDatabase.value = false;
       return { success: false, message: '加载AI总结时出错' };
     }
   };
 
   return {
     isLoadingAISummary,
+    isQueryingDatabase,
     aiSummaryContent,
     aiSummaryStatus,
     aiSummaryType,
