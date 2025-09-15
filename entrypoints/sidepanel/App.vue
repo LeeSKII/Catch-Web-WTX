@@ -1,3 +1,4 @@
+
 <script lang="ts" setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
 import { useToast } from "./composables/useToast";
@@ -258,58 +259,6 @@ let isTabSwitching = false; // 标记是否正在切换tab
 
 // 监听器
 const setupTabListeners = () => {
-  // 监听新标签页创建事件
-  browser.tabs.onCreated.addListener(async (tab: any) => {
-    logger.debug("chrome.tabs.onCreated 被调用", {
-      id: tab.id,
-      url: tab.url,
-      active: tab.active,
-      openerTabId: tab.openerTabId,
-    });
-
-    // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
-    if (tab.active) {
-      logger.debug("新创建的标签页是活动标签页，设置loading状态");
-
-      // 立即设置loading状态并清空UI数据
-      isPageLoading.value = true;
-      clearPanelData();
-
-      // 等待一小段时间确保tab信息已经更新
-      setTimeout(async () => {
-        try {
-          const currentTab = await browser.tabs.get(tab.id);
-          logger.debug("获取新创建的tab信息", {
-            id: currentTab.id,
-            url: currentTab.url,
-            status: currentTab.status,
-          });
-
-          if (
-            currentTab &&
-            currentTab.url &&
-            currentTab.url !== lastProcessedUrl &&
-            !isProcessing
-          ) {
-            logger.debug("处理新创建的活动标签页", { url: currentTab.url });
-            lastProcessedUrl = currentTab.url;
-            isProcessing = true;
-
-            try {
-              await refreshDataForNewTab();
-              await loadAndDisplayAISummary(currentTab.url, "新标签页创建");
-            } finally {
-              isProcessing = false;
-              isPageLoading.value = false;
-            }
-          }
-        } catch (error) {
-          logger.error("处理新创建标签页时出错", error);
-          isPageLoading.value = false;
-        }
-      }, PERFORMANCE_CONFIG.TAB_PROCESSING_DELAY);
-    }
-  });
 
   // 监听浏览器tab切换事件
   browser.tabs.onActivated.addListener(async (activeInfo: any) => {
@@ -440,7 +389,6 @@ const setupTabListeners = () => {
 };
 
 const removeTabListeners = () => {
-  browser.tabs.onCreated.removeListener(() => {});
   browser.tabs.onActivated.removeListener(() => {});
   
   // 移除webNavigation监听器
