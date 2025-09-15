@@ -1,4 +1,3 @@
-
 <script lang="ts" setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
 import { useToast } from "./composables/useToast";
@@ -255,11 +254,9 @@ const handleSaveSettings = () => {
 // 记录上一次处理的URL，避免重复处理
 let lastProcessedUrl = "";
 let isProcessing = false;
-let isTabSwitching = false; // 标记是否正在切换tab
 
 // 监听器
 const setupTabListeners = () => {
-
   // 监听浏览器tab切换事件
   browser.tabs.onActivated.addListener(async (activeInfo: any) => {
     logger.debug("chrome.tabs.onActivated 被调用", { tabId: activeInfo.tabId });
@@ -305,11 +302,10 @@ const setupTabListeners = () => {
     });
   });
 
-
   // 添加webNavigation API监听器
   if (browser.webNavigation) {
     console.log("webNavigation API is available");
-    
+
     // 监听导航开始事件
     browser.webNavigation.onCommitted.addListener(async (details) => {
       logger.debug("webNavigation.onCommitted 被调用", {
@@ -317,13 +313,16 @@ const setupTabListeners = () => {
         url: details.url,
         frameId: details.frameId,
         transitionType: details.transitionType,
-        transitionQualifiers: details.transitionQualifiers
+        transitionQualifiers: details.transitionQualifiers,
       });
 
       // 只处理主框架的导航变化
       if (details.frameId === 0) {
         // 获取当前活动标签页
-        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tabs = await browser.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
         if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
           logger.debug("检测到导航开始，清空面板数据", { url: details.url });
           isPageLoading.value = true;
@@ -332,19 +331,22 @@ const setupTabListeners = () => {
         }
       }
     });
-    
+
     // 监听导航完成事件
     browser.webNavigation.onCompleted.addListener(async (details) => {
       logger.debug("webNavigation.onCompleted 被调用", {
         tabId: details.tabId,
         url: details.url,
-        frameId: details.frameId
+        frameId: details.frameId,
       });
 
       // 只处理主框架的导航完成
       if (details.frameId === 0) {
         // 获取当前活动标签页
-        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        const tabs = await browser.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
         if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
           logger.debug("检测到导航完成，重新提取数据", { url: details.url });
           isProcessing = true;
@@ -362,25 +364,29 @@ const setupTabListeners = () => {
         }
       }
     });
-    
+
     // 监听导航错误事件
     browser.webNavigation.onErrorOccurred.addListener((details) => {
       logger.debug("webNavigation.onErrorOccurred 被调用", {
         tabId: details.tabId,
         url: details.url,
         frameId: details.frameId,
-        error: details.error
+        error: details.error,
       });
 
       // 只处理主框架的导航错误
       if (details.frameId === 0) {
         // 获取当前活动标签页
-        browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-          if (tabs && tabs[0] && tabs[0].id === details.tabId) {
-            logger.debug("检测到导航错误，取消加载状态", { url: details.url });
-            isPageLoading.value = false;
-          }
-        });
+        browser.tabs
+          .query({ active: true, currentWindow: true })
+          .then((tabs) => {
+            if (tabs && tabs[0] && tabs[0].id === details.tabId) {
+              logger.debug("检测到导航错误，取消加载状态", {
+                url: details.url,
+              });
+              isPageLoading.value = false;
+            }
+          });
       }
     });
   } else {
@@ -390,7 +396,7 @@ const setupTabListeners = () => {
 
 const removeTabListeners = () => {
   browser.tabs.onActivated.removeListener(() => {});
-  
+
   // 移除webNavigation监听器
   if (browser.webNavigation) {
     browser.webNavigation.onCommitted.removeListener(() => {});
