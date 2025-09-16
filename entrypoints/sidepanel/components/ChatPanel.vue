@@ -66,13 +66,6 @@
           rows="3"
           ref="inputTextarea"
         ></textarea>
-        <button 
-          class="send-button"
-          @click="sendMessage"
-          :disabled="isChatLoading || !userInput.trim()"
-        >
-          发送
-        </button>
       </div>
       <div class="input-info">
         <span>按 Enter 发送，Shift + Enter 换行</span>
@@ -369,25 +362,50 @@ textarea:focus {
   border-color: var(--primary-color);
 }
 
-.send-button {
-  padding: 10px 20px;
-  background: var(--primary-color);
-  color: white;
+/* 确保按钮样式正确应用 */
+.chat-actions .btn {
+  padding: 8px 15px;
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px;
+}
+
+.chat-actions .btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.chat-actions .btn-secondary {
+  background: var(--accent-color);
+  color: white;
+}
+
+.chat-actions .btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.chat-actions .btn:disabled {
+  background: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chat-actions .btn:disabled:hover {
+  opacity: 0.6;
+  transform: none;
+}
+
+/* 发送按钮使用全局 btn 样式，这里只需要添加特定布局调整 */
+.input-container .btn-primary {
   height: fit-content;
   align-self: flex-end;
-}
-
-.send-button:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.send-button:disabled {
-  background: var(--disabled-color);
-  cursor: not-allowed;
 }
 
 .input-info {
