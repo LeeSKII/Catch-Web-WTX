@@ -4,6 +4,7 @@ import { useToast } from "./composables/useToast";
 import { useTheme } from "./composables/useTheme";
 import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
+import { useBookmark } from "./composables/useBookmark";
 import { useAISummary } from "./composables/useAISummary";
 import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
@@ -47,6 +48,7 @@ const {
   saveExtractedData,
   clearExtractedData,
 } = useDataExtractor();
+const { checkBookmarkStatus } = useBookmark();
 const {
   isLoadingAISummary,
   isQueryingDatabase,
@@ -95,22 +97,24 @@ const handleExtractData = async () => {
       article: settings.extractArticle,
     };
 
-    const result = await extractData(options);
+    // 并行调用 extractData 和 checkBookmarkStatus
+    const [extractResult, tabs] = await Promise.all([
+      extractData(options),
+      browser.tabs.query({ active: true, currentWindow: true })
+    ]);
 
-    if (result.success && result.data) {
+    if (extractResult.success && extractResult.data) {
       success("数据提取成功！");
-      saveExtractedData(result.data);
+      saveExtractedData(extractResult.data);
 
-      // 加载当前页面的AI总结
-      const tabs = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
+      // 检查收藏状态
       if (tabs && tabs[0] && tabs[0].url) {
         const url = tabs[0].url;
+        const isBookmarked = await checkBookmarkStatus(url);
+        extractedData.value.isBookmarked = isBookmarked;
         
         // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-        if (result.data.isBookmarked) {
+        if (isBookmarked) {
           logger.debug("检测到收藏数据，预加载summarizer和ai_key_info到storage");
           await preloadDataToStorage(url);
         }
@@ -119,7 +123,7 @@ const handleExtractData = async () => {
         await loadAndDisplayAISummary(url, "数据提取");
       }
     } else {
-      error(result.message || "数据提取失败");
+      error(extractResult.message || "数据提取失败");
     }
   } catch (err) {
     logger.error("数据提取过程中出错", err);
@@ -478,10 +482,13 @@ const setupTabListeners = () => {
           // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
           await refreshDataForNewTab();
           
-          // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-          if (extractedData.value.isBookmarked && tab.url) {
-            logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-            await preloadDataToStorage(tab.url);
+          // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
+          if (tab.url) {
+            const isBookmarked = await checkBookmarkStatus(tab.url);
+            if (isBookmarked) {
+              logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+              await preloadDataToStorage(tab.url);
+            }
           }
           
           await loadAndDisplayAISummary(tab.url, "Tab切换");
@@ -553,10 +560,13 @@ const setupTabListeners = () => {
             // 刷新数据
             await refreshDataForNewTab();
 
-            // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-            if (extractedData.value.isBookmarked && details.url) {
-              logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-              await preloadDataToStorage(details.url);
+            // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
+            if (details.url) {
+              const isBookmarked = await checkBookmarkStatus(details.url);
+              if (isBookmarked) {
+                logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+                await preloadDataToStorage(details.url);
+              }
             }
 
             // 加载AI总结
@@ -719,7 +729,7 @@ watch(aiSummaryType, async () => {
     const url = tabs[0].url;
     
     // 检查页面是否已收藏
-    const isBookmarked = extractedData.value.isBookmarked;
+    const isBookmarked = await checkBookmarkStatus(url);
     
     if (isBookmarked) {
       // 如果页面已收藏，使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
