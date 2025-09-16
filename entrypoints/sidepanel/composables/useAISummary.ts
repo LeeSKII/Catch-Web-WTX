@@ -5,6 +5,7 @@ import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
 import { useAbortController } from "./useAbortController";
+import OpenAI from "openai";
 
 // 创建日志器
 const logger = createLogger("AISummary");
@@ -22,14 +23,15 @@ export function useAISummary() {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
   );
 
-  const { createAbortController, cleanupAbortController } = useAbortController();
+  const { createAbortController, cleanupAbortController } =
+    useAbortController();
 
   const getNews = async (url: string): Promise<NewsData[]> => {
     logger.debug("getNews() 被调用", { url });
-    
+
     // 创建AbortController用于数据库查询
-    const abortController = createAbortController('databaseQuery');
-    
+    const abortController = createAbortController("databaseQuery");
+
     try {
       const { data, error } = await client
         .from("News")
@@ -51,14 +53,14 @@ export function useAISummary() {
       return data || [];
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         logger.debug("数据库查询被中止");
         return [];
       }
       logger.error("getNews() 异常", error);
       return [];
     } finally {
-      cleanupAbortController('databaseQuery');
+      cleanupAbortController("databaseQuery");
     }
   };
 
@@ -72,7 +74,7 @@ export function useAISummary() {
 
     const newsData = summarizerData[0];
     let content = "";
-    
+
     // 根据当前选择的总结类型获取相应内容
     if (aiSummaryType.value === "keyinfo" && newsData.ai_key_info) {
       content = newsData.ai_key_info;
@@ -96,8 +98,14 @@ export function useAISummary() {
       createdAt: new Date().toISOString(),
       url: newsData.url,
     };
-    localStorage.setItem(`aiSummary_${newsData.url}_${aiSummaryType.value}`, JSON.stringify(summaryData));
-    logger.debug("已将数据库内容保存到storage", { url: newsData.url, type: aiSummaryType.value });
+    localStorage.setItem(
+      `aiSummary_${newsData.url}_${aiSummaryType.value}`,
+      JSON.stringify(summaryData)
+    );
+    logger.debug("已将数据库内容保存到storage", {
+      url: newsData.url,
+      type: aiSummaryType.value,
+    });
 
     return true; // 成功显示，返回true
   };
@@ -167,32 +175,16 @@ export function useAISummary() {
     const model = localStorage.getItem("aiModel") || API_CONFIG.DEFAULT_MODEL;
     const baseUrl =
       localStorage.getItem("openaiBaseUrl") || API_CONFIG.DEFAULT_BASE_URL;
-    const apiUrl = `${baseUrl}/chat/completions`;
 
     // 创建AbortController用于AI总结请求
-    const abortController = createAbortController('aiSummary');
+    const abortController = createAbortController("aiSummary");
 
     try {
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: "system", content: system_prompt },
-            {
-              role: "user",
-              content: input,
-            },
-          ],
-          stream: true,
-          max_tokens: API_CONFIG.MAX_TOKENS,
-          temperature: API_CONFIG.TEMPERATURE,
-        }),
-        signal: abortController.signal, // 添加signal以支持中断
+      // 初始化OpenAI客户端
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseUrl,
+        dangerouslyAllowBrowser: true, // 允许在浏览器中使用
       });
 
       // 检查请求是否被中止
@@ -201,68 +193,52 @@ export function useAISummary() {
         return { success: false, message: "请求被中止" };
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || "API请求失败");
-      }
+      // 创建流式请求
+      const stream = await openai.chat.completions.create({
+        model: model,
+        messages: [
+          { role: "system", content: system_prompt },
+          { role: "user", content: input },
+        ],
+        stream: true,
+        max_tokens: API_CONFIG.MAX_TOKENS,
+        temperature: API_CONFIG.TEMPERATURE,
+      });
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("无法获取响应流");
-      }
-
-      const decoder = new TextDecoder();
       let accumulatedContent = "";
 
-      while (true) {
-        // 在每次读取前检查是否被中止
+      // 处理流式响应
+      for await (const chunk of stream) {
+        // 在每次处理前检查是否被中止
         if (abortController.signal.aborted) {
           logger.debug("AI总结流读取被中止");
-          reader.cancel();
           return { success: false, message: "请求被中止" };
         }
 
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") {
-              // 保存AI总结到localStorage
-              const tabs = await browser.tabs.query({
-                active: true,
-                currentWindow: true,
-              });
-              if (tabs && tabs[0]) {
-                const url = tabs[0].url;
-                if (url) {
-                  saveAISummary(url, accumulatedContent, aiSummaryType.value);
-                  aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
-                }
-              }
-              return { success: true, content: accumulatedContent };
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices[0]?.delta?.content || "";
-              if (content) {
-                accumulatedContent += content;
-                aiSummaryContent.value = accumulatedContent;
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
-          }
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          accumulatedContent += content;
+          aiSummaryContent.value = accumulatedContent;
         }
       }
+
+      // 流结束后保存AI总结到localStorage
+      const tabs = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (tabs && tabs[0]) {
+        const url = tabs[0].url;
+        if (url) {
+          saveAISummary(url, accumulatedContent, aiSummaryType.value);
+          aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
+        }
+      }
+
+      return { success: true, content: accumulatedContent };
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         logger.debug("AI总结请求被中止");
         return { success: false, message: "请求被中止" };
       }
@@ -272,7 +248,7 @@ export function useAISummary() {
         message: error instanceof Error ? error.message : "API调用失败",
       };
     } finally {
-      cleanupAbortController('aiSummary');
+      cleanupAbortController("aiSummary");
     }
   };
 
@@ -412,25 +388,25 @@ export function useAISummary() {
   // 新增函数：预加载数据库中的summarizer和ai_key_info到storage
   const preloadDataToStorage = async (url: string) => {
     logger.debug("preloadDataToStorage() 被调用", { url });
-    
+
     try {
       // 检查是否已经存在缓存
       const fullSummary = loadAISummary(url, "full");
       const keyInfoSummary = loadAISummary(url, "keyinfo");
-      
+
       // 如果都已经缓存，则不需要重复加载
       if (fullSummary && keyInfoSummary) {
         logger.debug("summarizer和ai_key_info都已缓存，跳过预加载");
         return { success: true, message: "数据已缓存" };
       }
-      
+
       // 从数据库加载数据
       const newsData = await getNews(url);
-      
+
       if (newsData && newsData.length > 0) {
         const data = newsData[0];
         let hasNewData = false;
-        
+
         // 如果有summarizer且未缓存，则缓存
         if (data.summarizer && !fullSummary) {
           const summaryData = {
@@ -439,11 +415,14 @@ export function useAISummary() {
             createdAt: new Date().toISOString(),
             url: url,
           };
-          localStorage.setItem(`aiSummary_${url}_full`, JSON.stringify(summaryData));
+          localStorage.setItem(
+            `aiSummary_${url}_full`,
+            JSON.stringify(summaryData)
+          );
           logger.debug("已预加载summarizer到storage");
           hasNewData = true;
         }
-        
+
         // 如果有ai_key_info且未缓存，则缓存
         if (data.ai_key_info && !keyInfoSummary) {
           const keyInfoData = {
@@ -452,11 +431,14 @@ export function useAISummary() {
             createdAt: new Date().toISOString(),
             url: url,
           };
-          localStorage.setItem(`aiSummary_${url}_keyinfo`, JSON.stringify(keyInfoData));
+          localStorage.setItem(
+            `aiSummary_${url}_keyinfo`,
+            JSON.stringify(keyInfoData)
+          );
           logger.debug("已预加载ai_key_info到storage");
           hasNewData = true;
         }
-        
+
         if (hasNewData) {
           return { success: true, message: "数据预加载成功" };
         } else {
