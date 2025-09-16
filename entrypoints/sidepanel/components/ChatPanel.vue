@@ -21,8 +21,8 @@
     </div>
 
     <div class="chat-messages" ref="messagesContainer">
-      <div 
-        v-for="(message, index) in messages" 
+      <div
+        v-for="(message, index) in messages"
         :key="index"
         :class="['message', message.role]"
       >
@@ -31,7 +31,8 @@
         </div>
         <div class="message-content">
           <div class="message-role">{{ message.role === 'user' ? '用户' : 'AI' }}</div>
-          <div class="message-text" v-html="formatMessage(message.content)"></div>
+          <div class="message-text" v-if="message.role === 'user'" v-html="formatMessage(message.content)"></div>
+          <div class="message-text" v-else v-html="parseMarkdown(message.content)"></div>
           <div class="message-time">{{ formatTime(message.timestamp) }}</div>
         </div>
       </div>
@@ -75,7 +76,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
+import { marked } from 'marked';
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -96,6 +99,17 @@ const emit = defineEmits<{
 const userInput = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
+
+// 解析 Markdown 内容
+const parseMarkdown = (content: string): string => {
+  try {
+    // 使用 marked 的同步解析方式，参考 AISummaryPanel.vue
+    return content ? marked.parse(content, { async: false }) as string : '';
+  } catch (error) {
+    console.error('Markdown parsing error:', error);
+    return content;
+  }
+};
 
 const sendMessage = () => {
   if (!userInput.value.trim() || props.isChatLoading) return;
