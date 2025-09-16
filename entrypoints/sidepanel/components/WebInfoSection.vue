@@ -1,38 +1,70 @@
 <template>
   <div class="section">
+    <div class="action-section">
+      <div class="action-title">数据管理</div>
+      <div class="action-buttons">
+        <button
+          :class="[
+            'btn btn-refresh',
+            { 'btn-loading': isRefreshButtonDisabled },
+          ]"
+          @click="handleRefreshData"
+          :disabled="isRefreshButtonDisabled"
+        >
+          {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
+        </button>
+        <button
+          :class="[
+            extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark',
+            {
+              'btn-loading':
+                isBookmarkButtonDisabled ||
+                isCheckingBookmark ||
+                extractedData.isBookmarked === undefined,
+            },
+          ]"
+          @click="handleBookmarkAction"
+          :disabled="
+            isBookmarkButtonDisabled ||
+            isCheckingBookmark ||
+            extractedData.isBookmarked === undefined
+          "
+        >
+          <span
+            v-if="
+              isBookmarkButtonDisabled ||
+              isCheckingBookmark ||
+              extractedData.isBookmarked === undefined
+            "
+            class="loading-icon"
+          >
+            <svg class="spinner" viewBox="0 0 50 50">
+              <circle
+                class="path"
+                cx="25"
+                cy="25"
+                r="20"
+                fill="none"
+                stroke-width="5"
+              ></circle>
+            </svg>
+          </span>
+          <span v-else>{{ extractedData.isBookmarked ? "更新" : "收藏" }}</span>
+        </button>
+      </div>
+    </div>
     <div class="section-title">
       <span>网页信息</span>
       <div>
         <button class="btn btn-secondary" @click="$emit('copy-all-data')">
           复制全部
         </button>
-        <button
-          :class="['btn btn-refresh', { 'btn-loading': isRefreshButtonDisabled }]"
-          @click="handleRefreshData"
-          :disabled="isRefreshButtonDisabled"
-        >
-          {{ isRefreshButtonDisabled ? '刷新中' : '刷新数据' }}
-        </button>
-        <button
-          :class="[
-            extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark',
-            { 'btn-loading': isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined }
-          ]"
-          @click="handleBookmarkAction"
-          :disabled="isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined"
-        >
-          <span v-if="isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined" class="loading-icon">
-            <svg class="spinner" viewBox="0 0 50 50">
-              <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-            </svg>
-          </span>
-          <span v-else>{{ extractedData.isBookmarked ? '更新' : '收藏' }}</span>
-        </button>
         <button class="btn btn-primary" @click="$emit('export-data')">
           导出数据
         </button>
       </div>
     </div>
+
     <div class="section-content">
       <div v-if="extractedData.title">
         <strong>标题:</strong>
@@ -66,8 +98,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
-import type { ExtractedData } from '../types';
+import { ref } from "vue";
+import type { ExtractedData } from "../types";
 
 const props = defineProps<{
   extractedData: ExtractedData;
@@ -75,10 +107,10 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'copy-all-data': [];
-  'refresh-data': [];
-  'export-data': [];
-  'bookmark-action': [isBookmarked: boolean];
+  "copy-all-data": [];
+  "refresh-data": [];
+  "export-data": [];
+  "bookmark-action": [isBookmarked: boolean];
 }>();
 
 // 按钮禁用状态
@@ -86,16 +118,19 @@ const isBookmarkButtonDisabled = ref(false);
 const isRefreshButtonDisabled = ref(false);
 
 const handleBookmarkAction = () => {
-  if (props.extractedData.isBookmarked !== undefined && !isBookmarkButtonDisabled.value) {
+  if (
+    props.extractedData.isBookmarked !== undefined &&
+    !isBookmarkButtonDisabled.value
+  ) {
     isBookmarkButtonDisabled.value = true;
-    emit('bookmark-action', props.extractedData.isBookmarked);
+    emit("bookmark-action", props.extractedData.isBookmarked);
   }
 };
 
 const handleRefreshData = () => {
   if (!isRefreshButtonDisabled.value) {
     isRefreshButtonDisabled.value = true;
-    emit('refresh-data');
+    emit("refresh-data");
   }
 };
 
@@ -107,7 +142,7 @@ const resetButtonStates = () => {
 
 // 暴露方法给父组件
 defineExpose({
-  resetButtonStates
+  resetButtonStates,
 });
 </script>
 
@@ -124,9 +159,31 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 10px;
   font-weight: 600;
   color: var(--section-title-color);
+}
+
+.action-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--section-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.action-title {
+  font-weight: 600;
+  color: var(--section-title-color);
+  font-size: 14px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .section-content {
