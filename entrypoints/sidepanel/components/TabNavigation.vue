@@ -16,6 +16,13 @@
     </button>
     <button
       class="tab"
+      :class="{ active: currentTab === 'chat' }"
+      @click="switchTab('chat')"
+    >
+      对话
+    </button>
+    <button
+      class="tab"
       :class="{ active: currentTab === 'settings' }"
       @click="switchTab('settings')"
     >

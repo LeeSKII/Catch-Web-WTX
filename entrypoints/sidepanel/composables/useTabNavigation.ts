@@ -41,6 +41,10 @@ export function useTabNavigation(
           // 如果是AI标签，刷新AI总结
           await loadAndDisplayAISummary(url, '标签切换');
           break;
+        case 'chat':
+          // 如果是对话标签，不需要额外操作
+          logger.debug('对话标签不需要刷新数据');
+          break;
         case 'results':
           // 如果是结果标签，数据已经是最新的，不需要额外操作
           logger.debug('结果标签数据已是最新');

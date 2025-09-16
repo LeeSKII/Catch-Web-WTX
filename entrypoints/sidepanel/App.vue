@@ -7,6 +7,7 @@ import { useDataExtractor } from "./composables/useDataExtractor";
 import { useBookmark } from "./composables/useBookmark";
 import { useAISummary } from "./composables/useAISummary";
 import { useAbortController } from "./composables/useAbortController";
+import { useChat } from "./composables/useChat";
 import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
@@ -22,6 +23,7 @@ import ImageGrid from "./components/ImageGrid.vue";
 import LinkList from "./components/LinkList.vue";
 import AISummaryPanel from "./components/AISummaryPanel.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
+import ChatPanel from "./components/ChatPanel.vue";
 
 // 创建日志器
 const logger = createLogger("App");
@@ -67,6 +69,21 @@ const {
 
 // 使用 AbortController
 const { abortAllRequests } = useAbortController();
+
+// 使用 Chat
+const {
+  messages,
+  isChatLoading,
+  sendMessage: sendChatMessage,
+  clearChat: clearChatMessages,
+  saveChat: saveChatMessages,
+  createNewChat,
+  loadChat,
+  deleteChat,
+  updateChatTitle,
+  exportChat,
+  abortCurrentRequest
+} = useChat();
 
 // 响应式数据
 const currentTab = ref("results");
@@ -825,6 +842,20 @@ watch(isDarkMode, (newValue) => {
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"
         @update:aiSummaryType="(value) => (aiSummaryType = value)"
+      />
+    </div>
+
+    <!-- 对话标签页内容 -->
+    <div
+      v-show="currentTab === 'chat' && !isPageLoading"
+      class="tab-content active"
+    >
+      <ChatPanel
+        :is-chat-loading="isChatLoading"
+        :messages="messages"
+        @send-message="sendChatMessage"
+        @clear-chat="clearChatMessages"
+        @save-chat="saveChatMessages"
       />
     </div>
 
