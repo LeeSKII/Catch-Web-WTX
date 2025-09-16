@@ -54,6 +54,7 @@ const switchTab = (tabName: string) => {
   overflow: hidden;
   box-shadow: var(--box-shadow);
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .tab {

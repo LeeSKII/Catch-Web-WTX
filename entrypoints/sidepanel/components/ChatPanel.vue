@@ -178,6 +178,8 @@ onMounted(() => {
   background: var(--section-bg);
   border-radius: var(--border-radius);
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .chat-header {
@@ -187,6 +189,7 @@ onMounted(() => {
   padding: 15px;
   border-bottom: 1px solid var(--border-color);
   background: var(--section-content-bg);
+  flex-shrink: 0;
 }
 
 .chat-header h3 {
@@ -202,9 +205,12 @@ onMounted(() => {
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 15px;
   background: var(--section-content-bg);
+  display: flex;
+  flex-direction: column;
 }
 
 .message {
@@ -333,6 +339,10 @@ onMounted(() => {
   padding: 15px;
   border-top: 1px solid var(--border-color);
   background: var(--section-content-bg);
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .input-container {
@@ -390,7 +400,7 @@ textarea:focus {
 /* 响应式设计 */
 @media (max-width: 600px) {
   .chat-panel {
-    height: calc(100vh - 200px);
+    height: 100%;
   }
   
   .message-avatar {

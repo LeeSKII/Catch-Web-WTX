@@ -885,8 +885,11 @@ watch(isDarkMode, (newValue) => {
 .container {
   padding: 15px;
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .tabs {
@@ -921,7 +924,11 @@ watch(isDarkMode, (newValue) => {
 }
 
 .tab-content.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .section {
