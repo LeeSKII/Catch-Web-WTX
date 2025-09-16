@@ -1,3 +1,4 @@
+import { ref } from 'vue';
 import { createClient } from '@supabase/supabase-js';
 import { createLogger } from '../utils/logger';
 import type { NewsData } from '../types';
@@ -12,8 +13,12 @@ const client = createClient(
 );
 
 export function useBookmark() {
+  // bookmark 请求状态
+  const isCheckingBookmark = ref(false);
+  
   // 查询URL是否在News表中，并获取相关数据
   const checkBookmarkStatus = async (url: string): Promise<boolean> => {
+    isCheckingBookmark.value = true;
     try {
       const { data, error } = await client
         .from("News")
@@ -59,10 +64,13 @@ export function useBookmark() {
     } catch (error) {
       logger.error("checkBookmarkStatus() 异常", error);
       return false;
+    } finally {
+      isCheckingBookmark.value = false;
     }
   };
 
   return {
     checkBookmarkStatus,
+    isCheckingBookmark,
   };
 }

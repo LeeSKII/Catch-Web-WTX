@@ -48,7 +48,7 @@ const {
   saveExtractedData,
   clearExtractedData,
 } = useDataExtractor();
-const { checkBookmarkStatus } = useBookmark();
+const { checkBookmarkStatus, isCheckingBookmark } = useBookmark();
 const {
   isLoadingAISummary,
   isQueryingDatabase,
@@ -483,12 +483,9 @@ const setupTabListeners = () => {
           await refreshDataForNewTab();
           
           // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-          if (tab.url) {
-            const isBookmarked = await checkBookmarkStatus(tab.url);
-            if (isBookmarked) {
-              logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-              await preloadDataToStorage(tab.url);
-            }
+          if (tab.url && extractedData.value.isBookmarked) {
+            logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+            await preloadDataToStorage(tab.url);
           }
           
           await loadAndDisplayAISummary(tab.url, "Tab切换");
@@ -561,12 +558,9 @@ const setupTabListeners = () => {
             await refreshDataForNewTab();
 
             // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-            if (details.url) {
-              const isBookmarked = await checkBookmarkStatus(details.url);
-              if (isBookmarked) {
-                logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-                await preloadDataToStorage(details.url);
-              }
+            if (details.url && extractedData.value.isBookmarked) {
+              logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
+              await preloadDataToStorage(details.url);
             }
 
             // 加载AI总结
@@ -729,9 +723,7 @@ watch(aiSummaryType, async () => {
     const url = tabs[0].url;
     
     // 检查页面是否已收藏
-    const isBookmarked = await checkBookmarkStatus(url);
-    
-    if (isBookmarked) {
+    if (extractedData.value.isBookmarked) {
       // 如果页面已收藏，使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
       const result = await switchSummaryType(url, aiSummaryType.value);
       
@@ -777,6 +769,7 @@ watch(isDarkMode, (newValue) => {
       <WebInfoSection
         ref="webInfoSectionRef"
         :extracted-data="extractedData"
+        :is-checking-bookmark="isCheckingBookmark"
         @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
         @export-data="handleExportData"

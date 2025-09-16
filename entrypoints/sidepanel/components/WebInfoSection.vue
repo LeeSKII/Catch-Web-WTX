@@ -14,15 +14,19 @@
           {{ isRefreshButtonDisabled ? '刷新中' : '刷新数据' }}
         </button>
         <button
-          v-if="extractedData.isBookmarked !== undefined"
           :class="[
             extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark',
-            { 'btn-loading': isBookmarkButtonDisabled }
+            { 'btn-loading': isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined }
           ]"
           @click="handleBookmarkAction"
-          :disabled="isBookmarkButtonDisabled"
+          :disabled="isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined"
         >
-          {{ isBookmarkButtonDisabled ? (extractedData.isBookmarked ? '更新中' : '收藏中') : (extractedData.isBookmarked ? '更新' : '收藏') }}
+          <span v-if="isBookmarkButtonDisabled || isCheckingBookmark || extractedData.isBookmarked === undefined" class="loading-icon">
+            <svg class="spinner" viewBox="0 0 50 50">
+              <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+            </svg>
+          </span>
+          <span v-else>{{ extractedData.isBookmarked ? '更新' : '收藏' }}</span>
         </button>
         <button class="btn btn-primary" @click="$emit('export-data')">
           导出数据
@@ -62,10 +66,12 @@
 </template>
 
 <script lang="ts" setup>
+import { ref } from 'vue';
 import type { ExtractedData } from '../types';
 
 const props = defineProps<{
   extractedData: ExtractedData;
+  isCheckingBookmark: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -209,5 +215,45 @@ defineExpose({
   background: #6c757d !important;
   border-color: #6c757d !important;
   transform: none;
+}
+.loading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.spinner {
+  animation: rotate 2s linear infinite;
+  width: 16px;
+  height: 16px;
+}
+
+.spinner .path {
+  stroke: white;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
 }
 </style>
