@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { createClient } from '@supabase/supabase-js';
 import { createLogger } from '../utils/logger';
 import type { NewsData } from '../types';
+import { useAbortController } from './useAbortController';
 
 // 创建日志器
 const logger = createLogger('Bookmark');
@@ -15,15 +16,26 @@ const client = createClient(
 export function useBookmark() {
   // bookmark 请求状态
   const isCheckingBookmark = ref(false);
+  const { createAbortController, cleanupAbortController } = useAbortController();
   
   // 查询URL是否在News表中，并获取相关数据
   const checkBookmarkStatus = async (url: string): Promise<boolean> => {
     isCheckingBookmark.value = true;
+    
+    // 创建AbortController用于可能的中断
+    const abortController = createAbortController('bookmarkCheck');
+    
     try {
       const { data, error } = await client
         .from("News")
         .select("url, summarizer, ai_key_info")
         .eq("url", url);
+
+      // 检查请求是否被中止
+      if (abortController.signal.aborted) {
+        logger.debug("bookmarkCheck请求被中止");
+        return false;
+      }
 
       if (error) {
         logger.error("数据库查询错误", error);
@@ -62,10 +74,16 @@ export function useBookmark() {
 
       return false;
     } catch (error) {
+      // 检查是否是中止错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        logger.debug("bookmarkCheck请求被中止");
+        return false;
+      }
       logger.error("checkBookmarkStatus() 异常", error);
       return false;
     } finally {
       isCheckingBookmark.value = false;
+      cleanupAbortController('bookmarkCheck');
     }
   };
 

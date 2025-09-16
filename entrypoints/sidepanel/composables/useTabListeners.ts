@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import { debounce } from '../utils/debounce';
 import { createLogger } from '../utils/logger';
 import { UI_CONFIG, PERFORMANCE_CONFIG } from '../constants';
+import { useAbortController } from './useAbortController';
 
 const logger = createLogger('TabListeners');
 
@@ -20,6 +21,9 @@ export function useTabListeners(
   // 记录上一次处理的URL，避免重复处理
   let lastProcessedUrl = '';
   let isProcessing = false;
+  
+  // 使用 AbortController
+  const { abortAllRequests } = useAbortController();
 
   // 等待标签页加载完成的函数
   const waitForTabToLoad = (tabId: number): Promise<void> => {
@@ -102,8 +106,13 @@ export function useTabListeners(
           isProcessing
         });
 
-        if (tab && tab.url && !isProcessing) {
-          logger.debug('Tab切换时URL', { url: tab.url });
+        if (tab && tab.url) {
+          // 优先处理新tab的切换，中断所有正在进行的网络请求
+          logger.debug('Tab切换，中断所有正在进行的网络请求', { url: tab.url });
+          abortAllRequests();
+          
+          // 重置处理状态，确保新tab能够被处理
+          isProcessing = false;
           lastProcessedUrl = tab.url;
           isProcessing = true;
 
@@ -140,10 +149,14 @@ export function useTabListeners(
         if (
           tab.active &&
           changeInfo.status === 'complete' &&
-          tab.url &&
-          !isProcessing
+          tab.url
         ) {
-          logger.debug('检测到URL变化且页面加载完成，处理URL', { url: tab.url });
+          // 优先处理URL更新，中断所有正在进行的网络请求
+          logger.debug('检测到URL变化且页面加载完成，中断所有正在进行的网络请求', { url: tab.url });
+          abortAllRequests();
+          
+          // 重置处理状态，确保新URL能够被处理
+          isProcessing = false;
           lastProcessedUrl = tab.url;
           isProcessing = true;
 

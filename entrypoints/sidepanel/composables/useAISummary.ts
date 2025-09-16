@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
+import { useAbortController } from "./useAbortController";
 
 // 创建日志器
 const logger = createLogger("AISummary");
@@ -21,13 +22,25 @@ export function useAISummary() {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
   );
 
+  const { createAbortController, cleanupAbortController } = useAbortController();
+
   const getNews = async (url: string): Promise<NewsData[]> => {
     logger.debug("getNews() 被调用", { url });
+    
+    // 创建AbortController用于数据库查询
+    const abortController = createAbortController('databaseQuery');
+    
     try {
       const { data, error } = await client
         .from("News")
         .select("url,summarizer,ai_key_info")
         .eq("url", url);
+
+      // 检查请求是否被中止
+      if (abortController.signal.aborted) {
+        logger.debug("数据库查询被中止");
+        return [];
+      }
 
       if (error) {
         logger.error("数据库查询错误", error);
@@ -37,8 +50,15 @@ export function useAISummary() {
       logger.debug("数据库查询结果", data);
       return data || [];
     } catch (error) {
+      // 检查是否是中止错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        logger.debug("数据库查询被中止");
+        return [];
+      }
       logger.error("getNews() 异常", error);
       return [];
+    } finally {
+      cleanupAbortController('databaseQuery');
     }
   };
 
@@ -149,6 +169,9 @@ export function useAISummary() {
       localStorage.getItem("openaiBaseUrl") || API_CONFIG.DEFAULT_BASE_URL;
     const apiUrl = `${baseUrl}/chat/completions`;
 
+    // 创建AbortController用于AI总结请求
+    const abortController = createAbortController('aiSummary');
+
     try {
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -169,7 +192,14 @@ export function useAISummary() {
           max_tokens: API_CONFIG.MAX_TOKENS,
           temperature: API_CONFIG.TEMPERATURE,
         }),
+        signal: abortController.signal, // 添加signal以支持中断
       });
+
+      // 检查请求是否被中止
+      if (abortController.signal.aborted) {
+        logger.debug("AI总结请求被中止");
+        return { success: false, message: "请求被中止" };
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -185,6 +215,13 @@ export function useAISummary() {
       let accumulatedContent = "";
 
       while (true) {
+        // 在每次读取前检查是否被中止
+        if (abortController.signal.aborted) {
+          logger.debug("AI总结流读取被中止");
+          reader.cancel();
+          return { success: false, message: "请求被中止" };
+        }
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -224,11 +261,18 @@ export function useAISummary() {
         }
       }
     } catch (error) {
+      // 检查是否是中止错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        logger.debug("AI总结请求被中止");
+        return { success: false, message: "请求被中止" };
+      }
       logger.error("OpenAI API调用失败", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "API调用失败",
       };
+    } finally {
+      cleanupAbortController('aiSummary');
     }
   };
 

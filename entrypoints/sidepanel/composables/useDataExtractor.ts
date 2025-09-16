@@ -2,6 +2,7 @@ import { ref, Ref } from 'vue';
 import { ExtractedData } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
+import { useAbortController } from './useAbortController';
 
 // 创建日志器
 const logger = createLogger('DataExtractor');
@@ -9,6 +10,7 @@ const logger = createLogger('DataExtractor');
 export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
   const isLoading: Ref<boolean> = ref(false);
+  const { createAbortController, cleanupAbortController } = useAbortController();
 
   const extractData = async (options: {
     html: boolean;
@@ -26,9 +28,19 @@ export function useDataExtractor() {
     }
 
     isLoading.value = true;
+    
+    // 创建AbortController用于数据提取
+    const abortController = createAbortController('dataExtraction');
 
     try {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      
+      // 检查请求是否被中止
+      if (abortController.signal.aborted) {
+        logger.debug("数据提取被中止");
+        isLoading.value = false;
+        return { success: false, message: '数据提取被中止' };
+      }
       
       // 检查tab是否存在且URL是否有效
       if (!tabs[0] || !tabs[0].url) {
@@ -55,6 +67,13 @@ export function useDataExtractor() {
           }
         );
 
+        // 再次检查是否被中止
+        if (abortController.signal.aborted) {
+          logger.debug("数据提取被中止");
+          isLoading.value = false;
+          return { success: false, message: '数据提取被中止' };
+        }
+
         // DOM准备就绪后，执行数据提取
         const results = await browser.scripting.executeScript(
           {
@@ -77,9 +96,16 @@ export function useDataExtractor() {
         return { success: false, message: '无法获取标签页ID' };
       }
     } catch (error) {
+      // 检查是否是中止错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        logger.debug("数据提取被中止");
+        return { success: false, message: '数据提取被中止' };
+      }
       logger.error('提取错误', error);
       isLoading.value = false;
       return { success: false, message: '提取数据时发生错误' };
+    } finally {
+      cleanupAbortController('dataExtraction');
     }
   };
 

@@ -6,6 +6,7 @@ import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
 import { useBookmark } from "./composables/useBookmark";
 import { useAISummary } from "./composables/useAISummary";
+import { useAbortController } from "./composables/useAbortController";
 import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
@@ -63,6 +64,9 @@ const {
   preloadDataToStorage,
   switchSummaryType,
 } = useAISummary();
+
+// 使用 AbortController
+const { abortAllRequests } = useAbortController();
 
 // 响应式数据
 const currentTab = ref("results");
@@ -466,8 +470,13 @@ const setupTabListeners = () => {
         isProcessing,
       });
 
-      if (tab && tab.url && !isProcessing) {
-        logger.debug("Tab切换时URL", { url: tab.url });
+      if (tab && tab.url) {
+        // 优先处理新tab的切换，中断所有正在进行的网络请求
+        logger.debug("Tab切换，中断所有正在进行的网络请求", { url: tab.url });
+        abortAllRequests();
+        
+        // 重置处理状态，确保新tab能够被处理
+        isProcessing = false;
         lastProcessedUrl = tab.url;
         isProcessing = true;
 
@@ -524,8 +533,13 @@ const setupTabListeners = () => {
           active: true,
           currentWindow: true,
         });
-        if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
-          logger.debug("检测到导航开始，清空面板数据", { url: details.url });
+        if (tabs && tabs[0] && tabs[0].id === details.tabId) {
+          // 优先处理新导航，中断所有正在进行的网络请求
+          logger.debug("检测到导航开始，中断所有正在进行的网络请求", { url: details.url });
+          abortAllRequests();
+          
+          // 重置处理状态，确保新导航能够被处理
+          isProcessing = false;
           isPageLoading.value = true;
           clearPanelData();
           lastProcessedUrl = details.url;
