@@ -763,7 +763,7 @@ watch(isDarkMode, (newValue) => {
       class="tab-content active"
     >
       <!-- 统计信息 -->
-      <StatsDisplay :stats="stats" :extracted-data="extractedData" />
+      <StatsDisplay :stats="stats" :extracted-data="extractedData" :is-checking-bookmark="isCheckingBookmark" />
 
       <!-- 网页信息 -->
       <WebInfoSection
