@@ -93,7 +93,8 @@ const {
   showReferenceList,
   hideReferenceList,
   showReferenceDetail,
-  hideReferenceDetail
+  hideReferenceDetail,
+  removeReference
 } = useChat();
 
 // 响应式数据
@@ -889,6 +890,7 @@ watch(isDarkMode, (newValue) => {
         @hide-reference-list="hideReferenceList"
         @show-reference-detail="showReferenceDetail"
         @hide-reference-detail="hideReferenceDetail"
+        @remove-reference="removeReference"
       />
     </div>
 

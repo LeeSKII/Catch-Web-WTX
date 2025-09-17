@@ -111,11 +111,19 @@
             v-for="(item, index) in referenceList"
             :key="index"
             class="reference-list-item"
-            @click="showReferenceDetail(index)"
           >
-            <div class="reference-item-title">{{ item.title || '无标题' }}</div>
-            <div class="reference-item-url">{{ item.url || '无URL' }}</div>
-            <div class="reference-item-preview">{{ getReferenceItemPreview(item) }}</div>
+            <div class="reference-item-content" @click="showReferenceDetail(index)">
+              <div class="reference-item-title">{{ item.title || '无标题' }}</div>
+              <div class="reference-item-url">{{ item.url || '无URL' }}</div>
+              <div class="reference-item-preview">{{ getReferenceItemPreview(item) }}</div>
+            </div>
+            <button
+              class="reference-item-delete"
+              @click.stop="removeReference(index)"
+              title="删除引用"
+            >
+              &times;
+            </button>
           </div>
         </div>
         <div v-else class="no-reference">
@@ -158,6 +166,14 @@
             <h4>提取时间</h4>
             <p>{{ new Date(referenceInfo.extractedAt).toLocaleString() }}</p>
           </div>
+          <div class="reference-section" v-if="referenceInfo.url">
+            <button
+              class="btn btn-primary"
+              @click="navigateToOriginalPage(referenceInfo.url)"
+            >
+              跳转到原文
+            </button>
+          </div>
         </div>
         <div v-else class="no-reference">
           <p>暂无引用信息</p>
@@ -197,6 +213,7 @@ const emit = defineEmits<{
   "hide-reference-list": [];
   "show-reference-detail": [index: number];
   "hide-reference-detail": [];
+  "remove-reference": [index: number];
 }>();
 
 const userInput = ref("");
@@ -249,10 +266,55 @@ const hideReferenceDetail = () => {
   emit("hide-reference-detail");
 };
 
+// 跳转到原文页面
+const navigateToOriginalPage = async (url: string) => {
+  if (!url) return;
+  
+  try {
+    // 获取当前所有打开的标签页
+    const tabs = await browser.tabs.query({});
+    
+    // 检查是否已经有标签页打开了该URL
+    const existingTab = tabs.find(tab => tab.url === url);
+    
+    if (existingTab && existingTab.id) {
+      // 如果已存在，激活该标签页
+      await browser.tabs.update(existingTab.id, { active: true });
+      // 如果标签页在当前窗口，可能还需要切换到该标签页
+      await browser.tabs.highlight({
+        windowId: existingTab.windowId,
+        tabs: existingTab.index
+      });
+    } else {
+      // 如果不存在，打开新标签页
+      await browser.tabs.create({ url });
+    }
+    
+    // 关闭模态框
+    hideReferenceDetail();
+  } catch (error) {
+    console.error('跳转到原文失败:', error);
+    // 如果出错，尝试直接打开新标签页
+    try {
+      await browser.tabs.create({ url });
+      hideReferenceDetail();
+    } catch (fallbackError) {
+      console.error('打开新标签页失败:', fallbackError);
+    }
+  }
+};
+
 // 获取引用列表项的预览文本
 const getReferenceItemPreview = (item: any) => {
   if (!item.text) return "";
   return item.text.substring(0, 100) + (item.text.length > 100 ? "..." : "");
+};
+
+// 删除引用
+const removeReference = (index: number) => {
+  if (confirm('确定要删除这个引用吗？')) {
+    emit("remove-reference", index);
+  }
 };
 
 // 过滤掉系统消息，只显示用户和AI的消息

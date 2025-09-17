@@ -418,6 +418,15 @@ export function useChat() {
   const addReferenceToChat = (referenceText: string, extractedData?: ExtractedData) => {
     if (!referenceText.trim()) return;
 
+    // 检查是否已经存在相同URL的引用
+    if (extractedData && extractedData.url) {
+      const isDuplicate = referenceList.value.some(item => item.url === extractedData.url);
+      if (isDuplicate) {
+        warning("该网页引用已经存在，请勿重复添加");
+        return;
+      }
+    }
+
     // 如果没有当前聊天，创建新聊天
     if (!currentChatId.value) {
       createNewChat();
@@ -483,6 +492,64 @@ export function useChat() {
     return item.text.substring(0, 100) + (item.text.length > 100 ? "..." : "");
   };
 
+  // 删除引用
+  const removeReference = (index: number) => {
+    // 从引用列表中删除
+    referenceList.value.splice(index, 1);
+    
+    // 如果删除的是当前选中的引用，重置选中状态
+    if (selectedReferenceIndex.value === index) {
+      selectedReferenceIndex.value = -1;
+      referenceInfo.value = null;
+    } else if (selectedReferenceIndex.value > index) {
+      // 如果删除的引用在选中引用之前，需要调整选中索引
+      selectedReferenceIndex.value--;
+    }
+    
+    // 更新系统消息中的引用内容
+    updateSystemMessages();
+    
+    // 更新聊天历史
+    const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
+    if (chat) {
+      chat.messages = [...messages.value];
+      chat.updatedAt = new Date();
+      saveChatHistory();
+    }
+    
+    // 显示删除成功的提示
+    success("引用已删除");
+  };
+
+  // 更新系统消息中的引用内容
+  const updateSystemMessages = () => {
+    // 找到所有的系统消息
+    const systemMessages = messages.value.filter(msg => msg.role === 'system');
+    
+    if (systemMessages.length === 0) return;
+    
+    // 如果引用列表为空，删除所有系统消息
+    if (referenceList.value.length === 0) {
+      messages.value = messages.value.filter(msg => msg.role !== 'system');
+      return;
+    }
+    
+    // 重新构建系统消息内容
+    let newSystemContent = "请基于以下网页内容回答我的问题：\n\n";
+    
+    referenceList.value.forEach((item, index) => {
+      if (item.text) {
+        newSystemContent += `网页 ${index + 1}：\n${item.text}\n\n`;
+      }
+    });
+    
+    // 更新第一个系统消息的内容（假设只有一个系统消息）
+    const firstSystemMessage = systemMessages[0];
+    if (firstSystemMessage) {
+      firstSystemMessage.content = newSystemContent;
+    }
+  };
+
   return {
     // 状态
     messages,
@@ -515,5 +582,6 @@ export function useChat() {
     showReferenceDetail,
     hideReferenceDetail,
     getReferenceItemPreview,
+    removeReference,
   };
 }
