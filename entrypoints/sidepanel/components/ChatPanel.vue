@@ -112,18 +112,20 @@
             :key="index"
             class="reference-list-item"
           >
+            <div class="reference-item-header">
+              <div class="reference-item-title" @click="showReferenceDetail(index)">{{ item.title || '无标题' }}</div>
+              <button
+                class="reference-item-delete"
+                @click.stop="removeReference(index)"
+                title="删除引用"
+              >
+                &times;
+              </button>
+            </div>
             <div class="reference-item-content" @click="showReferenceDetail(index)">
-              <div class="reference-item-title">{{ item.title || '无标题' }}</div>
               <div class="reference-item-url">{{ item.url || '无URL' }}</div>
               <div class="reference-item-preview">{{ getReferenceItemPreview(item) }}</div>
             </div>
-            <button
-              class="reference-item-delete"
-              @click.stop="removeReference(index)"
-              title="删除引用"
-            >
-              &times;
-            </button>
           </div>
         </div>
         <div v-else class="no-reference">
@@ -776,17 +778,54 @@ textarea:focus {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.reference-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .reference-item-title {
   font-weight: 600;
   color: var(--section-title-color);
-  margin-bottom: 4px;
   font-size: 14px;
+  flex: 1;
+  margin-right: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 18px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.reference-item-delete:hover {
+  background: var(--border-color);
+  color: var(--danger-color, #ff4757);
+}
+
+.reference-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .reference-item-url {
   color: var(--primary-color);
   font-size: 12px;
-  margin-bottom: 8px;
   word-break: break-all;
 }
 
