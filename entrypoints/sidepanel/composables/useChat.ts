@@ -66,6 +66,8 @@ export function useChat() {
   const showReferenceModal = ref(false);
   const showReferenceListModal = ref(false);
   const selectedReferenceIndex = ref<number>(-1);
+  // 单独的系统消息引用，确保只有一个系统消息
+  const systemMessage = ref<ChatMessage | null>(null);
   // 使用全局设置
   const currentModel = computed(() => settings.aiModel || "qwen-turbo");
   const maxTokens = computed(() => 8000); // 固定值，可根据需要调整
@@ -280,11 +282,21 @@ export function useChat() {
         temperature: temperature.value,
       });
 
-      // 准备消息历史
-      const messageHistory = messages.value.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
+      // 准备消息历史，确保只有一个系统消息
+      const messageHistory = messages.value
+        .filter((msg) => msg.role !== "system") // 先过滤掉所有系统消息
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        }));
+
+      // 如果有系统消息，添加到消息历史的开头
+      if (systemMessage.value) {
+        messageHistory.unshift({
+          role: systemMessage.value.role,
+          content: systemMessage.value.content,
+        });
+      }
 
       // 输出日志：systemPrompt 和 messages 内容
       logger.debug("对话内容", {
@@ -449,15 +461,25 @@ export function useChat() {
       referenceInfo.value = extractedData;
     }
 
-    // 创建系统消息，使用 systemPrompt 计算属性
-    const systemMessage: ChatMessage = {
+    // 创建或更新系统消息，使用 systemPrompt 计算属性
+    systemMessage.value = {
       role: "system",
       content: systemPrompt.value,
       timestamp: new Date(),
     };
 
-    // 将系统消息添加到消息列表的开头
-    messages.value.unshift(systemMessage);
+    // 检查是否已存在系统消息
+    const existingSystemMessageIndex = messages.value.findIndex(
+      (msg) => msg.role === "system"
+    );
+
+    if (existingSystemMessageIndex !== -1) {
+      // 如果已存在系统消息，更新其内容
+      messages.value[existingSystemMessageIndex] = systemMessage.value;
+    } else {
+      // 如果不存在系统消息，添加到消息列表的开头
+      messages.value.unshift(systemMessage.value);
+    }
 
     // 更新聊天历史
     const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
@@ -569,17 +591,31 @@ export function useChat() {
 
   // 更新系统消息中的引用内容
   const updateSystemMessages = () => {
-    // 找到所有的系统消息
-    const systemMessages = messages.value.filter(
-      (msg) => msg.role === "system"
-    );
-
-    if (systemMessages.length === 0) return;
-
     // 如果引用列表为空，删除所有系统消息
     if (referenceList.value.length === 0) {
       messages.value = messages.value.filter((msg) => msg.role !== "system");
+      systemMessage.value = null;
       return;
+    }
+
+    // 如果引用列表不为空，创建或更新系统消息
+    systemMessage.value = {
+      role: "system",
+      content: systemPrompt.value,
+      timestamp: new Date(),
+    };
+
+    // 检查是否已存在系统消息
+    const existingSystemMessageIndex = messages.value.findIndex(
+      (msg) => msg.role === "system"
+    );
+
+    if (existingSystemMessageIndex !== -1) {
+      // 如果已存在系统消息，更新其内容
+      messages.value[existingSystemMessageIndex] = systemMessage.value;
+    } else {
+      // 如果不存在系统消息，添加到消息列表的开头
+      messages.value.unshift(systemMessage.value);
     }
   };
 
@@ -593,6 +629,7 @@ export function useChat() {
     referenceList,
     referenceText,
     systemPrompt,
+    systemMessage,
     showReferenceModal,
     showReferenceListModal,
     selectedReferenceIndex,
