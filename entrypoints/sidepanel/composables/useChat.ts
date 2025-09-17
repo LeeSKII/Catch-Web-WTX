@@ -438,10 +438,10 @@ export function useChat() {
       referenceInfo.value = extractedData;
     }
 
-    // 创建系统消息，使用动态生成的引用文本
+    // 创建系统消息，使用 systemPrompt 计算属性
     const systemMessage: ChatMessage = {
       role: "system",
-      content: referenceText.value,
+      content: systemPrompt.value,
       timestamp: new Date(),
     };
 
@@ -503,6 +503,21 @@ export function useChat() {
     return text;
   });
 
+  // 专门用于生成系统消息内容的计算属性
+  const systemPrompt = computed(() => {
+    if (referenceList.value.length === 0) return "";
+    
+    let prompt = "请基于以下网页内容回答我的问题：\n\n";
+    
+    referenceList.value.forEach((item, index) => {
+      if (item.text) {
+        prompt += `网页 ${index + 1}：\n${item.text}\n\n`;
+      }
+    });
+    
+    return prompt;
+  });
+
   // 获取引用列表项的预览文本
   const getReferenceItemPreview = (item: ExtractedData) => {
     if (!item.text) return "";
@@ -551,10 +566,10 @@ export function useChat() {
       return;
     }
     
-    // 使用 referenceText 计算属性更新系统消息内容
+    // 使用 systemPrompt 计算属性更新系统消息内容
     const firstSystemMessage = systemMessages[0];
     if (firstSystemMessage) {
-      firstSystemMessage.content = referenceText.value;
+      firstSystemMessage.content = systemPrompt.value;
     }
   };
 
@@ -567,6 +582,7 @@ export function useChat() {
     referenceInfo,
     referenceList,
     referenceText,
+    systemPrompt,
     showReferenceModal,
     showReferenceListModal,
     selectedReferenceIndex,

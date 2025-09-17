@@ -77,6 +77,7 @@ const {
   referenceInfo,
   referenceList,
   referenceText,
+  system_prompt,
   showReferenceModal,
   showReferenceListModal,
   selectedReferenceIndex,
@@ -887,6 +888,7 @@ watch(isDarkMode, (newValue) => {
         :reference-info="referenceInfo"
         :reference-list="referenceList"
         :reference-text="referenceText"
+        :systemPrompt="system_prompt"
         :show-reference-modal="showReferenceModal"
         :show-reference-list-modal="showReferenceListModal"
         :selected-reference-index="selectedReferenceIndex"

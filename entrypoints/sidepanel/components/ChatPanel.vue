@@ -201,6 +201,7 @@ const props = defineProps<{
   referenceInfo: any;
   referenceList: any[];
   referenceText: string;
+  systemPrompt: string;
   showReferenceModal: boolean;
   showReferenceListModal: boolean;
   selectedReferenceIndex: number;
