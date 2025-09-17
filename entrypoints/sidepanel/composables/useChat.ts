@@ -6,6 +6,7 @@ import { useSettings } from "./useSettings";
 import { useAbortController } from "./useAbortController";
 import OpenAI from "openai";
 import { API_CONFIG } from "../constants";
+import { ExtractedData } from "../types";
 
 const logger = createLogger("Chat");
 const { success, error, warning, info } = useToast();
@@ -60,6 +61,8 @@ export function useChat() {
   const isChatLoading = ref(false);
   const currentChatId = ref<string>("");
   const chatHistory = ref<ChatHistory[]>([]);
+  const referenceInfo = ref<ExtractedData | null>(null);
+  const showReferenceModal = ref(false);
   // 使用全局设置
   const currentModel = computed(() => settings.aiModel || "qwen-turbo");
   const maxTokens = computed(() => 8000); // 固定值，可根据需要调整
@@ -409,12 +412,17 @@ export function useChat() {
   };
 
   // 添加引用到聊天上下文
-  const addReferenceToChat = (referenceText: string) => {
+  const addReferenceToChat = (referenceText: string, extractedData?: ExtractedData) => {
     if (!referenceText.trim()) return;
 
     // 如果没有当前聊天，创建新聊天
     if (!currentChatId.value) {
       createNewChat();
+    }
+
+    // 保存引用信息
+    if (extractedData) {
+      referenceInfo.value = extractedData;
     }
 
     // 创建系统消息，包含引用文本
@@ -436,15 +444,34 @@ export function useChat() {
     }
   };
 
+  // 显示引用模态对话框
+  const showReferences = () => {
+    showReferenceModal.value = true;
+  };
+
+  // 隐藏引用模态对话框
+  const hideReferences = () => {
+    showReferenceModal.value = false;
+  };
+
+  // 获取引用文本的前200个字符
+  const getReferencePreview = computed(() => {
+    if (!referenceInfo.value || !referenceInfo.value.text) return "";
+    return referenceInfo.value.text.substring(0, 200) + (referenceInfo.value.text.length > 200 ? "..." : "");
+  });
+
   return {
     // 状态
     messages,
     isChatLoading,
     currentChatId,
     chatHistory,
+    referenceInfo,
+    showReferenceModal,
     currentModel,
     maxTokens,
     temperature,
+    getReferencePreview,
 
     // 方法
     sendMessage,
@@ -457,5 +484,7 @@ export function useChat() {
     exportChat,
     abortCurrentRequest,
     addReferenceToChat,
+    showReferences,
+    hideReferences,
   };
 }

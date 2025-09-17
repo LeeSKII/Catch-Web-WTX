@@ -74,6 +74,9 @@ const { abortAllRequests } = useAbortController();
 const {
   messages,
   isChatLoading,
+  referenceInfo,
+  showReferenceModal,
+  getReferencePreview,
   sendMessage: sendChatMessage,
   clearChat: clearChatMessages,
   saveChat: saveChatMessages,
@@ -83,7 +86,9 @@ const {
   updateChatTitle,
   exportChat,
   abortCurrentRequest,
-  addReferenceToChat
+  addReferenceToChat,
+  showReferences,
+  hideReferences
 } = useChat();
 
 // 响应式数据
@@ -471,8 +476,8 @@ const handleAddReference = () => {
     return;
   }
   
-  // 调用 useChat 中的添加引用方法
-  addReferenceToChat(extractedData.value.text);
+  // 调用 useChat 中的添加引用方法，同时传递提取的数据
+  addReferenceToChat(extractedData.value.text, extractedData.value);
   success("已添加网页内容到对话上下文");
 };
 
@@ -865,10 +870,15 @@ watch(isDarkMode, (newValue) => {
       <ChatPanel
         :is-chat-loading="isChatLoading"
         :messages="messages"
+        :reference-info="referenceInfo"
+        :show-reference-modal="showReferenceModal"
+        :get-reference-preview="getReferencePreview"
         @send-message="sendChatMessage"
         @clear-chat="clearChatMessages"
         @save-chat="saveChatMessages"
         @add-reference="handleAddReference"
+        @show-references="showReferences"
+        @hide-references="hideReferences"
       />
     </div>
 

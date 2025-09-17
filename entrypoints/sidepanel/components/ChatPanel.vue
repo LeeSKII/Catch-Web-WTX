@@ -18,6 +18,13 @@
           添加引用
         </button>
         <button
+          class="btn btn-secondary"
+          @click="showReferences"
+          :disabled="isChatLoading || !referenceInfo"
+        >
+          显示引用
+        </button>
+        <button
           class="btn btn-primary"
           @click="saveChat"
           :disabled="isChatLoading || messages.length === 0"
@@ -29,7 +36,7 @@
 
     <div class="chat-messages" ref="messagesContainer">
       <div
-        v-for="(message, index) in messages"
+        v-for="(message, index) in filteredMessages"
         :key="index"
         :class="['message', message.role]"
       >
@@ -90,6 +97,47 @@
       </div>
     </div>
   </div>
+
+  <!-- 引用模态对话框 -->
+  <div v-if="showReferenceModal" class="modal-overlay" @click="hideReferences">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>引用信息</h3>
+        <button class="modal-close" @click="hideReferences">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div v-if="referenceInfo" class="reference-info">
+          <div class="reference-section">
+            <h4>标题</h4>
+            <p>{{ referenceInfo.title || '无标题' }}</p>
+          </div>
+          <div class="reference-section">
+            <h4>URL</h4>
+            <p>{{ referenceInfo.url || '无URL' }}</p>
+          </div>
+          <div class="reference-section">
+            <h4>主机</h4>
+            <p>{{ referenceInfo.host || '无主机信息' }}</p>
+          </div>
+          <div class="reference-section">
+            <h4>内容预览</h4>
+            <p>{{ getReferencePreview }}</p>
+          </div>
+          <div class="reference-section" v-if="referenceInfo.wordCount">
+            <h4>字数统计</h4>
+            <p>{{ referenceInfo.wordCount }} 字</p>
+          </div>
+          <div class="reference-section" v-if="referenceInfo.extractedAt">
+            <h4>提取时间</h4>
+            <p>{{ new Date(referenceInfo.extractedAt).toLocaleString() }}</p>
+          </div>
+        </div>
+        <div v-else class="no-reference">
+          <p>暂无引用信息</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -97,7 +145,7 @@ import { ref, onMounted, nextTick, watch, computed } from "vue";
 import { marked } from "marked";
 
 interface ChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
 }
@@ -105,6 +153,9 @@ interface ChatMessage {
 const props = defineProps<{
   isChatLoading: boolean;
   messages: ChatMessage[];
+  referenceInfo: any;
+  showReferenceModal: boolean;
+  getReferencePreview: string;
 }>();
 
 const emit = defineEmits<{
@@ -112,6 +163,8 @@ const emit = defineEmits<{
   "clear-chat": [];
   "save-chat": [];
   "add-reference": [];
+  "show-references": [];
+  "hide-references": [];
 }>();
 
 const userInput = ref("");
@@ -147,6 +200,19 @@ const saveChat = () => {
 const addReference = () => {
   emit("add-reference");
 };
+
+const showReferences = () => {
+  emit("show-references");
+};
+
+const hideReferences = () => {
+  emit("hide-references");
+};
+
+// 过滤掉系统消息，只显示用户和AI的消息
+const filteredMessages = computed(() => {
+  return props.messages.filter(message => message.role !== 'system');
+});
 
 const handleEnterKey = (event: KeyboardEvent) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -484,5 +550,99 @@ textarea:focus {
   .message-text {
     font-size: 13px;
   }
+}
+
+/* 模态对话框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--section-content-bg);
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--section-bg);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--section-title-color);
+  font-size: 18px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--border-color);
+}
+
+.modal-body {
+  padding: 20px;
+  max-height: calc(80vh - 70px);
+  overflow-y: auto;
+}
+
+.reference-section {
+  margin-bottom: 20px;
+}
+
+.reference-section:last-child {
+  margin-bottom: 0;
+}
+
+.reference-section h4 {
+  margin: 0 0 8px 0;
+  color: var(--section-title-color);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reference-section p {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.no-reference {
+  text-align: center;
+  color: var(--markdown-text-light);
+  padding: 20px;
 }
 </style>
