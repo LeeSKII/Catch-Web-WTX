@@ -415,15 +415,15 @@ export function useChat() {
   };
 
   // 添加引用到聊天上下文
-  const addReferenceToChat = (referenceText: string, extractedData?: ExtractedData) => {
-    if (!referenceText.trim()) return;
+  const addReferenceToChat = (referenceText: string, extractedData?: ExtractedData): boolean => {
+    if (!referenceText.trim()) return false;
 
     // 检查是否已经存在相同URL的引用
     if (extractedData && extractedData.url) {
       const isDuplicate = referenceList.value.some(item => item.url === extractedData.url);
       if (isDuplicate) {
         warning("该网页引用已经存在，请勿重复添加");
-        return;
+        return false;
       }
     }
 
@@ -455,6 +455,8 @@ export function useChat() {
       chat.updatedAt = new Date();
       saveChatHistory();
     }
+    
+    return true;
   };
 
   // 显示引用列表模态对话框

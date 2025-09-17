@@ -483,8 +483,15 @@ const handleAddReference = () => {
   }
   
   // 调用 useChat 中的添加引用方法，同时传递提取的数据
-  addReferenceToChat(extractedData.value.text, extractedData.value);
-  success("已添加网页内容到对话上下文");
+  // addReferenceToChat 函数内部会检查重复引用并显示相应的提示信息
+  // 如果是重复引用，函数会提前返回，不会继续执行后续代码
+  const wasAdded = addReferenceToChat(extractedData.value.text, extractedData.value);
+  
+  // 只有在成功添加引用后才显示成功消息
+  // 如果是重复引用，addReferenceToChat 内部已经显示了警告消息
+  if (wasAdded !== false) {
+    success("已添加网页内容到对话上下文");
+  }
 };
 
 // 防抖函数已移至 utils/debounce.ts，这里直接导入使用
