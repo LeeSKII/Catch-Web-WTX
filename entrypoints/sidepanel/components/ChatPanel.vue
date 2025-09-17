@@ -164,8 +164,17 @@ watch(() => props.messages, () => {
 }, { deep: true });
 
 // 监听加载状态变化，自动滚动到底部
-watch(() => props.isChatLoading, () => {
+watch(() => props.isChatLoading, (newVal, oldVal) => {
   scrollToBottom();
+  
+  // 当AI回复完成时，自动聚焦到输入框
+  if (oldVal === true && newVal === false) {
+    nextTick(() => {
+      if (inputTextarea.value) {
+        inputTextarea.value.focus();
+      }
+    });
+  }
 });
 
 onMounted(() => {

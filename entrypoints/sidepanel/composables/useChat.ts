@@ -296,7 +296,8 @@ export function useChat() {
         // 保存聊天历史
         await saveChatHistory();
         
-        success('消息发送成功');
+        // 取消消息发送成功的toast提示
+        // success('消息发送成功');
       } else {
         throw new Error(result.message || '发送消息失败');
       }
