@@ -384,12 +384,24 @@ watch(
   }
 );
 
+// 监听引用列表变化
+watch(
+  () => props.referenceList,
+  (newVal, oldVal) => {
+    console.log("ChatPanel: 引用列表发生变化，新数量:", newVal.length, "旧数量:", oldVal?.length);
+  },
+  { deep: true }
+);
+
 onMounted(() => {
   // 聚焦到输入框
   if (inputTextarea.value) {
     inputTextarea.value.focus();
   }
   scrollToBottom();
+  
+  // 添加调试日志
+  console.log("ChatPanel onMounted: 引用列表数量:", props.referenceList.length);
 });
 </script>
 

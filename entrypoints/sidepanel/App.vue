@@ -479,16 +479,22 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
   }
 };
 
-const handleAddReference = () => {
+const handleAddReference = async () => {
+  console.log("handleAddReference 被调用");
   if (!extractedData.value.text) {
+    console.log("没有可引用的文本内容");
     warning("没有可引用的文本内容，请先提取数据");
     return;
   }
   
+  console.log("准备添加引用，extractedData:", extractedData.value);
+  
   // 调用 useChat 中的添加引用方法，同时传递提取的数据
   // addReferenceToChat 函数内部会检查重复引用并显示相应的提示信息
   // 如果是重复引用，函数会提前返回，不会继续执行后续代码
-  const wasAdded = addReferenceToChat(extractedData.value.text, extractedData.value);
+  const wasAdded = await addReferenceToChat(extractedData.value.text, extractedData.value);
+  
+  console.log("添加引用结果:", wasAdded);
   
   // 只有在成功添加引用后才显示成功消息
   // 如果是重复引用，addReferenceToChat 内部已经显示了警告消息
@@ -773,6 +779,12 @@ onMounted(async () => {
   if (tabs && tabs[0] && tabs[0].url) {
     await loadAndDisplayAISummary(tabs[0].url, "初始加载");
   }
+  
+  // 确保引用列表被加载
+  logger.debug("App.vue onMounted: 确保引用列表被加载");
+  // 由于 useChat 的 onMounted 已经调用了 loadReferenceList，这里不需要重复调用
+  // 但是我们可以添加一些调试日志来确认引用列表已经加载
+  logger.debug("当前引用列表数量:", referenceList.value.length);
 });
 
 onUnmounted(() => {

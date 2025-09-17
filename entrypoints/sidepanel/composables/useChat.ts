@@ -1,5 +1,6 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { browser } from "wxt/browser";
+import { storage } from "#imports";
 import { createLogger } from "../utils/logger";
 import { useToast } from "./useToast";
 import { useSettings } from "./useSettings";
@@ -76,6 +77,7 @@ export function useChat() {
   // 初始化
   onMounted(async () => {
     await loadChatHistory();
+    await loadReferenceList();
   });
 
   /**
@@ -83,9 +85,10 @@ export function useChat() {
    */
   const loadChatHistory = async () => {
     try {
-      const result = await browser.storage.local.get(["chatHistory"]);
-      if (result.chatHistory) {
-        chatHistory.value = result.chatHistory.map((chat: any) => ({
+      const chatHistoryData = await storage.getItem("local:chatHistory");
+      if (chatHistoryData) {
+        const parsedData = JSON.parse(chatHistoryData as string);
+        chatHistory.value = parsedData.map((chat: any) => ({
           ...chat,
           createdAt: new Date(chat.createdAt),
           updatedAt: new Date(chat.updatedAt),
@@ -101,11 +104,69 @@ export function useChat() {
    */
   const saveChatHistory = async () => {
     try {
-      await browser.storage.local.set({
-        chatHistory: chatHistory.value,
-      });
+      await storage.setItem(
+        "local:chatHistory",
+        JSON.stringify(chatHistory.value)
+      );
     } catch (err) {
       logger.error("保存聊天历史失败", err);
+    }
+  };
+
+  /**
+   * 加载引用列表
+   */
+  const loadReferenceList = async () => {
+    try {
+      logger.debug("开始加载引用列表");
+      const referenceListData = await storage.getItem("local:referenceList");
+      logger.debug("从storage获取的引用列表数据:", referenceListData);
+
+      if (referenceListData) {
+        const parsedData = JSON.parse(referenceListData as string);
+        logger.debug(
+          "找到引用列表数据，数量:",
+          Array.isArray(parsedData) ? parsedData.length : "不是数组"
+        );
+        // 确保 referenceList 是一个数组
+        referenceList.value = Array.isArray(parsedData) ? parsedData : [];
+        logger.debug(
+          "引用列表已加载到响应式变量，当前数量:",
+          referenceList.value.length
+        );
+
+        // 如果有引用列表，更新系统消息
+        if (referenceList.value.length > 0) {
+          updateSystemMessages();
+          logger.debug("已更新系统消息");
+        }
+      } else {
+        logger.debug("storage中没有找到引用列表数据");
+        referenceList.value = [];
+      }
+    } catch (err) {
+      logger.error("加载引用列表失败", err);
+    }
+  };
+
+  /**
+   * 保存引用列表
+   */
+  const saveReferenceList = async () => {
+    try {
+      logger.debug("开始保存引用列表，当前数量:", referenceList.value.length);
+      logger.debug("引用列表内容:", JSON.stringify(referenceList.value));
+      await storage.setItem(
+        "local:referenceList",
+        JSON.stringify(referenceList.value)
+      );
+      logger.debug("引用列表已保存到storage");
+
+      // 验证保存是否成功
+      const result = await storage.getItem("local:referenceList");
+      logger.debug("验证保存结果:", result);
+    } catch (err) {
+      logger.error("保存引用列表失败", err);
     }
   };
 
@@ -433,11 +494,18 @@ export function useChat() {
   };
 
   // 添加引用到聊天上下文
-  const addReferenceToChat = (
+  const addReferenceToChat = async (
     referenceTextParam: string,
     extractedData?: ExtractedData
-  ): boolean => {
-    if (!referenceTextParam.trim()) return false;
+  ): Promise<boolean> => {
+    console.log("addReferenceToChat 被调用，参数:", {
+      referenceTextParam,
+      extractedData,
+    });
+    if (!referenceTextParam.trim()) {
+      console.log("引用文本为空，返回 false");
+      return false;
+    }
 
     // 检查是否已经存在相同URL的引用
     if (extractedData && extractedData.url) {
@@ -445,6 +513,7 @@ export function useChat() {
         (item) => item.url === extractedData.url
       );
       if (isDuplicate) {
+        console.log("检测到重复引用，URL:", extractedData.url);
         warning("该网页引用已经存在，请勿重复添加");
         return false;
       }
@@ -452,13 +521,19 @@ export function useChat() {
 
     // 如果没有当前聊天，创建新聊天
     if (!currentChatId.value) {
+      console.log("没有当前聊天，创建新聊天");
       createNewChat();
     }
 
     // 保存引用信息到列表
     if (extractedData) {
+      console.log(
+        "将引用添加到列表，当前列表数量:",
+        referenceList.value.length
+      );
       referenceList.value.push(extractedData);
       referenceInfo.value = extractedData;
+      console.log("引用已添加到列表，新数量:", referenceList.value.length);
     }
 
     // 创建或更新系统消息，使用 systemPrompt 计算属性
@@ -488,6 +563,11 @@ export function useChat() {
       chat.updatedAt = new Date();
       saveChatHistory();
     }
+
+    // 保存引用列表到 storage
+    console.log("准备保存引用列表到 storage");
+    await saveReferenceList();
+    console.log("引用列表已保存到 storage，函数即将返回 true");
 
     return true;
   };
@@ -561,7 +641,7 @@ export function useChat() {
   };
 
   // 删除引用
-  const removeReference = (index: number) => {
+  const removeReference = async (index: number) => {
     // 从引用列表中删除
     referenceList.value.splice(index, 1);
 
@@ -584,6 +664,9 @@ export function useChat() {
       chat.updatedAt = new Date();
       saveChatHistory();
     }
+
+    // 保存引用列表到 storage
+    await saveReferenceList();
 
     // 显示删除成功的提示
     success("引用已删除");
