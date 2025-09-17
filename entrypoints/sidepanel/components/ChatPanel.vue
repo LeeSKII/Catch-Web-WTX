@@ -200,6 +200,7 @@ const props = defineProps<{
   messages: ChatMessage[];
   referenceInfo: any;
   referenceList: any[];
+  referenceText: string;
   showReferenceModal: boolean;
   showReferenceListModal: boolean;
   selectedReferenceIndex: number;

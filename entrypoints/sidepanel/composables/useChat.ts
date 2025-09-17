@@ -415,8 +415,8 @@ export function useChat() {
   };
 
   // 添加引用到聊天上下文
-  const addReferenceToChat = (referenceText: string, extractedData?: ExtractedData): boolean => {
-    if (!referenceText.trim()) return false;
+  const addReferenceToChat = (referenceTextParam: string, extractedData?: ExtractedData): boolean => {
+    if (!referenceTextParam.trim()) return false;
 
     // 检查是否已经存在相同URL的引用
     if (extractedData && extractedData.url) {
@@ -438,10 +438,10 @@ export function useChat() {
       referenceInfo.value = extractedData;
     }
 
-    // 创建系统消息，包含引用文本
+    // 创建系统消息，使用动态生成的引用文本
     const systemMessage: ChatMessage = {
       role: "system",
-      content: `请基于以下网页内容回答我的问题：\n\n${referenceText}`,
+      content: referenceText.value,
       timestamp: new Date(),
     };
 
@@ -486,6 +486,21 @@ export function useChat() {
   const getReferencePreview = computed(() => {
     if (!referenceInfo.value || !referenceInfo.value.text) return "";
     return referenceInfo.value.text.substring(0, 200) + (referenceInfo.value.text.length > 200 ? "..." : "");
+  });
+
+  // 根据引用列表动态生成引用文本
+  const referenceText = computed(() => {
+    if (referenceList.value.length === 0) return "";
+    
+    let text = "请基于以下网页内容回答我的问题：\n\n";
+    
+    referenceList.value.forEach((item, index) => {
+      if (item.text) {
+        text += `网页 ${index + 1}：\n${item.text}\n\n`;
+      }
+    });
+    
+    return text;
   });
 
   // 获取引用列表项的预览文本
@@ -536,19 +551,10 @@ export function useChat() {
       return;
     }
     
-    // 重新构建系统消息内容
-    let newSystemContent = "请基于以下网页内容回答我的问题：\n\n";
-    
-    referenceList.value.forEach((item, index) => {
-      if (item.text) {
-        newSystemContent += `网页 ${index + 1}：\n${item.text}\n\n`;
-      }
-    });
-    
-    // 更新第一个系统消息的内容（假设只有一个系统消息）
+    // 使用 referenceText 计算属性更新系统消息内容
     const firstSystemMessage = systemMessages[0];
     if (firstSystemMessage) {
-      firstSystemMessage.content = newSystemContent;
+      firstSystemMessage.content = referenceText.value;
     }
   };
 
@@ -560,6 +566,7 @@ export function useChat() {
     chatHistory,
     referenceInfo,
     referenceList,
+    referenceText,
     showReferenceModal,
     showReferenceListModal,
     selectedReferenceIndex,

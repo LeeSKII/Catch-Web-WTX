@@ -76,6 +76,7 @@ const {
   isChatLoading,
   referenceInfo,
   referenceList,
+  referenceText,
   showReferenceModal,
   showReferenceListModal,
   selectedReferenceIndex,
@@ -885,6 +886,7 @@ watch(isDarkMode, (newValue) => {
         :messages="messages"
         :reference-info="referenceInfo"
         :reference-list="referenceList"
+        :reference-text="referenceText"
         :show-reference-modal="showReferenceModal"
         :show-reference-list-modal="showReferenceListModal"
         :selected-reference-index="selectedReferenceIndex"
