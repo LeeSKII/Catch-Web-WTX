@@ -286,6 +286,12 @@ export function useChat() {
         content: msg.content,
       }));
 
+      // 输出日志：systemPrompt 和 messages 内容
+      logger.debug("对话内容", {
+        systemPrompt: systemPrompt.value,
+        messages: messageHistory
+      });
+
       // 调用OpenAI API
       const result = await callOpenAI(apiKey, baseUrl, messageHistory);
 
