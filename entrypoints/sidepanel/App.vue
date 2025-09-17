@@ -82,7 +82,8 @@ const {
   deleteChat,
   updateChatTitle,
   exportChat,
-  abortCurrentRequest
+  abortCurrentRequest,
+  addReferenceToChat
 } = useChat();
 
 // 响应式数据
@@ -462,6 +463,17 @@ const handleBookmarkAction = async (isBookmarked: boolean) => {
       webInfoSectionRef.value.resetButtonStates();
     }
   }
+};
+
+const handleAddReference = () => {
+  if (!extractedData.value.text) {
+    warning("没有可引用的文本内容，请先提取数据");
+    return;
+  }
+  
+  // 调用 useChat 中的添加引用方法
+  addReferenceToChat(extractedData.value.text);
+  success("已添加网页内容到对话上下文");
 };
 
 // 防抖函数已移至 utils/debounce.ts，这里直接导入使用
@@ -856,6 +868,7 @@ watch(isDarkMode, (newValue) => {
         @send-message="sendChatMessage"
         @clear-chat="clearChatMessages"
         @save-chat="saveChatMessages"
+        @add-reference="handleAddReference"
       />
     </div>
 

@@ -3,15 +3,22 @@
     <div class="chat-header">
       <h3>AI 对话</h3>
       <div class="chat-actions">
-        <button 
-          class="btn btn-secondary" 
+        <button
+          class="btn btn-secondary"
           @click="clearChat"
           :disabled="isChatLoading"
         >
           清空对话
         </button>
-        <button 
-          class="btn btn-primary" 
+        <button
+          class="btn btn-secondary"
+          @click="addReference"
+          :disabled="isChatLoading"
+        >
+          添加引用
+        </button>
+        <button
+          class="btn btn-primary"
           @click="saveChat"
           :disabled="isChatLoading || messages.length === 0"
         >
@@ -27,16 +34,26 @@
         :class="['message', message.role]"
       >
         <div class="message-avatar">
-          {{ message.role === 'user' ? '👤' : '🤖' }}
+          {{ message.role === "user" ? "👤" : "🤖" }}
         </div>
         <div class="message-content">
-          <div class="message-role">{{ message.role === 'user' ? '用户' : 'AI' }}</div>
-          <div class="message-text" v-if="message.role === 'user'" v-html="formatMessage(message.content)"></div>
-          <div class="message-text" v-else v-html="parseMarkdown(message.content)"></div>
+          <div class="message-role">
+            {{ message.role === "user" ? "User" : "AI" }}
+          </div>
+          <div
+            class="message-text"
+            v-if="message.role === 'user'"
+            v-html="formatMessage(message.content)"
+          ></div>
+          <div
+            class="message-text"
+            v-else
+            v-html="parseMarkdown(message.content)"
+          ></div>
           <div class="message-time">{{ formatTime(message.timestamp) }}</div>
         </div>
       </div>
-      
+
       <div v-if="isChatLoading" class="message assistant loading">
         <div class="message-avatar">🤖</div>
         <div class="message-content">
@@ -50,7 +67,7 @@
           </div>
         </div>
       </div>
-      
+
       <div v-if="messages.length === 0 && !isChatLoading" class="empty-chat">
         <div class="empty-chat-icon">💬</div>
         <div class="empty-chat-text">开始与AI对话吧</div>
@@ -76,11 +93,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
-import { marked } from 'marked';
+import { ref, onMounted, nextTick, watch, computed } from "vue";
+import { marked } from "marked";
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -91,12 +108,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'send-message': [message: string];
-  'clear-chat': [];
-  'save-chat': [];
+  "send-message": [message: string];
+  "clear-chat": [];
+  "save-chat": [];
+  "add-reference": [];
 }>();
 
-const userInput = ref('');
+const userInput = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
 
@@ -104,30 +122,34 @@ const inputTextarea = ref<HTMLTextAreaElement | null>(null);
 const parseMarkdown = (content: string): string => {
   try {
     // 使用 marked 的同步解析方式，参考 AISummaryPanel.vue
-    return content ? marked.parse(content, { async: false }) as string : '';
+    return content ? (marked.parse(content, { async: false }) as string) : "";
   } catch (error) {
-    console.error('Markdown parsing error:', error);
+    console.error("Markdown parsing error:", error);
     return content;
   }
 };
 
 const sendMessage = () => {
   if (!userInput.value.trim() || props.isChatLoading) return;
-  
-  emit('send-message', userInput.value.trim());
-  userInput.value = '';
+
+  emit("send-message", userInput.value.trim());
+  userInput.value = "";
 };
 
 const clearChat = () => {
-  emit('clear-chat');
+  emit("clear-chat");
 };
 
 const saveChat = () => {
-  emit('save-chat');
+  emit("save-chat");
+};
+
+const addReference = () => {
+  emit("add-reference");
 };
 
 const handleEnterKey = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
+  if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     sendMessage();
   }
@@ -136,16 +158,16 @@ const handleEnterKey = (event: KeyboardEvent) => {
 const formatMessage = (content: string): string => {
   // 简单的Markdown格式化
   return content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`(.*?)`/g, "<code>$1</code>")
+    .replace(/\n/g, "<br>");
 };
 
 const formatTime = (timestamp: Date): string => {
-  return new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(timestamp);
 };
 
@@ -159,23 +181,30 @@ const scrollToBottom = () => {
 };
 
 // 监听消息变化，自动滚动到底部
-watch(() => props.messages, () => {
-  scrollToBottom();
-}, { deep: true });
+watch(
+  () => props.messages,
+  () => {
+    scrollToBottom();
+  },
+  { deep: true }
+);
 
 // 监听加载状态变化，自动滚动到底部
-watch(() => props.isChatLoading, (newVal, oldVal) => {
-  scrollToBottom();
-  
-  // 当AI回复完成时，自动聚焦到输入框
-  if (oldVal === true && newVal === false) {
-    nextTick(() => {
-      if (inputTextarea.value) {
-        inputTextarea.value.focus();
-      }
-    });
+watch(
+  () => props.isChatLoading,
+  (newVal, oldVal) => {
+    scrollToBottom();
+
+    // 当AI回复完成时，自动聚焦到输入框
+    if (oldVal === true && newVal === false) {
+      nextTick(() => {
+        if (inputTextarea.value) {
+          inputTextarea.value.focus();
+        }
+      });
+    }
   }
-});
+);
 
 onMounted(() => {
   // 聚焦到输入框
@@ -325,7 +354,9 @@ onMounted(() => {
 }
 
 @keyframes typing {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -443,13 +474,13 @@ textarea:focus {
   .chat-panel {
     height: 100%;
   }
-  
+
   .message-avatar {
     width: 30px;
     height: 30px;
     font-size: 14px;
   }
-  
+
   .message-text {
     font-size: 13px;
   }
