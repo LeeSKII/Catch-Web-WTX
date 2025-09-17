@@ -19,8 +19,8 @@
         </button>
         <button
           class="btn btn-secondary"
-          @click="showReferences"
-          :disabled="isChatLoading || !referenceInfo"
+          @click="showReferenceList"
+          :disabled="isChatLoading || referenceList.length === 0"
         >
           显示引用
         </button>
@@ -98,12 +98,39 @@
     </div>
   </div>
 
-  <!-- 引用模态对话框 -->
-  <div v-if="showReferenceModal" class="modal-overlay" @click="hideReferences">
+  <!-- 引用列表模态对话框 -->
+  <div v-if="showReferenceListModal" class="modal-overlay" @click="hideReferenceList">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>引用列表</h3>
+        <button class="modal-close" @click="hideReferenceList">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div v-if="referenceList.length > 0" class="reference-list">
+          <div
+            v-for="(item, index) in referenceList"
+            :key="index"
+            class="reference-list-item"
+            @click="showReferenceDetail(index)"
+          >
+            <div class="reference-item-title">{{ item.title || '无标题' }}</div>
+            <div class="reference-item-url">{{ item.url || '无URL' }}</div>
+            <div class="reference-item-preview">{{ getReferenceItemPreview(item) }}</div>
+          </div>
+        </div>
+        <div v-else class="no-reference">
+          <p>暂无引用信息</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引用详情模态对话框 -->
+  <div v-if="showReferenceModal" class="modal-overlay" @click="hideReferenceDetail">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>引用信息</h3>
-        <button class="modal-close" @click="hideReferences">&times;</button>
+        <button class="modal-close" @click="hideReferenceDetail">&times;</button>
       </div>
       <div class="modal-body">
         <div v-if="referenceInfo" class="reference-info">
@@ -154,7 +181,10 @@ const props = defineProps<{
   isChatLoading: boolean;
   messages: ChatMessage[];
   referenceInfo: any;
+  referenceList: any[];
   showReferenceModal: boolean;
+  showReferenceListModal: boolean;
+  selectedReferenceIndex: number;
   getReferencePreview: string;
 }>();
 
@@ -163,8 +193,10 @@ const emit = defineEmits<{
   "clear-chat": [];
   "save-chat": [];
   "add-reference": [];
-  "show-references": [];
-  "hide-references": [];
+  "show-reference-list": [];
+  "hide-reference-list": [];
+  "show-reference-detail": [index: number];
+  "hide-reference-detail": [];
 }>();
 
 const userInput = ref("");
@@ -201,12 +233,26 @@ const addReference = () => {
   emit("add-reference");
 };
 
-const showReferences = () => {
-  emit("show-references");
+const showReferenceList = () => {
+  emit("show-reference-list");
 };
 
-const hideReferences = () => {
-  emit("hide-references");
+const hideReferenceList = () => {
+  emit("hide-reference-list");
+};
+
+const showReferenceDetail = (index: number) => {
+  emit("show-reference-detail", index);
+};
+
+const hideReferenceDetail = () => {
+  emit("hide-reference-detail");
+};
+
+// 获取引用列表项的预览文本
+const getReferenceItemPreview = (item: any) => {
+  if (!item.text) return "";
+  return item.text.substring(0, 100) + (item.text.length > 100 ? "..." : "");
 };
 
 // 过滤掉系统消息，只显示用户和AI的消息
@@ -644,5 +690,51 @@ textarea:focus {
   text-align: center;
   color: var(--markdown-text-light);
   padding: 20px;
+}
+
+/* 引用列表样式 */
+.reference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reference-list-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--section-bg);
+}
+
+.reference-list-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reference-item-title {
+  font-weight: 600;
+  color: var(--section-title-color);
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.reference-item-url {
+  color: var(--primary-color);
+  font-size: 12px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.reference-item-preview {
+  color: var(--text-color);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

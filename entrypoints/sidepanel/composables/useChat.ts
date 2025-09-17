@@ -62,7 +62,10 @@ export function useChat() {
   const currentChatId = ref<string>("");
   const chatHistory = ref<ChatHistory[]>([]);
   const referenceInfo = ref<ExtractedData | null>(null);
+  const referenceList = ref<ExtractedData[]>([]);
   const showReferenceModal = ref(false);
+  const showReferenceListModal = ref(false);
+  const selectedReferenceIndex = ref<number>(-1);
   // 使用全局设置
   const currentModel = computed(() => settings.aiModel || "qwen-turbo");
   const maxTokens = computed(() => 8000); // 固定值，可根据需要调整
@@ -420,8 +423,9 @@ export function useChat() {
       createNewChat();
     }
 
-    // 保存引用信息
+    // 保存引用信息到列表
     if (extractedData) {
+      referenceList.value.push(extractedData);
       referenceInfo.value = extractedData;
     }
 
@@ -444,14 +448,27 @@ export function useChat() {
     }
   };
 
-  // 显示引用模态对话框
-  const showReferences = () => {
+  // 显示引用列表模态对话框
+  const showReferenceList = () => {
+    showReferenceListModal.value = true;
+  };
+
+  // 隐藏引用列表模态对话框
+  const hideReferenceList = () => {
+    showReferenceListModal.value = false;
+  };
+
+  // 显示引用详情模态对话框
+  const showReferenceDetail = (index: number) => {
+    selectedReferenceIndex.value = index;
+    referenceInfo.value = referenceList.value[index];
     showReferenceModal.value = true;
   };
 
-  // 隐藏引用模态对话框
-  const hideReferences = () => {
+  // 隐藏引用详情模态对话框
+  const hideReferenceDetail = () => {
     showReferenceModal.value = false;
+    selectedReferenceIndex.value = -1;
   };
 
   // 获取引用文本的前200个字符
@@ -460,6 +477,12 @@ export function useChat() {
     return referenceInfo.value.text.substring(0, 200) + (referenceInfo.value.text.length > 200 ? "..." : "");
   });
 
+  // 获取引用列表项的预览文本
+  const getReferenceItemPreview = (item: ExtractedData) => {
+    if (!item.text) return "";
+    return item.text.substring(0, 100) + (item.text.length > 100 ? "..." : "");
+  };
+
   return {
     // 状态
     messages,
@@ -467,7 +490,10 @@ export function useChat() {
     currentChatId,
     chatHistory,
     referenceInfo,
+    referenceList,
     showReferenceModal,
+    showReferenceListModal,
+    selectedReferenceIndex,
     currentModel,
     maxTokens,
     temperature,
@@ -484,7 +510,10 @@ export function useChat() {
     exportChat,
     abortCurrentRequest,
     addReferenceToChat,
-    showReferences,
-    hideReferences,
+    showReferenceList,
+    hideReferenceList,
+    showReferenceDetail,
+    hideReferenceDetail,
+    getReferenceItemPreview,
   };
 }

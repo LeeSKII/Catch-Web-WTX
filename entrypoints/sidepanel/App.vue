@@ -75,7 +75,10 @@ const {
   messages,
   isChatLoading,
   referenceInfo,
+  referenceList,
   showReferenceModal,
+  showReferenceListModal,
+  selectedReferenceIndex,
   getReferencePreview,
   sendMessage: sendChatMessage,
   clearChat: clearChatMessages,
@@ -87,8 +90,10 @@ const {
   exportChat,
   abortCurrentRequest,
   addReferenceToChat,
-  showReferences,
-  hideReferences
+  showReferenceList,
+  hideReferenceList,
+  showReferenceDetail,
+  hideReferenceDetail
 } = useChat();
 
 // 响应式数据
@@ -871,14 +876,19 @@ watch(isDarkMode, (newValue) => {
         :is-chat-loading="isChatLoading"
         :messages="messages"
         :reference-info="referenceInfo"
+        :reference-list="referenceList"
         :show-reference-modal="showReferenceModal"
+        :show-reference-list-modal="showReferenceListModal"
+        :selected-reference-index="selectedReferenceIndex"
         :get-reference-preview="getReferencePreview"
         @send-message="sendChatMessage"
         @clear-chat="clearChatMessages"
         @save-chat="saveChatMessages"
         @add-reference="handleAddReference"
-        @show-references="showReferences"
-        @hide-references="hideReferences"
+        @show-reference-list="showReferenceList"
+        @hide-reference-list="hideReferenceList"
+        @show-reference-detail="showReferenceDetail"
+        @hide-reference-detail="hideReferenceDetail"
       />
     </div>
 
