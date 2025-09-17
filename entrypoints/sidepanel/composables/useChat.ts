@@ -289,7 +289,7 @@ export function useChat() {
       // 输出日志：systemPrompt 和 messages 内容
       logger.debug("对话内容", {
         systemPrompt: systemPrompt.value,
-        messages: messageHistory
+        messages: messageHistory,
       });
 
       // 调用OpenAI API
@@ -421,12 +421,17 @@ export function useChat() {
   };
 
   // 添加引用到聊天上下文
-  const addReferenceToChat = (referenceTextParam: string, extractedData?: ExtractedData): boolean => {
+  const addReferenceToChat = (
+    referenceTextParam: string,
+    extractedData?: ExtractedData
+  ): boolean => {
     if (!referenceTextParam.trim()) return false;
 
     // 检查是否已经存在相同URL的引用
     if (extractedData && extractedData.url) {
-      const isDuplicate = referenceList.value.some(item => item.url === extractedData.url);
+      const isDuplicate = referenceList.value.some(
+        (item) => item.url === extractedData.url
+      );
       if (isDuplicate) {
         warning("该网页引用已经存在，请勿重复添加");
         return false;
@@ -461,7 +466,7 @@ export function useChat() {
       chat.updatedAt = new Date();
       saveChatHistory();
     }
-    
+
     return true;
   };
 
@@ -491,36 +496,39 @@ export function useChat() {
   // 获取引用文本的前200个字符
   const getReferencePreview = computed(() => {
     if (!referenceInfo.value || !referenceInfo.value.text) return "";
-    return referenceInfo.value.text.substring(0, 200) + (referenceInfo.value.text.length > 200 ? "..." : "");
+    return (
+      referenceInfo.value.text.substring(0, 200) +
+      (referenceInfo.value.text.length > 200 ? "..." : "")
+    );
   });
 
   // 根据引用列表动态生成引用文本
   const referenceText = computed(() => {
     if (referenceList.value.length === 0) return "";
-    
+
     let text = "请基于以下网页内容回答我的问题：\n\n";
-    
+
     referenceList.value.forEach((item, index) => {
       if (item.text) {
         text += `网页 ${index + 1}：\n${item.text}\n\n`;
       }
     });
-    
+
     return text;
   });
 
   // 专门用于生成系统消息内容的计算属性
   const systemPrompt = computed(() => {
     if (referenceList.value.length === 0) return "";
-    
+
     let prompt = "请基于以下网页内容回答我的问题：\n\n";
-    
+
     referenceList.value.forEach((item, index) => {
       if (item.text) {
         prompt += `网页 ${index + 1}：\n${item.text}\n\n`;
       }
     });
-    
+
     return prompt;
   });
 
@@ -534,7 +542,7 @@ export function useChat() {
   const removeReference = (index: number) => {
     // 从引用列表中删除
     referenceList.value.splice(index, 1);
-    
+
     // 如果删除的是当前选中的引用，重置选中状态
     if (selectedReferenceIndex.value === index) {
       selectedReferenceIndex.value = -1;
@@ -543,10 +551,10 @@ export function useChat() {
       // 如果删除的引用在选中引用之前，需要调整选中索引
       selectedReferenceIndex.value--;
     }
-    
+
     // 更新系统消息中的引用内容
     updateSystemMessages();
-    
+
     // 更新聊天历史
     const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
     if (chat) {
@@ -554,7 +562,7 @@ export function useChat() {
       chat.updatedAt = new Date();
       saveChatHistory();
     }
-    
+
     // 显示删除成功的提示
     success("引用已删除");
   };
@@ -562,20 +570,16 @@ export function useChat() {
   // 更新系统消息中的引用内容
   const updateSystemMessages = () => {
     // 找到所有的系统消息
-    const systemMessages = messages.value.filter(msg => msg.role === 'system');
-    
+    const systemMessages = messages.value.filter(
+      (msg) => msg.role === "system"
+    );
+
     if (systemMessages.length === 0) return;
-    
+
     // 如果引用列表为空，删除所有系统消息
     if (referenceList.value.length === 0) {
-      messages.value = messages.value.filter(msg => msg.role !== 'system');
+      messages.value = messages.value.filter((msg) => msg.role !== "system");
       return;
-    }
-    
-    // 使用 systemPrompt 计算属性更新系统消息内容
-    const firstSystemMessage = systemMessages[0];
-    if (firstSystemMessage) {
-      firstSystemMessage.content = systemPrompt.value;
     }
   };
 
