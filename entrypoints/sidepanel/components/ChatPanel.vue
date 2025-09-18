@@ -297,8 +297,8 @@ const setupTabListeners = () => {
               const originalTitleForUrl = originalTitlesMap.value[tab.url];
               let newTitle = originalTitleForUrl;
               
-              if (!originalTitleForUrl.startsWith("[已引用]")) {
-                newTitle = `[已引用] ${originalTitleForUrl}`;
+              if (!originalTitleForUrl.startsWith("[📌已引用]")) {
+                newTitle = `[📌已引用] ${originalTitleForUrl}`;
               }
               
               // 更新标签页标题
@@ -346,8 +346,8 @@ const setupTabListeners = () => {
         const originalTitleForUrl = originalTitlesMap.value[tab.url] || tab.title || "";
         let newTitle = originalTitleForUrl;
         
-        if (!originalTitleForUrl.startsWith("[已引用]")) {
-          newTitle = `[已引用] ${originalTitleForUrl}`;
+        if (!originalTitleForUrl.startsWith("[📌已引用]")) {
+          newTitle = `[📌已引用] ${originalTitleForUrl}`;
         }
         
         // 更新标签页标题
@@ -368,8 +368,8 @@ const setupTabListeners = () => {
       } else {
         // 如果URL不在引用列表中，检查是否需要恢复原始标题
         const originalTitleForUrl = originalTitlesMap.value[tab.url];
-        if (originalTitleForUrl && originalTitleForUrl.startsWith("[已引用] ")) {
-          const newTitle = originalTitleForUrl.substring(6); // 移除 "[已引用] " 前缀
+        if (originalTitleForUrl && originalTitleForUrl.startsWith("[📌已引用] ")) {
+          const newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
           
           if (newTitle !== tab.title) {
             try {
@@ -455,13 +455,13 @@ const updateAllTabTitles = async () => {
       
       if (isInReferenceList && originalTitleForUrl) {
         // 如果URL在引用列表中且原始标题存在，添加前缀
-        if (!originalTitleForUrl.startsWith("[已引用]")) {
-          newTitle = `[已引用] ${originalTitleForUrl}`;
+        if (!originalTitleForUrl.startsWith("[📌已引用]")) {
+          newTitle = `[📌已引用] ${originalTitleForUrl}`;
         }
       } else if (originalTitleForUrl) {
         // 如果URL不在引用列表中，恢复原始标题
-        if (originalTitleForUrl.startsWith("[已引用] ")) {
-          newTitle = originalTitleForUrl.substring(6); // 移除 "[已引用] " 前缀
+        if (originalTitleForUrl.startsWith("[📌已引用] ")) {
+          newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
         }
       }
       
