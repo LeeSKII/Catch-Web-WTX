@@ -98,34 +98,6 @@ const formatTime = (timestamp: Date): string => {
 .message {
   display: flex;
   margin-bottom: 15px;
-  animation: fadeIn 0.3s ease-in;
-}
-
-.message.streaming {
-  animation: pulse 2s infinite;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 
 .message-avatar {
@@ -172,11 +144,6 @@ const formatTime = (timestamp: Date): string => {
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.stop-btn:hover {
-  background: rgba(255, 71, 87, 0.1);
 }
 
 .message-text {
@@ -222,25 +189,5 @@ const formatTime = (timestamp: Date): string => {
   height: 8px;
   border-radius: 50%;
   background: var(--markdown-text-light);
-  animation: typing 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
 }
 </style>
