@@ -56,7 +56,7 @@
             </button>
           </div>
           <div class="message-text">
-            <div v-if="isStreaming && streamingContent">{{ streamingContent }}</div>
+            <div v-if="isStreaming && streamingContent" v-html="parsedStreamingContent"></div>
             <div v-else class="typing-indicator">
               <span></span>
               <span></span>
@@ -120,6 +120,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
 import { browser } from "wxt/browser";
+import { marked } from 'marked';
 import Confirm from "./Confirm.vue";
 import MessageItem from "./MessageItem.vue";
 import ReferenceList from "./ReferenceList.vue";
@@ -546,6 +547,11 @@ const handleCancel = () => {
 // 过滤掉系统消息，只显示用户和AI的消息
 const filteredMessages = computed(() => {
   return props.messages.filter((message) => message.role !== "system");
+});
+
+// 解析流式输出的 Markdown 内容
+const parsedStreamingContent = computed(() => {
+  return props.streamingContent ? marked.parse(props.streamingContent) : '';
 });
 
 const handleKeyDown = (event: KeyboardEvent) => {
