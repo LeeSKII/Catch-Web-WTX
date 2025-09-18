@@ -80,6 +80,8 @@ const {
   showReferenceListModal,
   selectedReferenceIndex,
   getReferencePreview,
+  streamingContent,
+  isStreaming,
   sendMessage: sendChatMessage,
   clearChat: clearChatMessages,
   saveChat: saveChatMessages,
@@ -903,6 +905,8 @@ watch(isDarkMode, (newValue) => {
         :show-reference-list-modal="showReferenceListModal"
         :selected-reference-index="selectedReferenceIndex"
         :get-reference-preview="getReferencePreview"
+        :streaming-content="streamingContent"
+        :is-streaming="isStreaming"
         @send-message="sendChatMessage"
         @clear-chat="clearChatMessages"
         @save-chat="saveChatMessages"
@@ -912,6 +916,7 @@ watch(isDarkMode, (newValue) => {
         @show-reference-detail="showReferenceDetail"
         @hide-reference-detail="hideReferenceDetail"
         @remove-reference="removeReference"
+        @abort-current-request="abortCurrentRequest"
       />
     </div>
 

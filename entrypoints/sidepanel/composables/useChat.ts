@@ -69,6 +69,9 @@ export function useChat() {
   const selectedReferenceIndex = ref<number>(-1);
   // 单独的系统消息引用，确保只有一个系统消息
   const systemMessage = ref<ChatMessage | null>(null);
+  // 流式输出相关
+  const streamingContent = ref<string>("");
+  const isStreaming = ref<boolean>(false);
   // 使用全局设置
   const currentModel = computed(() => settings.aiModel || "qwen-turbo");
   const maxTokens = computed(() => 8000); // 固定值，可根据需要调整
@@ -233,7 +236,8 @@ export function useChat() {
   const callOpenAI = async (
     apiKey: string,
     baseUrl: string,
-    messages: Array<{ role: string; content: string }>
+    messages: Array<{ role: string; content: string }>,
+    onStreamUpdate?: (content: string) => void
   ) => {
     // 创建AbortController用于聊天请求
     const abortController = createAbortController("chat");
@@ -274,6 +278,8 @@ export function useChat() {
         const content = chunk.choices[0]?.delta?.content || "";
         if (content) {
           accumulatedContent += content;
+          // 调用回调函数，实时更新流式内容
+          onStreamUpdate?.(accumulatedContent);
         }
       }
 
@@ -296,6 +302,12 @@ export function useChat() {
 
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
+    
+    // 防止在已经有消息正在处理时发送新消息
+    if (isChatLoading.value) {
+      warning("请等待当前消息处理完成");
+      return;
+    }
 
     // 如果没有当前聊天，创建新聊天
     if (!currentChatId.value) {
@@ -326,6 +338,8 @@ export function useChat() {
 
     // 设置加载状态
     isChatLoading.value = true;
+    isStreaming.value = true;
+    streamingContent.value = "";
 
     try {
       // 获取API密钥和baseUrl
@@ -366,7 +380,9 @@ export function useChat() {
       });
 
       // 调用OpenAI API
-      const result = await callOpenAI(apiKey, baseUrl, messageHistory);
+      const result = await callOpenAI(apiKey, baseUrl, messageHistory, (content) => {
+        streamingContent.value = content;
+      });
 
       if (result.success && result.content) {
         // 添加AI回复
@@ -406,6 +422,8 @@ export function useChat() {
       messages.value = messages.value.filter((msg) => msg !== userMessage);
     } finally {
       isChatLoading.value = false;
+      isStreaming.value = false;
+      streamingContent.value = "";
     }
   };
 
@@ -491,6 +509,8 @@ export function useChat() {
   const abortCurrentRequest = () => {
     abortRequest("chat");
     isChatLoading.value = false;
+    isStreaming.value = false;
+    streamingContent.value = "";
   };
 
   // 添加引用到聊天上下文
@@ -720,6 +740,8 @@ export function useChat() {
     maxTokens,
     temperature,
     getReferencePreview,
+    streamingContent,
+    isStreaming,
 
     // 方法
     sendMessage,

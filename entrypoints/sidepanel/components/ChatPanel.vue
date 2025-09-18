@@ -44,9 +44,20 @@
       <div v-if="isChatLoading" class="message assistant loading">
         <div class="message-avatar">🤖</div>
         <div class="message-content">
-          <div class="message-role">AI</div>
+          <div class="message-role">
+            AI
+            <button
+              v-if="isStreaming"
+              class="stop-btn"
+              @click="stopStreaming"
+              title="停止生成"
+            >
+              ■
+            </button>
+          </div>
           <div class="message-text">
-            <div class="typing-indicator">
+            <div v-if="isStreaming && streamingContent">{{ streamingContent }}</div>
+            <div v-else class="typing-indicator">
               <span></span>
               <span></span>
               <span></span>
@@ -131,6 +142,8 @@ const props = defineProps<{
   showReferenceListModal: boolean;
   selectedReferenceIndex: number;
   getReferencePreview: string;
+  streamingContent: string;
+  isStreaming: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -143,6 +156,7 @@ const emit = defineEmits<{
   "show-reference-detail": [index: number];
   "hide-reference-detail": [];
   "remove-reference": [index: number];
+  "abort-current-request": [];
 }>();
 
 const userInput = ref("");
@@ -503,6 +517,11 @@ const hideReferenceDetail = () => {
   emit("hide-reference-detail");
 };
 
+// 停止流式输出
+const stopStreaming = () => {
+  emit("abort-current-request");
+};
+
 // 删除引用
 const removeReference = (index: number) => {
   pendingReferenceIndex.value = index;
@@ -738,6 +757,24 @@ onUnmounted(() => {
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--markdown-text-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stop-btn {
+  background: none;
+  border: none;
+  color: var(--error-color, #ff4757);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.stop-btn:hover {
+  background: rgba(255, 71, 87, 0.1);
 }
 
 .message-text {
