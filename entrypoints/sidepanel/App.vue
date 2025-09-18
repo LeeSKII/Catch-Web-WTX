@@ -543,7 +543,10 @@ const setupTabListeners = () => {
         }
 
         try {
-          // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
+          // 优化：优先加载AI总结（从缓存中快速显示），然后再执行数据提取
+          loadAndDisplayAISummary(tab.url, "Tab切换");
+          
+          // 当用户切换到不同的tab时，自动执行数据提取
           await refreshDataForNewTab();
           
           // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
@@ -551,8 +554,8 @@ const setupTabListeners = () => {
             logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
             await preloadDataToStorage(tab.url);
           }
-          
-          await loadAndDisplayAISummary(tab.url, "Tab切换");
+        } catch (error) {
+          logger.error("Tab切换处理过程中出错", error);
         } finally {
           isProcessing = false;
           isPageLoading.value = false;
@@ -623,6 +626,9 @@ const setupTabListeners = () => {
           isPageLoading.value = false;
 
           try {
+            // 优化：优先加载AI总结（从缓存中快速显示），然后再执行数据提取
+            loadAndDisplayAISummary(details.url, "导航完成");
+            
             // 刷新数据
             await refreshDataForNewTab();
 
@@ -631,9 +637,8 @@ const setupTabListeners = () => {
               logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
               await preloadDataToStorage(details.url);
             }
-
-            // 加载AI总结
-            await loadAndDisplayAISummary(details.url, "导航完成");
+          } catch (error) {
+            logger.error("导航完成处理过程中出错", error);
           } finally {
             isProcessing = false;
           }
@@ -692,9 +697,6 @@ const clearPanelData = () => {
 
 const refreshDataForNewTab = async () => {
   logger.debug("refreshDataForNewTab() 函数被调用");
-
-  // 立即清空当前panel数据
-  clearPanelData();
 
   // 获取当前tab的加载状态
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -805,13 +807,47 @@ watch(aiSummaryType, async () => {
       // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
       if (!result.success) {
         logger.debug("storage中没有找到数据，尝试从数据库加载");
-        await loadAndDisplayAISummary(url, "总结类型切换");
+        loadAndDisplayAISummary(url, "总结类型切换"); // 不再await，提高响应速度
       }
     } else {
       // 如果页面未收藏，直接使用switchSummaryType函数，不查询数据库
       // 因为未收藏的页面必然没有在数据库内存储相关数据
       logger.debug("页面未收藏，仅从storage中查找数据，不查询数据库");
-      await switchSummaryType(url, aiSummaryType.value);
+      switchSummaryType(url, aiSummaryType.value); // 不再await，提高响应速度
+    }
+  }
+});
+
+// 监听标签页切换，当切换到AI标签时刷新AI总结
+watch(currentTab, async (newTab, oldTab) => {
+  logger.debug('标签页切换', { from: oldTab, to: newTab });
+  
+  // 只有当切换到AI标签时才执行刷新操作
+  if (newTab === 'ai') {
+    // 优先使用已提取数据中的URL，避免调用browser.tabs.query引入延迟
+    const url = extractedData.value.url;
+    if (url) {
+      logger.debug('切换到AI标签页，开始加载AI总结', { url });
+      
+      // 调用loadAndDisplayAISummary加载AI总结
+      // 该函数已经修改为异步执行数据库查询，不会阻塞UI
+      // 不再await，立即返回以提高响应速度
+      loadAndDisplayAISummary(url, '标签切换');
+    } else {
+      // 如果没有已提取的URL，则调用browser.tabs.query获取当前tab的URL
+      logger.debug('没有已提取的URL，调用browser.tabs.query获取URL');
+      browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+        if (tabs && tabs[0] && tabs[0].url) {
+          const currentUrl = tabs[0].url;
+          logger.debug('切换到AI标签页，开始加载AI总结', { url: currentUrl });
+          
+          // 调用loadAndDisplayAISummary加载AI总结
+          // 该函数已经修改为异步执行数据库查询，不会阻塞UI
+          loadAndDisplayAISummary(currentUrl, '标签切换');
+        }
+      }).catch((error) => {
+        logger.error('获取当前tab URL时出错', error);
+      });
     }
   }
 });

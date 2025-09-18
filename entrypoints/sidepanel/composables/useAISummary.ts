@@ -32,18 +32,43 @@ export function useAISummary() {
     const abortController = createAbortController("databaseQuery");
 
     try {
-      const { data, error } = await client
+      // 使用Promise.race来处理中止信号
+      const queryPromise = client
         .from("News")
         .select("url,summarizer,ai_key_info")
         .eq("url", url);
+      
+      const abortPromise = new Promise((_, reject) => {
+        const abortHandler = () => {
+          reject(new Error("数据库查询被中止"));
+        };
+        
+        if (abortController.signal.aborted) {
+          abortHandler();
+        } else {
+          abortController.signal.addEventListener("abort", abortHandler);
+        }
+      });
 
-      // 检查请求是否被中止
-      if (abortController.signal.aborted) {
+      const result = await Promise.race([
+        queryPromise,
+        abortPromise
+      ]) as any;
+
+      // 如果是中止导致的reject，result会是undefined
+      if (!result) {
         logger.debug("数据库查询被中止");
         return [];
       }
 
+      const { data, error } = result;
+
       if (error) {
+        // 检查是否是中止错误
+        if (abortController.signal.aborted) {
+          logger.debug("数据库查询被中止");
+          return [];
+        }
         logger.error("数据库查询错误", error);
         return [];
       }
@@ -52,7 +77,7 @@ export function useAISummary() {
       return data || [];
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === "AbortError") {
+      if (abortController.signal.aborted || (error instanceof Error && error.message === "数据库查询被中止")) {
         logger.debug("数据库查询被中止");
         return [];
       }
@@ -198,7 +223,7 @@ export function useAISummary() {
         return { success: false, message: "请求被中止" };
       }
 
-      // 创建流式请求
+      // 创建流式请求，传递abort signal
       const stream = await openai.chat.completions.create({
         model: model,
         messages: [
@@ -208,7 +233,7 @@ export function useAISummary() {
         stream: true,
         max_tokens: API_CONFIG.MAX_TOKENS,
         temperature: API_CONFIG.TEMPERATURE,
-      });
+      }, { signal: abortController.signal });
 
       let accumulatedContent = "";
 
@@ -243,7 +268,7 @@ export function useAISummary() {
       return { success: true, content: accumulatedContent };
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === "AbortError") {
+      if (abortController.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
         logger.debug("AI总结请求被中止");
         return { success: false, message: "请求被中止" };
       }
@@ -279,7 +304,12 @@ export function useAISummary() {
     const summaryDataStr = localStorage.getItem(key);
 
     if (summaryDataStr) {
-      return JSON.parse(summaryDataStr);
+      try {
+        return JSON.parse(summaryDataStr);
+      } catch (error) {
+        logger.error('解析AI总结数据失败', error);
+        return null;
+      }
     }
 
     return null;
@@ -298,15 +328,11 @@ export function useAISummary() {
   ) => {
     logger.debug("loadAndDisplayAISummary() 被调用", { source, url });
 
-    if (isLoadingAISummary.value) {
-      logger.debug("正在加载AI总结，跳过此次请求");
-      return { success: false, message: "正在加载AI总结" };
-    }
-
-    isLoadingAISummary.value = true;
+    // 不再检查isLoadingAISummary.value，允许并发请求以提高响应速度
+    // isLoadingAISummary.value = true;
 
     try {
-      // 首先尝试从storage加载AI总结
+      // 首先尝试从storage加载AI总结（立即显示，不阻塞UI）
       const summaryData = loadAISummary(url, aiSummaryType.value);
 
       if (summaryData) {
@@ -315,36 +341,53 @@ export function useAISummary() {
         aiSummaryStatus.value = `缓存内容 - ${new Date(
           summaryData.createdAt
         ).toLocaleString()}`;
-        isLoadingAISummary.value = false;
+        // 立即显示缓存内容，不设置isLoading状态
         return { success: true, fromCache: true };
       } else {
         logger.debug(`从${source}的storage中没有数据，尝试从数据库加载`);
-        // 如果storage中没有，先结束isLoadingAISummary状态，恢复按钮可用状态
-        isLoadingAISummary.value = false;
+        // 如果storage中没有，设置加载状态
+        isLoadingAISummary.value = true;
 
         // 设置数据库查询状态
         isQueryingDatabase.value = true;
 
-        // 从数据库加载summarizer和ai_key_info
-        const newsData = await getNews(url);
+        // 从数据库加载summarizer和ai_key_info (异步执行，不阻塞UI)
+        getNews(url).then((newsData) => {
+          // 结束数据库查询状态
+          isQueryingDatabase.value = false;
+          isLoadingAISummary.value = false;
 
-        // 结束数据库查询状态
-        isQueryingDatabase.value = false;
+          if (displayNewsSummarizer(newsData)) {
+            logger.debug(`从${source}的数据库中成功显示数据并保存到storage`);
+          } else {
+            logger.debug(`从${source}的数据库中也没有找到数据`);
+            // 只有在没有找到任何数据时才清空内容
+            if (!aiSummaryContent.value) {
+              aiSummaryContent.value = "";
+              aiSummaryStatus.value = "";
+            }
+          }
+        }).catch((error) => {
+          logger.error(`从${source}加载数据库时出错`, error);
+          isLoadingAISummary.value = false;
+          isQueryingDatabase.value = false;
+          // 只有在没有内容时才清空，避免覆盖已显示的缓存内容
+          if (!aiSummaryContent.value) {
+            aiSummaryContent.value = "";
+            aiSummaryStatus.value = "";
+          }
+        });
 
-        if (displayNewsSummarizer(newsData)) {
-          logger.debug(`从${source}的数据库中成功显示数据并保存到storage`);
-          return { success: true, fromDatabase: true };
-        } else {
-          logger.debug(`从${source}的数据库中也没有找到数据`);
-          aiSummaryContent.value = "";
-          aiSummaryStatus.value = "";
-          return { success: false, message: "没有找到AI总结数据" };
-        }
+        // 立即返回，不等待数据库查询完成
+        return { success: true, fromDatabase: true, async: true };
       }
     } catch (error) {
       logger.error(`从${source}加载AI总结时出错`, error);
-      aiSummaryContent.value = "";
-      aiSummaryStatus.value = "";
+      // 只有在没有内容时才清空，避免覆盖已显示的缓存内容
+      if (!aiSummaryContent.value) {
+        aiSummaryContent.value = "";
+        aiSummaryStatus.value = "";
+      }
       isLoadingAISummary.value = false;
       isQueryingDatabase.value = false;
       return { success: false, message: "加载AI总结时出错" };

@@ -291,14 +291,14 @@ export function useChat() {
         return { success: false, message: "请求被中止" };
       }
 
-      // 创建流式请求
+      // 创建流式请求，传递abort signal
       const stream = await openai.chat.completions.create({
         model: model,
         messages: messages as any,
         stream: true,
         max_tokens: maxTokens.value,
         temperature: temperature.value,
-      });
+      }, { signal: abortController.signal });
 
       let accumulatedContent = "";
 
@@ -321,7 +321,7 @@ export function useChat() {
       return { success: true, content: accumulatedContent };
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === "AbortError") {
+      if (abortController.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
         logger.debug("聊天请求被中止");
         return { success: false, message: "请求被中止" };
       }
@@ -475,7 +475,8 @@ export function useChat() {
       logger.error("发送消息失败", err);
 
       // 如果是取消请求的错误，不显示错误提示
-      if (err.name === "AbortError") {
+      const abortController = getAbortController("chat");
+      if (abortController?.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
         info("请求已取消");
       } else {
         error(err.message || "发送消息失败，请重试");

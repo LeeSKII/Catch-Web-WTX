@@ -58,7 +58,13 @@
             <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
             <span style="font-size: 14px; color: var(--markdown-text-light);">正在查询数据库...</span>
           </div>
-          点击"AI总结"按钮开始生成网页内容总结
+          <div v-else-if="isLoadingAISummary" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
+            <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+            <span style="font-size: 14px; color: var(--markdown-text-light);">正在加载AI总结...</span>
+          </div>
+          <div v-else>
+            点击"AI总结"按钮开始生成网页内容总结
+          </div>
         </div>
       </div>
       <!-- 缓存状态和生成时间显示区域 -->

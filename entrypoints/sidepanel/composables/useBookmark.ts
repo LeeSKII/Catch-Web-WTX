@@ -23,10 +23,42 @@ export function useBookmark() {
     const abortController = createAbortController('bookmarkCheck');
     
     try {
-      const { data, error } = await client
+      // 使用Promise.race来处理中止信号
+      const queryPromise = client
         .from("News")
         .select("url, summarizer, ai_key_info")
         .eq("url", url);
+      
+      let abortHandler: (() => void) | null = null;
+      const abortPromise = new Promise((_, reject) => {
+        abortHandler = () => {
+          reject(new Error("bookmarkCheck请求被中止"));
+        };
+        
+        if (abortController.signal.aborted) {
+          abortHandler();
+        } else {
+          abortController.signal.addEventListener("abort", abortHandler);
+        }
+      });
+
+      const result = await Promise.race([
+        queryPromise,
+        abortPromise
+      ]) as any;
+
+      // 清理事件监听器
+      if (abortHandler) {
+        abortController.signal.removeEventListener("abort", abortHandler);
+      }
+
+      // 如果是中止导致的reject，result会是undefined
+      if (!result) {
+        logger.debug("bookmarkCheck请求被中止");
+        return false;
+      }
+
+      const { data, error } = result;
 
       // 检查请求是否被中止
       if (abortController.signal.aborted) {
@@ -35,6 +67,11 @@ export function useBookmark() {
       }
 
       if (error) {
+        // 检查是否是中止错误
+        if (abortController.signal.aborted) {
+          logger.debug("bookmarkCheck请求被中止");
+          return false;
+        }
         logger.error("数据库查询错误", error);
         return false;
       }
@@ -72,7 +109,7 @@ export function useBookmark() {
       return false;
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (abortController.signal.aborted || (error instanceof Error && error.message === "bookmarkCheck请求被中止")) {
         logger.debug("bookmarkCheck请求被中止");
         return false;
       }

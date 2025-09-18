@@ -60,36 +60,60 @@ export function useDataExtractor() {
       // 如果通过了所有检查，则执行提取
       // 先注入一个函数来确保DOM完全加载
       if (tabs[0].id) {
-        await browser.scripting.executeScript(
-          {
-            target: { tabId: tabs[0].id },
-            func: waitForDOMReady,
+        // 创建一个Promise来处理中止信号
+        let abortHandler: (() => void) | null = null;
+        const abortPromise = new Promise((_, reject) => {
+          abortHandler = () => {
+            reject(new Error('数据提取被中止'));
+          };
+          
+          if (abortController.signal.aborted) {
+            abortHandler();
+          } else {
+            abortController.signal.addEventListener('abort', abortHandler);
           }
-        );
+        });
 
-        // 再次检查是否被中止
-        if (abortController.signal.aborted) {
-          logger.debug("数据提取被中止");
-          isLoading.value = false;
-          return { success: false, message: '数据提取被中止' };
-        }
+        try {
+          // 使用Promise.race来处理中止信号
+          await Promise.race([
+            browser.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              func: waitForDOMReady,
+            }),
+            abortPromise
+          ]);
 
-        // DOM准备就绪后，执行数据提取
-        const results = await browser.scripting.executeScript(
-          {
-            target: { tabId: tabs[0].id },
-            func: getPageData,
-            args: [options],
+          // 再次检查是否被中止
+          if (abortController.signal.aborted) {
+            logger.debug("数据提取被中止");
+            isLoading.value = false;
+            return { success: false, message: '数据提取被中止' };
           }
-        );
 
-        if (results && results[0] && results[0].result) {
-          extractedData.value = results[0].result as ExtractedData;
-          isLoading.value = false;
-          return { success: true, data: extractedData.value };
-        } else {
-          isLoading.value = false;
-          return { success: false, message: '提取数据失败' };
+          // DOM准备就绪后，执行数据提取
+          const results = await Promise.race([
+            browser.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              func: getPageData,
+              args: [options],
+            }),
+            abortPromise
+          ]) as any;
+
+          if (results && results[0] && results[0].result) {
+            extractedData.value = results[0].result as ExtractedData;
+            isLoading.value = false;
+            return { success: true, data: extractedData.value };
+          } else {
+            isLoading.value = false;
+            return { success: false, message: '提取数据失败' };
+          }
+        } finally {
+          // 清理事件监听器
+          if (abortHandler) {
+            abortController.signal.removeEventListener('abort', abortHandler);
+          }
         }
       } else {
         isLoading.value = false;
@@ -97,7 +121,7 @@ export function useDataExtractor() {
       }
     } catch (error) {
       // 检查是否是中止错误
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (abortController.signal.aborted || (error instanceof Error && error.message === '数据提取被中止')) {
         logger.debug("数据提取被中止");
         return { success: false, message: '数据提取被中止' };
       }
