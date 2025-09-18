@@ -155,6 +155,10 @@ const originalTitle = ref("");
 const hasReferences = ref(false);
 // 保存所有标签页的原始标题，以URL为键
 const originalTitlesMap = ref<Record<string, string>>({});
+// 跟踪哪些URL已经被添加了引用前缀，避免重复添加
+const referencedUrlsMap = ref<Record<string, boolean>>({});
+// 引用前缀常量
+const REFERENCE_PREFIX = "[📌已引用] ";
 
 // 确认对话框相关状态
 const showConfirmDialog = ref(false);
@@ -181,18 +185,13 @@ const setupTabListeners = () => {
             // 获取更新后的标签页信息
             const updatedTab = await browser.tabs.get(tab.id);
             if (updatedTab && updatedTab.title) {
-              // 保存原始标题
+              // 保存原始标题（干净的标题，不包含前缀）
               if (!originalTitlesMap.value[tab.url]) {
-                originalTitlesMap.value[tab.url] = updatedTab.title;
+                originalTitlesMap.value[tab.url] = getCleanTitle(updatedTab.title);
               }
 
               // 添加前缀
-              const originalTitleForUrl = originalTitlesMap.value[tab.url];
-              let newTitle = originalTitleForUrl;
-
-              if (!originalTitleForUrl.startsWith("[📌已引用]")) {
-                newTitle = `[📌已引用] ${originalTitleForUrl}`;
-              }
+              const newTitle = addReferencePrefix(originalTitlesMap.value[tab.url]);
 
               // 更新标签页标题
               if (newTitle !== updatedTab.title) {
@@ -230,19 +229,14 @@ const setupTabListeners = () => {
       if (isInReferenceList) {
         console.log("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
 
-        // 保存原始标题
+        // 保存原始标题（干净的标题，不包含前缀）
         if (!originalTitlesMap.value[tab.url] && tab.title) {
-          originalTitlesMap.value[tab.url] = tab.title;
+          originalTitlesMap.value[tab.url] = getCleanTitle(tab.title);
         }
 
         // 添加前缀
-        const originalTitleForUrl =
-          originalTitlesMap.value[tab.url] || tab.title || "";
-        let newTitle = originalTitleForUrl;
-
-        if (!originalTitleForUrl.startsWith("[📌已引用]")) {
-          newTitle = `[📌已引用] ${originalTitleForUrl}`;
-        }
+        const originalTitleForUrl = originalTitlesMap.value[tab.url] || getCleanTitle(tab.title || "");
+        const newTitle = addReferencePrefix(originalTitleForUrl);
 
         // 更新标签页标题
         if (newTitle !== tab.title) {
@@ -262,11 +256,8 @@ const setupTabListeners = () => {
       } else {
         // 如果URL不在引用列表中，检查是否需要恢复原始标题
         const originalTitleForUrl = originalTitlesMap.value[tab.url];
-        if (
-          originalTitleForUrl &&
-          originalTitleForUrl.startsWith("[📌已引用] ")
-        ) {
-          const newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
+        if (originalTitleForUrl) {
+          const newTitle = originalTitleForUrl; // 使用保存的干净标题
 
           if (newTitle !== tab.title) {
             try {
@@ -328,9 +319,57 @@ const isUrlInReferenceList = (url: string): boolean => {
   });
 };
 
+// 更新引用URL状态映射
+const updateReferencedUrlsMap = () => {
+  // 重置映射
+  referencedUrlsMap.value = {};
+  
+  // 根据当前引用列表更新映射
+  props.referenceList.forEach(item => {
+    if (item.url) {
+      referencedUrlsMap.value[item.url] = true;
+    }
+  });
+};
+
+// 获取干净的标题（移除引用前缀）
+const getCleanTitle = (title: string): string => {
+  if (!title) return title;
+  
+  // 处理可能存在的多种前缀格式
+  let cleanTitle = title;
+  
+  // 移除标准前缀 "[📌已引用] "
+  if (cleanTitle.startsWith(REFERENCE_PREFIX)) {
+    cleanTitle = cleanTitle.substring(REFERENCE_PREFIX.length);
+  }
+  
+  // 移除不带空格的前缀 "[📌已引用]"
+  const prefixWithoutSpace = "[📌已引用]";
+  if (cleanTitle.startsWith(prefixWithoutSpace)) {
+    cleanTitle = cleanTitle.substring(prefixWithoutSpace.length);
+    // 如果移除后开头有空格，也一并移除
+    if (cleanTitle.startsWith(" ")) {
+      cleanTitle = cleanTitle.substring(1);
+    }
+  }
+  
+  return cleanTitle;
+};
+
+// 添加引用前缀到标题
+const addReferencePrefix = (title: string): string => {
+  if (!title) return title;
+  const cleanTitle = getCleanTitle(title);
+  return REFERENCE_PREFIX + cleanTitle;
+};
+
 // 更新所有标签页标题
 const updateAllTabTitles = async () => {
   try {
+    // 更新引用URL状态映射
+    updateReferencedUrlsMap();
+    
     // 获取所有标签页
     const tabs = await browser.tabs.query({});
 
@@ -345,26 +384,22 @@ const updateAllTabTitles = async () => {
 
       // 保存原始标题（如果是第一次遇到这个URL）
       if (!originalTitlesMap.value[tab.url] && tab.title) {
-        originalTitlesMap.value[tab.url] = tab.title;
+        originalTitlesMap.value[tab.url] = getCleanTitle(tab.title);
       }
 
       // 获取该URL的原始标题
       const originalTitleForUrl =
-        originalTitlesMap.value[tab.url] || tab.title || "";
+        originalTitlesMap.value[tab.url] || getCleanTitle(tab.title || "");
 
       // 决定新标题
       let newTitle = originalTitleForUrl;
 
       if (isInReferenceList && originalTitleForUrl) {
         // 如果URL在引用列表中且原始标题存在，添加前缀
-        if (!originalTitleForUrl.startsWith("[📌已引用]")) {
-          newTitle = `[📌已引用] ${originalTitleForUrl}`;
-        }
-      } else if (originalTitleForUrl) {
-        // 如果URL不在引用列表中，恢复原始标题
-        if (originalTitleForUrl.startsWith("[📌已引用] ")) {
-          newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
-        }
+        newTitle = addReferencePrefix(originalTitleForUrl);
+      } else {
+        // 如果URL不在引用列表中，使用原始标题（已经去除了前缀）
+        newTitle = originalTitleForUrl;
       }
 
       // 使用脚本执行来修改标签页标题
@@ -377,6 +412,7 @@ const updateAllTabTitles = async () => {
             },
             args: [newTitle],
           });
+          console.log(`标签页 ${tab.id} 标题已更新为: ${newTitle}`);
         } catch (error) {
           console.error(`更新标签页 ${tab.id} 标题失败:`, error);
         }
@@ -554,6 +590,9 @@ watch(
     // 更新引用状态
     hasReferences.value = newVal.length > 0;
 
+    // 更新引用URL状态映射
+    updateReferencedUrlsMap();
+
     // 更新所有标签页标题
     updateAllTabTitles();
   },
@@ -573,6 +612,9 @@ onMounted(async () => {
   // 初始化引用状态和标题
   hasReferences.value = props.referenceList.length > 0;
 
+  // 初始化引用URL状态映射
+  updateReferencedUrlsMap();
+
   // 设置标签页监听器
   setupTabListeners();
 
@@ -581,10 +623,10 @@ onMounted(async () => {
     // 获取所有标签页
     const tabs = await browser.tabs.query({});
     if (tabs && tabs.length > 0) {
-      // 保存所有标签页的原始标题
+      // 保存所有标签页的原始标题（干净的标题，不包含前缀）
       for (const tab of tabs) {
         if (tab.url && tab.title) {
-          originalTitlesMap.value[tab.url] = tab.title;
+          originalTitlesMap.value[tab.url] = getCleanTitle(tab.title);
         }
       }
 
