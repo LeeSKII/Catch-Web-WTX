@@ -1,11 +1,19 @@
 <template>
-  <div :class="['message', message.role]">
+  <div :class="['message', message.role, { 'streaming': isStreaming }]">
     <div class="message-avatar">
       {{ message.role === "user" ? "👤" : "🤖" }}
     </div>
     <div class="message-content">
       <div class="message-role">
         {{ message.role === "user" ? "User" : "AI" }}
+        <button
+          v-if="isStreaming"
+          class="stop-btn"
+          @click="$emit('stop-streaming')"
+          title="停止生成"
+        >
+          ■
+        </button>
       </div>
       <div
         class="message-text"
@@ -13,10 +21,18 @@
         v-html="formatMessage(message.content)"
       ></div>
       <div
+        v-else-if="message.role === 'assistant'"
         class="message-text"
-        v-else
         v-html="parseMarkdown(message.content)"
       ></div>
+      <div
+        v-else-if="isStreaming && !message.content"
+        class="message-text typing-indicator"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
       <div class="message-time">{{ formatTime(message.timestamp) }}</div>
     </div>
   </div>
@@ -29,10 +45,16 @@ interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  isStreaming?: boolean; // 标记消息是否正在流式传输中
 }
 
 const props = defineProps<{
   message: ChatMessage;
+  isStreaming?: boolean;
+}>();
+
+const emit = defineEmits<{
+  "stop-streaming": [];
 }>();
 
 // 简单的Markdown格式化
@@ -56,6 +78,14 @@ const parseMarkdown = (content: string): string => {
   }
 };
 
+// 调试日志：组件挂载和更新时的消息状态
+console.log("MessageItem: 渲染消息", {
+  role: props.message.role,
+  contentLength: props.message.content?.length || 0,
+  isStreaming: props.isStreaming,
+  timestamp: props.message.timestamp
+});
+
 const formatTime = (timestamp: Date): string => {
   return new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
@@ -71,6 +101,10 @@ const formatTime = (timestamp: Date): string => {
   animation: fadeIn 0.3s ease-in;
 }
 
+.message.streaming {
+  animation: pulse 2s infinite;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -79,6 +113,18 @@ const formatTime = (timestamp: Date): string => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
@@ -113,6 +159,24 @@ const formatTime = (timestamp: Date): string => {
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--markdown-text-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stop-btn {
+  background: none;
+  border: none;
+  color: var(--error-color, #ff4757);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.stop-btn:hover {
+  background: rgba(255, 71, 87, 0.1);
 }
 
 .message-text {
@@ -145,6 +209,38 @@ const formatTime = (timestamp: Date): string => {
 
   .message-text {
     font-size: 13px;
+  }
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--markdown-text-light);
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
   }
 }
 </style>

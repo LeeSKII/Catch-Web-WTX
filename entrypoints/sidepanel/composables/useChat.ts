@@ -23,6 +23,7 @@ interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  isStreaming?: boolean; // 标记消息是否正在流式传输中
 }
 
 interface ChatHistory {
@@ -351,6 +352,20 @@ export function useChat() {
     isStreaming.value = true;
     streamingContent.value = "";
 
+    // 创建一个临时的AI消息，用于流式传输
+    const streamingMessage: ChatMessage = {
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      isStreaming: true, // 标记为流式传输中
+    };
+
+    // 将临时消息添加到消息列表
+    messages.value.push(streamingMessage);
+    
+    // 保存临时消息的索引，避免后续查找问题
+    let streamingMessageIndex = messages.value.length - 1;
+
     try {
       // 获取API密钥和baseUrl，每次都从最新的设置中获取
       const apiKey = settings.openaiApiKey;
@@ -369,7 +384,7 @@ export function useChat() {
 
       // 准备消息历史，确保只有一个系统消息
       const messageHistory = messages.value
-        .filter((msg) => msg.role !== "system") // 先过滤掉所有系统消息
+        .filter((msg) => msg.role !== "system" && !msg.isStreaming) // 过滤掉系统消息和流式传输中的临时消息
         .map((msg) => ({
           role: msg.role,
           content: msg.content,
@@ -390,19 +405,25 @@ export function useChat() {
       });
 
       // 调用OpenAI API
+      logger.debug("开始调用OpenAI API进行流式传输");
       const result = await callOpenAI(apiKey, baseUrl, messageHistory, (content) => {
         streamingContent.value = content;
+        // 使用保存的索引更新临时消息的内容
+        if (streamingMessageIndex >= 0 && streamingMessageIndex < messages.value.length) {
+          messages.value[streamingMessageIndex].content = content;
+          logger.debug("流式传输内容更新，长度:", content.length);
+        }
       });
 
       if (result.success && result.content) {
-        // 添加AI回复
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: result.content,
-          timestamp: new Date(),
-        };
-
-        messages.value.push(assistantMessage);
+        logger.debug("流式传输成功完成，最终内容长度:", result.content.length);
+        
+        // 流式传输完成，将临时消息标记为完成状态
+        if (streamingMessageIndex >= 0 && streamingMessageIndex < messages.value.length) {
+          messages.value[streamingMessageIndex].content = result.content;
+          messages.value[streamingMessageIndex].isStreaming = false; // 标记为流式传输完成
+          logger.debug("已将临时消息标记为完成状态");
+        }
 
         // 更新聊天历史
         if (chat) {
@@ -416,6 +437,11 @@ export function useChat() {
         // 取消消息发送成功的toast提示
         // success('消息发送成功');
       } else {
+        logger.debug("流式传输失败:", result.message);
+        // 如果失败，移除临时消息
+        if (streamingMessageIndex >= 0 && streamingMessageIndex < messages.value.length) {
+          messages.value.splice(streamingMessageIndex, 1);
+        }
         throw new Error(result.message || "发送消息失败");
       }
     } catch (err: any) {
@@ -428,9 +454,14 @@ export function useChat() {
         error(err.message || "发送消息失败，请重试");
       }
 
-      // 移除用户消息
+      // 移除用户消息和临时消息
       messages.value = messages.value.filter((msg) => msg !== userMessage);
+      // 使用索引移除临时消息
+      if (streamingMessageIndex >= 0 && streamingMessageIndex < messages.value.length) {
+        messages.value.splice(streamingMessageIndex, 1);
+      }
     } finally {
+      logger.debug("流式传输会话结束，重置状态");
       isChatLoading.value = false;
       isStreaming.value = false;
       streamingContent.value = "";
