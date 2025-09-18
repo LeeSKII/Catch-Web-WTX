@@ -4,14 +4,7 @@
       <h3>AI 对话</h3>
       <div class="chat-actions">
         <button
-          class="btn btn-secondary"
-          @click="clearChat"
-          :disabled="isChatLoading"
-        >
-          清空对话
-        </button>
-        <button
-          class="btn btn-secondary"
+          class="btn btn-primary"
           @click="addReference"
           :disabled="isChatLoading"
         >
@@ -22,7 +15,14 @@
           @click="showReferenceList"
           :disabled="isChatLoading || referenceList.length === 0"
         >
-          显示引用
+          查看引用
+        </button>
+        <button
+          class="btn btn-secondary"
+          @click="clearChat"
+          :disabled="isChatLoading"
+        >
+          清空对话
         </button>
         <button
           class="btn btn-primary"
@@ -167,17 +167,17 @@ const setupTabListeners = () => {
   // 监听新标签页创建事件
   browser.tabs.onCreated.addListener(async (tab) => {
     console.log("新标签页创建:", tab);
-    
+
     // 等待一小段时间确保标签页信息已经更新
     setTimeout(async () => {
       try {
         if (tab.url && tab.id) {
           // 检查新标签页的URL是否在引用列表中
           const isInReferenceList = isUrlInReferenceList(tab.url);
-          
+
           if (isInReferenceList) {
             console.log("新标签页URL匹配引用列表，将更新标题:", tab.url);
-            
+
             // 获取更新后的标签页信息
             const updatedTab = await browser.tabs.get(tab.id);
             if (updatedTab && updatedTab.title) {
@@ -185,15 +185,15 @@ const setupTabListeners = () => {
               if (!originalTitlesMap.value[tab.url]) {
                 originalTitlesMap.value[tab.url] = updatedTab.title;
               }
-              
+
               // 添加前缀
               const originalTitleForUrl = originalTitlesMap.value[tab.url];
               let newTitle = originalTitleForUrl;
-              
+
               if (!originalTitleForUrl.startsWith("[📌已引用]")) {
                 newTitle = `[📌已引用] ${originalTitleForUrl}`;
               }
-              
+
               // 更新标签页标题
               if (newTitle !== updatedTab.title) {
                 try {
@@ -202,7 +202,7 @@ const setupTabListeners = () => {
                     func: (title: string) => {
                       document.title = title;
                     },
-                    args: [newTitle]
+                    args: [newTitle],
                   });
                   console.log("新标签页标题已更新:", newTitle);
                 } catch (error) {
@@ -217,32 +217,33 @@ const setupTabListeners = () => {
       }
     }, 500); // 等待500ms确保标签页加载完成
   });
-  
+
   // 监听标签页更新事件（URL变化）
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // 只处理URL变化且页面加载完成的情况
-    if (changeInfo.status === 'complete' && tab.url && tab.id) {
+    if (changeInfo.status === "complete" && tab.url && tab.id) {
       console.log("标签页URL更新:", tab.url);
-      
+
       // 检查更新后的URL是否在引用列表中
       const isInReferenceList = isUrlInReferenceList(tab.url);
-      
+
       if (isInReferenceList) {
         console.log("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
-        
+
         // 保存原始标题
         if (!originalTitlesMap.value[tab.url] && tab.title) {
           originalTitlesMap.value[tab.url] = tab.title;
         }
-        
+
         // 添加前缀
-        const originalTitleForUrl = originalTitlesMap.value[tab.url] || tab.title || "";
+        const originalTitleForUrl =
+          originalTitlesMap.value[tab.url] || tab.title || "";
         let newTitle = originalTitleForUrl;
-        
+
         if (!originalTitleForUrl.startsWith("[📌已引用]")) {
           newTitle = `[📌已引用] ${originalTitleForUrl}`;
         }
-        
+
         // 更新标签页标题
         if (newTitle !== tab.title) {
           try {
@@ -251,7 +252,7 @@ const setupTabListeners = () => {
               func: (title: string) => {
                 document.title = title;
               },
-              args: [newTitle]
+              args: [newTitle],
             });
             console.log("URL更新后标签页标题已更新:", newTitle);
           } catch (error) {
@@ -261,9 +262,12 @@ const setupTabListeners = () => {
       } else {
         // 如果URL不在引用列表中，检查是否需要恢复原始标题
         const originalTitleForUrl = originalTitlesMap.value[tab.url];
-        if (originalTitleForUrl && originalTitleForUrl.startsWith("[📌已引用] ")) {
+        if (
+          originalTitleForUrl &&
+          originalTitleForUrl.startsWith("[📌已引用] ")
+        ) {
           const newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
-          
+
           if (newTitle !== tab.title) {
             try {
               await browser.scripting.executeScript({
@@ -271,7 +275,7 @@ const setupTabListeners = () => {
                 func: (title: string) => {
                   document.title = title;
                 },
-                args: [newTitle]
+                args: [newTitle],
               });
               console.log("URL更新后标签页标题已恢复:", newTitle);
             } catch (error) {
@@ -293,27 +297,31 @@ const removeTabListeners = () => {
 // 检查URL是否匹配引用列表中的URL
 const isUrlInReferenceList = (url: string): boolean => {
   if (!url || !props.referenceList.length) return false;
-  
-  return props.referenceList.some(item => {
+
+  return props.referenceList.some((item) => {
     if (!item.url) return false;
-    
+
     // 尝试精确匹配
     if (url === item.url) return true;
-    
+
     // 尝试标准化URL后匹配（去除末尾斜杠）
-    const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-    const normalizedItemUrl = item.url.endsWith('/') ? item.url.slice(0, -1) : item.url;
+    const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+    const normalizedItemUrl = item.url.endsWith("/")
+      ? item.url.slice(0, -1)
+      : item.url;
     if (normalizedUrl === normalizedItemUrl) return true;
-    
+
     // 尝试匹配URL对象
     try {
       const urlObj = new URL(url);
       const itemUrlObj = new URL(item.url);
-      
+
       // 比较协议、主机名和路径
-      return urlObj.protocol === itemUrlObj.protocol &&
-             urlObj.hostname === itemUrlObj.hostname &&
-             urlObj.pathname === itemUrlObj.pathname;
+      return (
+        urlObj.protocol === itemUrlObj.protocol &&
+        urlObj.hostname === itemUrlObj.hostname &&
+        urlObj.pathname === itemUrlObj.pathname
+      );
     } catch {
       return false;
     }
@@ -325,27 +333,28 @@ const updateAllTabTitles = async () => {
   try {
     // 获取所有标签页
     const tabs = await browser.tabs.query({});
-    
+
     if (!tabs || tabs.length === 0) return;
-    
+
     // 遍历所有标签页
     for (const tab of tabs) {
       if (!tab.url || !tab.id) continue;
-      
+
       // 检查该标签页URL是否在引用列表中
       const isInReferenceList = isUrlInReferenceList(tab.url);
-      
+
       // 保存原始标题（如果是第一次遇到这个URL）
       if (!originalTitlesMap.value[tab.url] && tab.title) {
         originalTitlesMap.value[tab.url] = tab.title;
       }
-      
+
       // 获取该URL的原始标题
-      const originalTitleForUrl = originalTitlesMap.value[tab.url] || tab.title || "";
-      
+      const originalTitleForUrl =
+        originalTitlesMap.value[tab.url] || tab.title || "";
+
       // 决定新标题
       let newTitle = originalTitleForUrl;
-      
+
       if (isInReferenceList && originalTitleForUrl) {
         // 如果URL在引用列表中且原始标题存在，添加前缀
         if (!originalTitleForUrl.startsWith("[📌已引用]")) {
@@ -357,7 +366,7 @@ const updateAllTabTitles = async () => {
           newTitle = originalTitleForUrl.substring(6); // 移除 "[📌已引用] " 前缀
         }
       }
-      
+
       // 使用脚本执行来修改标签页标题
       if (newTitle && newTitle !== tab.title) {
         try {
@@ -366,7 +375,7 @@ const updateAllTabTitles = async () => {
             func: (title: string) => {
               document.title = title;
             },
-            args: [newTitle]
+            args: [newTitle],
           });
         } catch (error) {
           console.error(`更新标签页 ${tab.id} 标题失败:`, error);
@@ -414,7 +423,6 @@ const adjustTextareaHeight = () => {
   }
 };
 
-
 const sendMessage = () => {
   if (!userInput.value.trim() || props.isChatLoading) return;
 
@@ -459,7 +467,6 @@ const hideReferenceDetail = () => {
   emit("hide-reference-detail");
 };
 
-
 // 删除引用
 const removeReference = (index: number) => {
   pendingReferenceIndex.value = index;
@@ -497,7 +504,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
     // @input 事件会触发行高调整
   }
 };
-
 
 // 自动滚动到底部
 const scrollToBottom = () => {
@@ -544,10 +550,10 @@ watch(
       "旧数量:",
       oldVal?.length
     );
-    
+
     // 更新引用状态
     hasReferences.value = newVal.length > 0;
-    
+
     // 更新所有标签页标题
     updateAllTabTitles();
   },
@@ -563,13 +569,13 @@ onMounted(async () => {
 
   // 添加调试日志
   console.log("ChatPanel onMounted: 引用列表数量:", props.referenceList.length);
-  
+
   // 初始化引用状态和标题
   hasReferences.value = props.referenceList.length > 0;
-  
+
   // 设置标签页监听器
   setupTabListeners();
-  
+
   // 初始化所有标签页的标题
   try {
     // 获取所有标签页
@@ -581,9 +587,12 @@ onMounted(async () => {
           originalTitlesMap.value[tab.url] = tab.title;
         }
       }
-      
-      console.log("ChatPanel onMounted: 已保存所有标签页原始标题，数量:", Object.keys(originalTitlesMap.value).length);
-      
+
+      console.log(
+        "ChatPanel onMounted: 已保存所有标签页原始标题，数量:",
+        Object.keys(originalTitlesMap.value).length
+      );
+
       // 如果已经有引用，更新所有相关标签页的标题
       if (hasReferences.value) {
         updateAllTabTitles();
@@ -852,8 +861,5 @@ textarea:focus {
   .chat-panel {
     height: 100%;
   }
-
 }
-
-
 </style>
