@@ -12,7 +12,7 @@
       :class="{ active: currentTab === 'ai' }"
       @click="switchTab('ai')"
     >
-      AI
+      总结
     </button>
     <button
       class="tab"
@@ -37,11 +37,11 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'tab-change': [tabName: string];
+  "tab-change": [tabName: string];
 }>();
 
 const switchTab = (tabName: string) => {
-  emit('tab-change', tabName);
+  emit("tab-change", tabName);
 };
 </script>
 
