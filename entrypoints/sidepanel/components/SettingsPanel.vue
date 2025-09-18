@@ -198,9 +198,10 @@ watch(localSettings, (newSettings) => {
   // 立即保存设置到localStorage，确保其他组件能够获取到最新的配置
   const settingsKeys = Object.keys(newSettings) as Array<keyof Settings>;
   settingsKeys.forEach(key => {
-    if (key === 'openaiApiKey' && newSettings[key].trim()) {
+    if (key === 'openaiApiKey') {
+      // 对于API密钥，即使为空也要保存，以确保能正确清除旧值
       localStorage.setItem(key, newSettings[key].trim());
-    } else if (key !== 'openaiApiKey') {
+    } else {
       localStorage.setItem(key, newSettings[key].toString());
     }
   });

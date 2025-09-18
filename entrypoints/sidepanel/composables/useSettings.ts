@@ -50,9 +50,8 @@ export function useSettings() {
     localStorage.setItem('extractScripts', settings.extractScripts.toString());
     localStorage.setItem('extractArticle', settings.extractArticle.toString());
     
-    if (settings.openaiApiKey.trim()) {
-      localStorage.setItem('openaiApiKey', settings.openaiApiKey.trim());
-    }
+    // 对于API密钥，即使为空也要保存，以确保能正确清除旧值
+    localStorage.setItem('openaiApiKey', settings.openaiApiKey.trim());
     localStorage.setItem('openaiBaseUrl', settings.openaiBaseUrl.trim());
     localStorage.setItem('aiModel', settings.aiModel.trim());
   };
