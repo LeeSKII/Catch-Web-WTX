@@ -826,17 +826,19 @@ watch(isDarkMode, (newValue) => {
     <!-- 标签页导航 -->
     <TabNavigation :current-tab="currentTab" @tab-change="switchTab" />
 
-    <!-- 页面加载状态指示器 -->
-    <div v-if="isPageLoading" class="loading-indicator">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">页面加载中，请稍候...</div>
-    </div>
-
     <!-- 网页标签页内容 -->
     <div
-      v-show="currentTab === 'results' && !isPageLoading"
+      v-show="currentTab === 'results'"
       class="tab-content active"
     >
+      <!-- 页面加载状态指示器（仅在结果面板中显示） -->
+      <div v-if="isPageLoading" class="loading-indicator">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">页面加载中，请稍候...</div>
+      </div>
+      
+      <!-- 结果内容（在加载时隐藏） -->
+      <div v-show="!isPageLoading">
       <!-- 统计信息 -->
       <StatsDisplay :stats="stats" :extracted-data="extractedData" :is-checking-bookmark="isCheckingBookmark" />
 
@@ -867,11 +869,12 @@ watch(isDarkMode, (newValue) => {
         @update:link-filter="(value) => (linkFilter = value)"
         @view-all-links="handleViewAllLinks"
       />
+      </div>
     </div>
 
     <!-- AI标签页内容 -->
     <div
-      v-show="currentTab === 'ai' && !isPageLoading"
+      v-show="currentTab === 'ai'"
       class="tab-content active"
     >
       <AISummaryPanel
@@ -891,7 +894,7 @@ watch(isDarkMode, (newValue) => {
 
     <!-- 对话标签页内容 -->
     <div
-      v-show="currentTab === 'chat' && !isPageLoading"
+      v-show="currentTab === 'chat'"
       class="tab-content active"
     >
       <ChatPanel
@@ -922,7 +925,7 @@ watch(isDarkMode, (newValue) => {
 
     <!-- 设置标签页内容 -->
     <div
-      v-show="currentTab === 'settings' && !isPageLoading"
+      v-show="currentTab === 'settings'"
       class="tab-content active"
     >
       <SettingsPanel

@@ -20,10 +20,9 @@
           class="btn btn-primary"
           style="flex: 1"
           @click="$emit('generate-ai-summary')"
-          :disabled="isLoadingAISummary || isExtracting || isPageLoading"
+          :disabled="isLoadingAISummary || isExtracting"
         >
           <span v-if="isLoadingAISummary">生成中...</span>
-          <span v-else-if="isPageLoading">页面加载中...</span>
           <span v-else>AI总结</span>
         </button>
       </div>
