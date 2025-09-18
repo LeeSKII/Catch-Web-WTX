@@ -86,9 +86,10 @@
         <textarea
           v-model="userInput"
           placeholder="输入您的问题..."
-          @keydown.enter.prevent="handleEnterKey"
+          @keydown="handleKeyDown"
+          @input="adjustTextareaHeight"
           :disabled="isChatLoading"
-          rows="3"
+          :rows="textareaRows"
           ref="inputTextarea"
         ></textarea>
       </div>
@@ -223,6 +224,27 @@ const emit = defineEmits<{
 const userInput = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
+const textareaRows = ref(1);
+
+// 调整文本域高度
+const adjustTextareaHeight = () => {
+  if (inputTextarea.value) {
+    // 计算行数：基于换行符数量 + 1
+    const lineCount = userInput.value.split('\n').length;
+    // 限制在1-5行之间
+    textareaRows.value = Math.min(Math.max(lineCount, 1), 5);
+    
+    // 强制重新渲染textarea
+    nextTick(() => {
+      if (inputTextarea.value) {
+        // 重置高度为auto，然后设置新的行高
+        inputTextarea.value.style.height = 'auto';
+        // 让浏览器自然计算高度
+        inputTextarea.value.style.height = inputTextarea.value.scrollHeight + 'px';
+      }
+    });
+  }
+};
 
 // 解析 Markdown 内容
 const parseMarkdown = (content: string): string => {
@@ -240,6 +262,8 @@ const sendMessage = () => {
 
   emit("send-message", userInput.value.trim());
   userInput.value = "";
+  // 重置行高为1行
+  textareaRows.value = 1;
 };
 
 const clearChat = () => {
@@ -326,10 +350,15 @@ const filteredMessages = computed(() => {
   return props.messages.filter(message => message.role !== 'system');
 });
 
-const handleEnterKey = (event: KeyboardEvent) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    sendMessage();
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === "Enter") {
+    if (!event.shiftKey) {
+      // 直接按 Enter，发送消息
+      event.preventDefault();
+      sendMessage();
+    }
+    // 如果是 Shift+Enter，不阻止默认行为，让浏览器自然处理换行
+    // @input 事件会触发行高调整
   }
 };
 
@@ -592,13 +621,16 @@ textarea {
   padding: 10px;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  resize: vertical;
+  resize: none;
   font-size: 14px;
   font-family: inherit;
   background: var(--section-bg);
   color: var(--text-color);
-  min-height: 60px;
-  max-height: 120px;
+  min-height: auto;
+  max-height: none;
+  line-height: 1.5;
+  height: auto;
+  overflow-y: hidden;
 }
 
 textarea:focus {
