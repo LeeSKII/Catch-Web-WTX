@@ -183,16 +183,16 @@ const setupTabListeners = () => {
           // 检查新标签页的URL是否在引用列表中
           const isInReferenceList = isUrlInReferenceList(tab.url);
 
-          if (isInReferenceList) {
-            console.log("新标签页URL匹配引用列表，将更新标题:", tab.url);
+          // 获取更新后的标签页信息
+          const updatedTab = await browser.tabs.get(tab.id);
+          if (updatedTab && updatedTab.title) {
+            // 保存原始标题（干净的标题，不包含前缀）
+            if (!originalTitlesMap.value[tab.url]) {
+              originalTitlesMap.value[tab.url] = getCleanTitle(updatedTab.title);
+            }
 
-            // 获取更新后的标签页信息
-            const updatedTab = await browser.tabs.get(tab.id);
-            if (updatedTab && updatedTab.title) {
-              // 保存原始标题（干净的标题，不包含前缀）
-              if (!originalTitlesMap.value[tab.url]) {
-                originalTitlesMap.value[tab.url] = getCleanTitle(updatedTab.title);
-              }
+            if (isInReferenceList) {
+              console.log("新标签页URL匹配引用列表，将更新标题:", tab.url);
 
               // 添加前缀
               const newTitle = addReferencePrefix(originalTitlesMap.value[tab.url]);
@@ -210,6 +210,23 @@ const setupTabListeners = () => {
                   console.log("新标签页标题已更新:", newTitle);
                 } catch (error) {
                   console.error("更新新标签页标题失败:", error);
+                }
+              }
+            } else {
+              // 如果URL不在引用列表中，确保标题没有引用前缀
+              const cleanTitle = getCleanTitle(updatedTab.title);
+              if (cleanTitle !== updatedTab.title) {
+                try {
+                  await browser.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: (title: string) => {
+                      document.title = title;
+                    },
+                    args: [cleanTitle],
+                  });
+                  console.log("新标签页标题已恢复为原始标题:", cleanTitle);
+                } catch (error) {
+                  console.error("恢复新标签页标题失败:", error);
                 }
               }
             }
@@ -230,13 +247,13 @@ const setupTabListeners = () => {
       // 检查更新后的URL是否在引用列表中
       const isInReferenceList = isUrlInReferenceList(tab.url);
 
+      // 保存原始标题（干净的标题，不包含前缀）
+      if (!originalTitlesMap.value[tab.url] && tab.title) {
+        originalTitlesMap.value[tab.url] = getCleanTitle(tab.title);
+      }
+
       if (isInReferenceList) {
         console.log("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
-
-        // 保存原始标题（干净的标题，不包含前缀）
-        if (!originalTitlesMap.value[tab.url] && tab.title) {
-          originalTitlesMap.value[tab.url] = getCleanTitle(tab.title);
-        }
 
         // 添加前缀
         const originalTitleForUrl = originalTitlesMap.value[tab.url] || getCleanTitle(tab.title || "");
@@ -258,24 +275,20 @@ const setupTabListeners = () => {
           }
         }
       } else {
-        // 如果URL不在引用列表中，检查是否需要恢复原始标题
-        const originalTitleForUrl = originalTitlesMap.value[tab.url];
-        if (originalTitleForUrl) {
-          const newTitle = originalTitleForUrl; // 使用保存的干净标题
-
-          if (newTitle !== tab.title) {
-            try {
-              await browser.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: (title: string) => {
-                  document.title = title;
-                },
-                args: [newTitle],
-              });
-              console.log("URL更新后标签页标题已恢复:", newTitle);
-            } catch (error) {
-              console.error("URL更新后标签页标题恢复失败:", error);
-            }
+        // 如果URL不在引用列表中，确保标题没有引用前缀
+        const cleanTitle = getCleanTitle(tab.title || "");
+        if (cleanTitle !== tab.title) {
+          try {
+            await browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: (title: string) => {
+                document.title = title;
+              },
+              args: [cleanTitle],
+            });
+            console.log("URL更新后标签页标题已恢复为原始标题:", cleanTitle);
+          } catch (error) {
+            console.error("URL更新后标签页标题恢复失败:", error);
           }
         }
       }
@@ -296,30 +309,8 @@ const isUrlInReferenceList = (url: string): boolean => {
   return props.referenceList.some((item) => {
     if (!item.url) return false;
 
-    // 尝试精确匹配
-    if (url === item.url) return true;
-
-    // 尝试标准化URL后匹配（去除末尾斜杠）
-    const normalizedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
-    const normalizedItemUrl = item.url.endsWith("/")
-      ? item.url.slice(0, -1)
-      : item.url;
-    if (normalizedUrl === normalizedItemUrl) return true;
-
-    // 尝试匹配URL对象
-    try {
-      const urlObj = new URL(url);
-      const itemUrlObj = new URL(item.url);
-
-      // 比较协议、主机名和路径
-      return (
-        urlObj.protocol === itemUrlObj.protocol &&
-        urlObj.hostname === itemUrlObj.hostname &&
-        urlObj.pathname === itemUrlObj.pathname
-      );
-    } catch {
-      return false;
-    }
+    // 只进行精确匹配，确保URL完全相同
+    return url === item.url;
   });
 };
 
@@ -358,6 +349,18 @@ const getCleanTitle = (title: string): string => {
     }
   }
   
+  // 处理可能存在的前缀重复情况
+  while (cleanTitle.startsWith(REFERENCE_PREFIX) || cleanTitle.startsWith(prefixWithoutSpace)) {
+    if (cleanTitle.startsWith(REFERENCE_PREFIX)) {
+      cleanTitle = cleanTitle.substring(REFERENCE_PREFIX.length);
+    } else if (cleanTitle.startsWith(prefixWithoutSpace)) {
+      cleanTitle = cleanTitle.substring(prefixWithoutSpace.length);
+      if (cleanTitle.startsWith(" ")) {
+        cleanTitle = cleanTitle.substring(1);
+      }
+    }
+  }
+  
   return cleanTitle;
 };
 
@@ -365,6 +368,10 @@ const getCleanTitle = (title: string): string => {
 const addReferencePrefix = (title: string): string => {
   if (!title) return title;
   const cleanTitle = getCleanTitle(title);
+  // 确保不会重复添加前缀
+  if (cleanTitle.startsWith(REFERENCE_PREFIX)) {
+    return cleanTitle; // 如果已经有前缀，直接返回
+  }
   return REFERENCE_PREFIX + cleanTitle;
 };
 
