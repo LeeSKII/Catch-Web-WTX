@@ -5,12 +5,14 @@ import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
 import { useAbortController } from "./useAbortController";
+import { useSettings } from "./useSettings";
 import OpenAI from "openai";
 
 // 创建日志器
 const logger = createLogger("AISummary");
 
 export function useAISummary() {
+  const { settings } = useSettings();
   const isLoadingAISummary: Ref<boolean> = ref(false);
   const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref("");
@@ -132,7 +134,7 @@ export function useAISummary() {
       }
 
       // 检查API密钥
-      const apiKey = localStorage.getItem("openaiApiKey");
+      const apiKey = settings.openaiApiKey;
       if (!apiKey) {
         logger.debug("请先在设置中配置OpenAI API密钥");
         isLoadingAISummary.value = false;
@@ -172,9 +174,8 @@ export function useAISummary() {
     system_prompt: string,
     input: string
   ) => {
-    const model = localStorage.getItem("aiModel") || API_CONFIG.DEFAULT_MODEL;
-    const baseUrl =
-      localStorage.getItem("openaiBaseUrl") || API_CONFIG.DEFAULT_BASE_URL;
+    const model = settings.aiModel || API_CONFIG.DEFAULT_MODEL;
+    const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
 
     // 创建AbortController用于AI总结请求
     const abortController = createAbortController("aiSummary");
