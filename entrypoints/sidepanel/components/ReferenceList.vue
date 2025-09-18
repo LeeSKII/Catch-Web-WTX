@@ -1,58 +1,54 @@
 <template>
   <!-- 引用列表模态对话框 -->
-  <div
-    v-if="visible"
-    class="modal-overlay"
-    @click="$emit('update:visible', false)"
+  <BaseModal
+    :visible="visible"
+    @update:visible="$emit('update:visible', $event)"
+    title="引用列表"
+    width="90%"
+    maxWidth="600px"
+    @close="$emit('update:visible', false)"
   >
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h3>引用列表</h3>
-        <button class="modal-close" @click="$emit('update:visible', false)">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div v-if="referenceList.length > 0" class="reference-list">
+    <div v-if="referenceList.length > 0" class="reference-list">
+      <div
+        v-for="(item, index) in referenceList"
+        :key="index"
+        class="reference-list-item"
+      >
+        <div class="reference-item-header">
           <div
-            v-for="(item, index) in referenceList"
-            :key="index"
-            class="reference-list-item"
+            class="reference-item-title"
+            @click="$emit('show-detail', index)"
           >
-            <div class="reference-item-header">
-              <div
-                class="reference-item-title"
-                @click="$emit('show-detail', index)"
-              >
-                {{ item.title || "无标题" }}
-              </div>
-              <button
-                class="reference-item-delete"
-                @click.stop="handleRemoveReference(index)"
-                title="删除引用"
-              >
-                &times;
-              </button>
-            </div>
-            <div
-              class="reference-item-content"
-              @click="$emit('show-detail', index)"
-            >
-              <div class="reference-item-url">{{ item.url || "无URL" }}</div>
-              <div class="reference-item-preview">
-                {{ getReferenceItemPreview(item) }}
-              </div>
-            </div>
+            {{ item.title || "无标题" }}
           </div>
+          <button
+            class="reference-item-delete"
+            @click.stop="handleRemoveReference(index)"
+            title="删除引用"
+          >
+            &times;
+          </button>
         </div>
-        <div v-else class="no-reference">
-          <p>暂无引用信息</p>
+        <div
+          class="reference-item-content"
+          @click="$emit('show-detail', index)"
+        >
+          <div class="reference-item-url">{{ item.url || "无URL" }}</div>
+          <div class="reference-item-preview">
+            {{ getReferenceItemPreview(item) }}
+          </div>
         </div>
       </div>
     </div>
-  </div>
+    <div v-else class="no-reference">
+      <p>暂无引用信息</p>
+    </div>
+  </BaseModal>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import BaseModal from './BaseModal.vue';
 
 // 定义接口
 interface ReferenceItem {
@@ -88,71 +84,6 @@ const handleRemoveReference = (index: number) => {
 </script>
 
 <style scoped>
-/* 模态对话框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--section-content-bg);
-  border-radius: var(--border-radius);
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--section-bg);
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--section-title-color);
-  font-size: 18px;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.modal-close:hover {
-  background: var(--border-color);
-}
-
-.modal-body {
-  padding: 20px;
-  max-height: calc(80vh - 70px);
-  overflow-y: auto;
-}
-
 .no-reference {
   text-align: center;
   color: var(--markdown-text-light);
