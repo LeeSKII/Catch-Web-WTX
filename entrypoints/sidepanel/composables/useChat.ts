@@ -1,4 +1,4 @@
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import { browser } from "wxt/browser";
 import { storage } from "#imports";
 import { createLogger } from "../utils/logger";
@@ -83,6 +83,18 @@ export function useChat() {
     await loadChatHistory();
     await loadReferenceList();
   });
+
+  // 监听引用列表变化，确保系统消息始终与引用列表保持一致
+  watch(referenceList, () => {
+    // 如果引用列表不为空，更新系统消息
+    if (referenceList.value.length > 0) {
+      updateSystemMessages();
+    } else {
+      // 如果引用列表为空，移除系统消息
+      messages.value = messages.value.filter((msg) => msg.role !== "system");
+      systemMessage.value = null;
+    }
+  }, { deep: true });
 
   /**
    * 加载聊天历史
@@ -180,12 +192,19 @@ export function useChat() {
   const createNewChat = () => {
     const chatId = Date.now().toString();
     currentChatId.value = chatId;
-    messages.value = [];
+    
+    // 清空所有非系统消息
+    messages.value = messages.value.filter((msg) => msg.role === "system");
+
+    // 如果引用列表不为空，确保系统消息存在且内容正确
+    if (referenceList.value.length > 0) {
+      updateSystemMessages();
+    }
 
     const newChat: ChatHistory = {
       id: chatId,
       title: "新对话",
-      messages: [],
+      messages: [...messages.value],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -204,6 +223,11 @@ export function useChat() {
     if (chat) {
       currentChatId.value = chatId;
       messages.value = [...chat.messages];
+      
+      // 确保系统消息与当前引用列表保持一致
+      if (referenceList.value.length > 0) {
+        updateSystemMessages();
+      }
     }
   };
 
@@ -481,12 +505,18 @@ export function useChat() {
     }
 
     if (confirm("确定要清空当前对话吗？")) {
-      messages.value = [];
+      // 清空所有非系统消息
+      messages.value = messages.value.filter((msg) => msg.role === "system");
+
+      // 如果引用列表不为空，确保系统消息存在且内容正确
+      if (referenceList.value.length > 0) {
+        updateSystemMessages();
+      }
 
       // 更新聊天历史
       const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
       if (chat) {
-        chat.messages = [];
+        chat.messages = [...messages.value];
         chat.updatedAt = new Date();
         saveChatHistory();
       }
