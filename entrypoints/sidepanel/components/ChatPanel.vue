@@ -35,31 +35,11 @@
     </div>
 
     <div class="chat-messages" ref="messagesContainer">
-      <div
+      <MessageItem
         v-for="(message, index) in filteredMessages"
         :key="index"
-        :class="['message', message.role]"
-      >
-        <div class="message-avatar">
-          {{ message.role === "user" ? "👤" : "🤖" }}
-        </div>
-        <div class="message-content">
-          <div class="message-role">
-            {{ message.role === "user" ? "User" : "AI" }}
-          </div>
-          <div
-            class="message-text"
-            v-if="message.role === 'user'"
-            v-html="formatMessage(message.content)"
-          ></div>
-          <div
-            class="message-text"
-            v-else
-            v-html="parseMarkdown(message.content)"
-          ></div>
-          <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-        </div>
-      </div>
+        :message="message"
+      />
 
       <div v-if="isChatLoading" class="message assistant loading">
         <div class="message-avatar">🤖</div>
@@ -217,9 +197,9 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
-import { marked } from "marked";
 import { browser } from "wxt/browser";
 import Confirm from "./Confirm.vue";
+import MessageItem from "./MessageItem.vue";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -521,16 +501,6 @@ const adjustTextareaHeight = () => {
   }
 };
 
-// 解析 Markdown 内容
-const parseMarkdown = (content: string): string => {
-  try {
-    // 使用 marked 的同步解析方式，参考 AISummaryPanel.vue
-    return content ? (marked.parse(content, { async: false }) as string) : "";
-  } catch (error) {
-    console.error("Markdown parsing error:", error);
-    return content;
-  }
-};
 
 const sendMessage = () => {
   if (!userInput.value.trim() || props.isChatLoading) return;
@@ -658,21 +628,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 };
 
-const formatMessage = (content: string): string => {
-  // 简单的Markdown格式化
-  return content
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    .replace(/`(.*?)`/g, "<code>$1</code>")
-    .replace(/\n/g, "<br>");
-};
-
-const formatTime = (timestamp: Date): string => {
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(timestamp);
-};
 
 // 自动滚动到底部
 const scrollToBottom = () => {
@@ -818,6 +773,7 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
+/* Loading 消息样式 */
 .message {
   display: flex;
   margin-bottom: 15px;
@@ -847,11 +803,6 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.message.user .message-avatar {
-  background: var(--primary-color);
-  color: white;
-}
-
 .message.assistant .message-avatar {
   background: var(--accent-color);
   color: white;
@@ -875,17 +826,6 @@ onUnmounted(() => {
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
-}
-
-.message.user .message-text {
-  background: var(--primary-color);
-  color: white;
-}
-
-.message-time {
-  font-size: 11px;
-  color: var(--markdown-text-light);
-  margin-top: 4px;
 }
 
 .loading .message-text {
@@ -1043,15 +983,6 @@ textarea:focus {
     height: 100%;
   }
 
-  .message-avatar {
-    width: 30px;
-    height: 30px;
-    font-size: 14px;
-  }
-
-  .message-text {
-    font-size: 13px;
-  }
 }
 
 /* 模态对话框样式 */
