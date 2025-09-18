@@ -351,6 +351,9 @@ export function useChat() {
     isChatLoading.value = true;
     isStreaming.value = true;
     streamingContent.value = "";
+    
+    // 添加调试日志
+    logger.debug("开始新的流式传输，重置用户滚动状态");
 
     // 创建一个临时的AI消息，用于流式传输
     const streamingMessage: ChatMessage = {

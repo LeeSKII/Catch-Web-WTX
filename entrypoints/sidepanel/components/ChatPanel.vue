@@ -34,7 +34,13 @@
       </div>
     </div>
 
-    <div class="chat-messages" ref="messagesContainer">
+    <div
+      class="chat-messages"
+      ref="messagesContainer"
+      @scroll="handleScroll"
+      @wheel="handleWheel"
+      @touchmove="handleTouchMove"
+    >
       <MessageItem
         v-for="(message, index) in filteredMessages"
         :key="index"
@@ -142,6 +148,11 @@ const userInput = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
 const textareaRows = ref(1);
+
+// 跟踪用户是否正在滚动，用于控制自动滚动行为
+const isUserScrolling = ref(false);
+// 保存上一次的滚动位置，用于检测用户滚动方向
+const lastScrollPosition = ref(0);
 
 // 保存原始标题和引用状态
 const originalTitle = ref("");
@@ -542,19 +553,73 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 };
 
+// 处理滚动事件
+const handleScroll = () => {
+  if (!messagesContainer.value) return;
+  
+  const container = messagesContainer.value;
+  const currentScrollPosition = container.scrollTop;
+  const scrollHeight = container.scrollHeight;
+  const clientHeight = container.clientHeight;
+  
+  // 检查用户是否向上滚动
+  if (currentScrollPosition < lastScrollPosition.value) {
+    // 用户向上滚动，暂停自动滚动
+    isUserScrolling.value = true;
+  }
+  
+  // 检查用户是否滚动到底部
+  const isAtBottom = scrollHeight - currentScrollPosition <= clientHeight + 5; // 5px的容差
+  if (isAtBottom) {
+    // 用户滚动到底部，恢复自动滚动
+    isUserScrolling.value = false;
+  }
+  
+  // 保存当前滚动位置
+  lastScrollPosition.value = currentScrollPosition;
+};
+
+// 处理鼠标滚轮事件
+const handleWheel = () => {
+  // 用户使用滚轮，暂停自动滚动
+  isUserScrolling.value = true;
+};
+
+// 处理触摸移动事件
+const handleTouchMove = () => {
+  // 用户触摸滚动，暂停自动滚动
+  isUserScrolling.value = true;
+};
+
 // 自动滚动到底部
 const scrollToBottom = () => {
   nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    if (messagesContainer.value && !isUserScrolling.value) {
+      const container = messagesContainer.value;
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
+      
+      // 只有当用户没有滚动且容器已经在底部时才自动滚动
+      if (!isUserScrolling.value || isAtBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   });
+};
+
+// 重置用户滚动状态，用于下一次流式传输开始时
+const resetUserScrolling = () => {
+  isUserScrolling.value = false;
 };
 
 // 监听消息变化，自动滚动到底部
 watch(
   () => props.messages,
   () => {
+    // 如果是新的用户消息，重置用户滚动状态
+    const lastMessage = props.messages[props.messages.length - 1];
+    if (lastMessage && lastMessage.role === 'user') {
+      resetUserScrolling();
+    }
     scrollToBottom();
   },
   { deep: true }
@@ -564,6 +629,11 @@ watch(
 watch(
   () => props.isChatLoading,
   (newVal, oldVal) => {
+    // 当开始加载时（开始流式传输），重置用户滚动状态
+    if (oldVal === false && newVal === true) {
+      resetUserScrolling();
+    }
+    
     scrollToBottom();
 
     // 当AI回复完成时，自动聚焦到输入框
