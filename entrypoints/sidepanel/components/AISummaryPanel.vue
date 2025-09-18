@@ -130,7 +130,7 @@ const parsedMarkdown = computed(() => {
 }
 
 .section-content {
-  max-height: 900px;
+  max-height: calc(100vh - 300px);
   font-size: 15px;
   overflow-y: auto;
   overflow-x: hidden;
