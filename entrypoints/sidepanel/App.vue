@@ -12,7 +12,7 @@ import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
 import { UI_CONFIG, PERFORMANCE_CONFIG } from "./constants";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "./composables/useSupabase";
 
 // 导入组件
 import TabNavigation from "./components/TabNavigation.vue";
@@ -28,11 +28,8 @@ import ChatPanel from "./components/ChatPanel.vue";
 // 创建日志器
 const logger = createLogger("App");
 
-// Supabase初始化
-const client = createClient(
-  "https://jnzoquhmgpjbqcabgxrd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
-);
+// 获取Supabase客户端单例实例
+const client = getSupabaseClient();
 
 // 使用 Composables
 const { success, error, warning, info } = useToast();

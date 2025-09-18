@@ -1,6 +1,6 @@
 import { ref, Ref } from "vue";
 import { AISummaryData, NewsData } from "../types";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "./useSupabase";
 import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
@@ -19,11 +19,8 @@ export function useAISummary() {
   const aiSummaryStatus: Ref<string> = ref("");
   const aiSummaryType: Ref<string> = ref("full");
 
-  // Supabase初始化
-  const client = createClient(
-    "https://jnzoquhmgpjbqcabgxrd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuem9xdWhtZ3BqYnFjYWJneHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1MDc4OTgsImV4cCI6MjA3MjA4Mzg5OH0.BKMFZNbTgGf5yxfAQuFbA912fISlbbL3GE6YDn-OkaA"
-  );
+  // 获取Supabase客户端单例实例
+  const client = getSupabaseClient();
 
   const { createAbortController, cleanupAbortController } =
     useAbortController();
