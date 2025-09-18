@@ -100,7 +100,11 @@
   </div>
 
   <!-- 引用列表模态对话框 -->
-  <div v-if="showReferenceListModal" class="modal-overlay" @click="hideReferenceList">
+  <div
+    v-if="showReferenceListModal"
+    class="modal-overlay"
+    @click="hideReferenceList"
+  >
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>引用列表</h3>
@@ -114,7 +118,12 @@
             class="reference-list-item"
           >
             <div class="reference-item-header">
-              <div class="reference-item-title" @click="showReferenceDetail(index)">{{ item.title || '无标题' }}</div>
+              <div
+                class="reference-item-title"
+                @click="showReferenceDetail(index)"
+              >
+                {{ item.title || "无标题" }}
+              </div>
               <button
                 class="reference-item-delete"
                 @click.stop="removeReference(index)"
@@ -123,9 +132,14 @@
                 &times;
               </button>
             </div>
-            <div class="reference-item-content" @click="showReferenceDetail(index)">
-              <div class="reference-item-url">{{ item.url || '无URL' }}</div>
-              <div class="reference-item-preview">{{ getReferenceItemPreview(item) }}</div>
+            <div
+              class="reference-item-content"
+              @click="showReferenceDetail(index)"
+            >
+              <div class="reference-item-url">{{ item.url || "无URL" }}</div>
+              <div class="reference-item-preview">
+                {{ getReferenceItemPreview(item) }}
+              </div>
             </div>
           </div>
         </div>
@@ -137,25 +151,31 @@
   </div>
 
   <!-- 引用详情模态对话框 -->
-  <div v-if="showReferenceModal" class="modal-overlay" @click="hideReferenceDetail">
+  <div
+    v-if="showReferenceModal"
+    class="modal-overlay"
+    @click="hideReferenceDetail"
+  >
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>引用信息</h3>
-        <button class="modal-close" @click="hideReferenceDetail">&times;</button>
+        <button class="modal-close" @click="hideReferenceDetail">
+          &times;
+        </button>
       </div>
       <div class="modal-body">
         <div v-if="referenceInfo" class="reference-info">
           <div class="reference-section">
             <h4>标题</h4>
-            <p>{{ referenceInfo.title || '无标题' }}</p>
+            <p>{{ referenceInfo.title || "无标题" }}</p>
           </div>
           <div class="reference-section">
             <h4>URL</h4>
-            <p>{{ referenceInfo.url || '无URL' }}</p>
+            <p>{{ referenceInfo.url || "无URL" }}</p>
           </div>
           <div class="reference-section">
             <h4>主机</h4>
-            <p>{{ referenceInfo.host || '无主机信息' }}</p>
+            <p>{{ referenceInfo.host || "无主机信息" }}</p>
           </div>
           <div class="reference-section">
             <h4>内容预览</h4>
@@ -184,11 +204,21 @@
       </div>
     </div>
   </div>
+
+  <!-- 确认对话框 -->
+  <Confirm
+    v-model:visible="showConfirmDialog"
+    :title="confirmDialogTitle"
+    :message="confirmDialogMessage"
+    @confirm="handleConfirm"
+    @cancel="handleCancel"
+  />
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted, nextTick, watch, computed } from "vue";
 import { marked } from "marked";
+import Confirm from "./Confirm.vue";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -226,30 +256,37 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
 const textareaRows = ref(1);
 
+// 确认对话框相关状态
+const showConfirmDialog = ref(false);
+const confirmDialogTitle = ref("确认");
+const confirmDialogMessage = ref("确定要执行此操作吗？");
+const pendingReferenceIndex = ref<number | null>(null);
+
 // 调整文本域高度
 const adjustTextareaHeight = () => {
   if (inputTextarea.value) {
     // 计算行数：基于换行符数量 + 1
-    const lineCount = userInput.value.split('\n').length;
+    const lineCount = userInput.value.split("\n").length;
     // 限制在1-10行之间
     textareaRows.value = Math.min(Math.max(lineCount, 1), 10);
-    
+
     // 强制重新渲染textarea
     nextTick(() => {
       if (inputTextarea.value) {
         // 重置高度为auto，然后设置新的行高
-        inputTextarea.value.style.height = 'auto';
+        inputTextarea.value.style.height = "auto";
         // 计算最大高度（10行 * 每行1.5em）
-        const maxHeight = 1.5 * 10 * parseFloat(getComputedStyle(inputTextarea.value).fontSize);
+        const maxHeight =
+          1.5 * 10 * parseFloat(getComputedStyle(inputTextarea.value).fontSize);
         // 让浏览器自然计算高度，但不超过最大高度
         const newHeight = Math.min(inputTextarea.value.scrollHeight, maxHeight);
-        inputTextarea.value.style.height = newHeight + 'px';
-        
+        inputTextarea.value.style.height = newHeight + "px";
+
         // 检查是否需要显示滚动条
         if (inputTextarea.value.scrollHeight > maxHeight) {
-          inputTextarea.value.classList.add('overflowing');
+          inputTextarea.value.classList.add("overflowing");
         } else {
-          inputTextarea.value.classList.remove('overflowing');
+          inputTextarea.value.classList.remove("overflowing");
         }
       }
     });
@@ -274,11 +311,11 @@ const sendMessage = () => {
   userInput.value = "";
   // 重置行高为1行
   textareaRows.value = 1;
-  
+
   // 重置textarea的DOM样式高度
   nextTick(() => {
     if (inputTextarea.value) {
-      inputTextarea.value.style.height = 'auto';
+      inputTextarea.value.style.height = "auto";
     }
   });
 };
@@ -314,37 +351,37 @@ const hideReferenceDetail = () => {
 // 跳转到原文页面
 const navigateToOriginalPage = async (url: string) => {
   if (!url) return;
-  
+
   try {
     // 获取当前所有打开的标签页
     const tabs = await browser.tabs.query({});
-    
+
     // 检查是否已经有标签页打开了该URL
-    const existingTab = tabs.find(tab => tab.url === url);
-    
+    const existingTab = tabs.find((tab) => tab.url === url);
+
     if (existingTab && existingTab.id) {
       // 如果已存在，激活该标签页
       await browser.tabs.update(existingTab.id, { active: true });
       // 如果标签页在当前窗口，可能还需要切换到该标签页
       await browser.tabs.highlight({
         windowId: existingTab.windowId,
-        tabs: existingTab.index
+        tabs: existingTab.index,
       });
     } else {
       // 如果不存在，打开新标签页
       await browser.tabs.create({ url });
     }
-    
+
     // 关闭模态框
     hideReferenceDetail();
   } catch (error) {
-    console.error('跳转到原文失败:', error);
+    console.error("跳转到原文失败:", error);
     // 如果出错，尝试直接打开新标签页
     try {
       await browser.tabs.create({ url });
       hideReferenceDetail();
     } catch (fallbackError) {
-      console.error('打开新标签页失败:', fallbackError);
+      console.error("打开新标签页失败:", fallbackError);
     }
   }
 };
@@ -357,14 +394,28 @@ const getReferenceItemPreview = (item: any) => {
 
 // 删除引用
 const removeReference = (index: number) => {
-  if (confirm('确定要删除这个引用吗？')) {
-    emit("remove-reference", index);
+  pendingReferenceIndex.value = index;
+  confirmDialogTitle.value = "删除引用";
+  confirmDialogMessage.value = "确定要删除这个引用吗？";
+  showConfirmDialog.value = true;
+};
+
+// 处理确认对话框的确认操作
+const handleConfirm = () => {
+  if (pendingReferenceIndex.value !== null) {
+    emit("remove-reference", pendingReferenceIndex.value);
+    pendingReferenceIndex.value = null;
   }
+};
+
+// 处理确认对话框的取消操作
+const handleCancel = () => {
+  pendingReferenceIndex.value = null;
 };
 
 // 过滤掉系统消息，只显示用户和AI的消息
 const filteredMessages = computed(() => {
-  return props.messages.filter(message => message.role !== 'system');
+  return props.messages.filter((message) => message.role !== "system");
 });
 
 const handleKeyDown = (event: KeyboardEvent) => {
@@ -434,7 +485,12 @@ watch(
 watch(
   () => props.referenceList,
   (newVal, oldVal) => {
-    console.log("ChatPanel: 引用列表发生变化，新数量:", newVal.length, "旧数量:", oldVal?.length);
+    console.log(
+      "ChatPanel: 引用列表发生变化，新数量:",
+      newVal.length,
+      "旧数量:",
+      oldVal?.length
+    );
   },
   { deep: true }
 );
@@ -445,7 +501,7 @@ onMounted(() => {
     inputTextarea.value.focus();
   }
   scrollToBottom();
-  
+
   // 添加调试日志
   console.log("ChatPanel onMounted: 引用列表数量:", props.referenceList.length);
 });
