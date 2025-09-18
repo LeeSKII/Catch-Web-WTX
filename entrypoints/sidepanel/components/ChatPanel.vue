@@ -244,6 +244,13 @@ const adjustTextareaHeight = () => {
         // 让浏览器自然计算高度，但不超过最大高度
         const newHeight = Math.min(inputTextarea.value.scrollHeight, maxHeight);
         inputTextarea.value.style.height = newHeight + 'px';
+        
+        // 检查是否需要显示滚动条
+        if (inputTextarea.value.scrollHeight > maxHeight) {
+          inputTextarea.value.classList.add('overflowing');
+        } else {
+          inputTextarea.value.classList.remove('overflowing');
+        }
       }
     });
   }
@@ -640,6 +647,11 @@ textarea {
   max-height: calc(1.5em * 10); /* 10行高度，每行1.5em */
   line-height: 1.5;
   height: auto;
+  overflow-y: hidden;
+}
+
+/* 当内容超过最大高度时显示滚动条 */
+textarea.overflowing {
   overflow-y: auto;
 }
 
