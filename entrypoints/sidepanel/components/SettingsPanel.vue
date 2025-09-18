@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="settings-container">
     <div class="section">
       <div class="section-title">提取选项</div>
 
@@ -198,6 +198,31 @@ watch(localSettings, (newSettings) => {
 </script>
 
 <style scoped>
+.settings-container {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* 自定义滚动条样式 */
+.settings-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+.settings-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.settings-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
 .section {
   background: var(--section-bg);
   border-radius: var(--border-radius);
