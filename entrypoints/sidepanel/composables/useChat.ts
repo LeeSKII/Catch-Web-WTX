@@ -72,10 +72,10 @@ export function useChat() {
   // 流式输出相关
   const streamingContent = ref<string>("");
   const isStreaming = ref<boolean>(false);
-  // 使用全局设置
-  const currentModel = computed(() => settings.aiModel || "qwen-turbo");
-  const maxTokens = computed(() => 8000); // 固定值，可根据需要调整
-  const temperature = computed(() => 0.7); // 固定值，可根据需要调整
+  // 使用全局设置，确保实时响应设置变化
+  const currentModel = computed(() => settings.aiModel || API_CONFIG.DEFAULT_MODEL);
+  const maxTokens = computed(() => API_CONFIG.MAX_TOKENS); // 使用配置文件中的值
+  const temperature = computed(() => API_CONFIG.TEMPERATURE); // 使用配置文件中的值
 
   // 初始化
   onMounted(async () => {
@@ -239,6 +239,16 @@ export function useChat() {
     messages: Array<{ role: string; content: string }>,
     onStreamUpdate?: (content: string) => void
   ) => {
+    // 每次调用时都从最新的设置中获取配置，确保使用最新的配置
+    const model = settings.aiModel || API_CONFIG.DEFAULT_MODEL;
+    const actualBaseUrl = settings.openaiBaseUrl || baseUrl || API_CONFIG.DEFAULT_BASE_URL;
+    
+    logger.debug("使用最新的AI配置", {
+      model: model,
+      baseUrl: actualBaseUrl,
+      apiKey: apiKey ? "***" : "未设置"
+    });
+
     // 创建AbortController用于聊天请求
     const abortController = createAbortController("chat");
 
@@ -246,7 +256,7 @@ export function useChat() {
       // 初始化OpenAI客户端
       const openai = new OpenAI({
         apiKey: apiKey,
-        baseURL: baseUrl,
+        baseURL: actualBaseUrl,
         dangerouslyAllowBrowser: true, // 允许在浏览器中使用
       });
 
@@ -258,7 +268,7 @@ export function useChat() {
 
       // 创建流式请求
       const stream = await openai.chat.completions.create({
-        model: currentModel.value,
+        model: model,
         messages: messages as any,
         stream: true,
         max_tokens: maxTokens.value,
@@ -342,7 +352,7 @@ export function useChat() {
     streamingContent.value = "";
 
     try {
-      // 获取API密钥和baseUrl
+      // 获取API密钥和baseUrl，每次都从最新的设置中获取
       const apiKey = settings.openaiApiKey;
       const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
 
@@ -350,7 +360,7 @@ export function useChat() {
         throw new Error("请先在设置中配置OpenAI API密钥");
       }
 
-      logger.debug("使用API配置", {
+      logger.debug("使用最新的API配置", {
         model: currentModel.value,
         baseUrl: baseUrl,
         maxTokens: maxTokens.value,

@@ -318,7 +318,7 @@ const handleToggleDarkMode = () => {
 
 const handleSaveSettings = () => {
   saveSettings();
-  success("设置已保存！");
+  success("设置已保存！设置将立即生效。");
 };
 
 const handleBookmarkAction = async (isBookmarked: boolean) => {

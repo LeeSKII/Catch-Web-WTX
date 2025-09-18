@@ -130,7 +130,7 @@ export function useAISummary() {
         return { success: false, message: "请先提取网页数据" };
       }
 
-      // 检查API密钥
+      // 检查API密钥，每次都从最新的设置中获取
       const apiKey = settings.openaiApiKey;
       if (!apiKey) {
         logger.debug("请先在设置中配置OpenAI API密钥");
@@ -171,8 +171,15 @@ export function useAISummary() {
     system_prompt: string,
     input: string
   ) => {
+    // 每次调用时都从最新的设置中获取配置，确保使用最新的配置
     const model = settings.aiModel || API_CONFIG.DEFAULT_MODEL;
     const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
+
+    logger.debug("使用最新的AI配置", {
+      model: model,
+      baseUrl: baseUrl,
+      apiKey: apiKey ? "***" : "未设置"
+    });
 
     // 创建AbortController用于AI总结请求
     const abortController = createAbortController("aiSummary");

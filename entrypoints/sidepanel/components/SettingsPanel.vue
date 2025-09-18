@@ -114,7 +114,7 @@
           type="text"
           v-model="localSettings.openaiBaseUrl"
           class="filter-input"
-          placeholder="https://api.openai.com/v1"
+          :placeholder="API_CONFIG.DEFAULT_BASE_URL"
         />
         <div
           style="
@@ -133,7 +133,7 @@
           type="text"
           v-model="localSettings.aiModel"
           class="filter-input"
-          placeholder="gpt-3.5-turbo"
+          :placeholder="API_CONFIG.DEFAULT_MODEL"
         />
         <div
           style="
@@ -164,6 +164,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
 import type { Settings } from '../types';
+import { API_CONFIG } from '../constants';
 
 const props = defineProps<{
   settings: Settings;
@@ -191,9 +192,18 @@ watch(() => props.isDarkMode, (newIsDarkMode) => {
   isDarkModeToggle.value = newIsDarkMode;
 });
 
-// 监听本地设置变化，通知父组件
+// 监听本地设置变化，通知父组件并立即保存
 watch(localSettings, (newSettings) => {
   emit('update:settings', { ...newSettings });
+  // 立即保存设置到localStorage，确保其他组件能够获取到最新的配置
+  const settingsKeys = Object.keys(newSettings) as Array<keyof Settings>;
+  settingsKeys.forEach(key => {
+    if (key === 'openaiApiKey' && newSettings[key].trim()) {
+      localStorage.setItem(key, newSettings[key].trim());
+    } else if (key !== 'openaiApiKey') {
+      localStorage.setItem(key, newSettings[key].toString());
+    }
+  });
 }, { deep: true });
 </script>
 

@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { Settings } from '../types';
+import { API_CONFIG } from '../constants';
 
 export function useSettings() {
   const settings = reactive<Settings>({
@@ -15,8 +16,8 @@ export function useSettings() {
     extractScripts: localStorage.getItem('extractScripts') === 'true',
     extractArticle: localStorage.getItem('extractArticle') !== 'false',
     openaiApiKey: localStorage.getItem('openaiApiKey') || '',
-    openaiBaseUrl: localStorage.getItem('openaiBaseUrl') || 'https://api.openai.com/v1',
-    aiModel: localStorage.getItem('aiModel') || 'gpt-3.5-turbo'
+    openaiBaseUrl: localStorage.getItem('openaiBaseUrl') || API_CONFIG.DEFAULT_BASE_URL,
+    aiModel: localStorage.getItem('aiModel') || API_CONFIG.DEFAULT_MODEL
   });
 
   const loadSettings = () => {
@@ -32,8 +33,8 @@ export function useSettings() {
     settings.extractScripts = localStorage.getItem('extractScripts') === 'true';
     settings.extractArticle = localStorage.getItem('extractArticle') !== 'false';
     settings.openaiApiKey = localStorage.getItem('openaiApiKey') || '';
-    settings.openaiBaseUrl = localStorage.getItem('openaiBaseUrl') || 'https://api.openai.com/v1';
-    settings.aiModel = localStorage.getItem('aiModel') || 'gpt-3.5-turbo';
+    settings.openaiBaseUrl = localStorage.getItem('openaiBaseUrl') || API_CONFIG.DEFAULT_BASE_URL;
+    settings.aiModel = localStorage.getItem('aiModel') || API_CONFIG.DEFAULT_MODEL;
   };
 
   const saveSettings = () => {
@@ -74,8 +75,8 @@ export function useSettings() {
     settings.extractScripts = false;
     settings.extractArticle = true;
     settings.openaiApiKey = '';
-    settings.openaiBaseUrl = 'https://api.openai.com/v1';
-    settings.aiModel = 'gpt-3.5-turbo';
+    settings.openaiBaseUrl = API_CONFIG.DEFAULT_BASE_URL;
+    settings.aiModel = API_CONFIG.DEFAULT_MODEL;
     
     saveSettings();
   };
