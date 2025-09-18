@@ -231,16 +231,19 @@ const adjustTextareaHeight = () => {
   if (inputTextarea.value) {
     // 计算行数：基于换行符数量 + 1
     const lineCount = userInput.value.split('\n').length;
-    // 限制在1-5行之间
-    textareaRows.value = Math.min(Math.max(lineCount, 1), 5);
+    // 限制在1-10行之间
+    textareaRows.value = Math.min(Math.max(lineCount, 1), 10);
     
     // 强制重新渲染textarea
     nextTick(() => {
       if (inputTextarea.value) {
         // 重置高度为auto，然后设置新的行高
         inputTextarea.value.style.height = 'auto';
-        // 让浏览器自然计算高度
-        inputTextarea.value.style.height = inputTextarea.value.scrollHeight + 'px';
+        // 计算最大高度（10行 * 每行1.5em）
+        const maxHeight = 1.5 * 10 * parseFloat(getComputedStyle(inputTextarea.value).fontSize);
+        // 让浏览器自然计算高度，但不超过最大高度
+        const newHeight = Math.min(inputTextarea.value.scrollHeight, maxHeight);
+        inputTextarea.value.style.height = newHeight + 'px';
       }
     });
   }
@@ -264,6 +267,13 @@ const sendMessage = () => {
   userInput.value = "";
   // 重置行高为1行
   textareaRows.value = 1;
+  
+  // 重置textarea的DOM样式高度
+  nextTick(() => {
+    if (inputTextarea.value) {
+      inputTextarea.value.style.height = 'auto';
+    }
+  });
 };
 
 const clearChat = () => {
@@ -627,10 +637,10 @@ textarea {
   background: var(--section-bg);
   color: var(--text-color);
   min-height: auto;
-  max-height: none;
+  max-height: calc(1.5em * 10); /* 10行高度，每行1.5em */
   line-height: 1.5;
   height: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 textarea:focus {
