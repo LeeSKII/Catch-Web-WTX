@@ -121,15 +121,14 @@ const formatTime = (timestamp: Date): string => {
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
-  margin-left: 0;
-  margin-right: 48px;
+  margin: 0 12px;
 }
 
 .message.assistant .message-text {
   background: var(--accent-color);
   color: white;
   border-radius: 16px 4px 16px 16px;
-  max-width: 80%;
+  width: 100%;
   text-align: left;
 }
 
@@ -170,7 +169,7 @@ const formatTime = (timestamp: Date): string => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 48px;
+  margin: 0 12px;
 }
 
 .message.user .message-content {
@@ -265,7 +264,7 @@ const formatTime = (timestamp: Date): string => {
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
-  max-width: 80%;
+  width: 100%;
 }
 
 .message.user .message-text {
