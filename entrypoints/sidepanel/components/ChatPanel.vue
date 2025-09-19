@@ -19,15 +19,17 @@
         </button>
         <button
           class="btn btn-secondary"
+          :class="{ 'btn-disabled': filteredMessages.length === 0 }"
           @click="clearChat"
-          :disabled="isChatLoading"
+          :disabled="isChatLoading || filteredMessages.length === 0"
         >
           清空对话
         </button>
         <button
           class="btn btn-primary"
+          :class="{ 'btn-disabled': filteredMessages.length === 0 }"
           @click="saveChat"
-          :disabled="isChatLoading || messages.length === 0"
+          :disabled="isChatLoading || filteredMessages.length === 0"
         >
           保存对话
         </button>
@@ -487,7 +489,10 @@ const sendMessage = () => {
 };
 
 const clearChat = () => {
-  emit("clear-chat");
+  pendingReferenceIndex.value = -1; // 使用-1表示清空对话操作
+  confirmDialogTitle.value = "清空对话";
+  confirmDialogMessage.value = "确定要清空当前对话吗？";
+  showConfirmDialog.value = true;
 };
 
 const saveChat = () => {
@@ -529,10 +534,14 @@ const removeReference = (index: number) => {
 
 // 处理确认对话框的确认操作
 const handleConfirm = () => {
-  if (pendingReferenceIndex.value !== null) {
+  if (pendingReferenceIndex.value === -1) {
+    // 清空对话操作
+    emit("clear-chat");
+  } else if (pendingReferenceIndex.value !== null) {
+    // 删除引用操作
     emit("remove-reference", pendingReferenceIndex.value);
-    pendingReferenceIndex.value = null;
   }
+  pendingReferenceIndex.value = null;
 };
 
 // 处理确认对话框的取消操作
@@ -863,14 +872,16 @@ textarea:focus {
   transform: translateY(-2px);
 }
 
-.chat-actions .btn:disabled {
+.chat-actions .btn:disabled,
+.chat-actions .btn-disabled {
   background: #cccccc;
   color: #666666;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.chat-actions .btn:disabled:hover {
+.chat-actions .btn:disabled:hover,
+.chat-actions .btn-disabled:hover {
   opacity: 0.6;
   transform: none;
 }

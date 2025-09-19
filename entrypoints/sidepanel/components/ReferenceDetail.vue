@@ -50,6 +50,9 @@
 <script lang="ts" setup>
 import { browser } from "wxt/browser";
 import BaseModal from './BaseModal.vue';
+import { useToast } from '../composables/useToast';
+
+const { info } = useToast();
 
 interface ReferenceInfo {
   title?: string;
@@ -77,11 +80,22 @@ const navigateToOriginalPage = async (url: string) => {
     // 获取当前所有打开的标签页
     const tabs = await browser.tabs.query({});
 
+    // 获取当前活动标签页
+    const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const currentActiveTab = activeTabs[0];
+
     // 检查是否已经有标签页打开了该URL
     const existingTab = tabs.find((tab) => tab.url === url);
 
     if (existingTab && existingTab.id) {
-      // 如果已存在，激活该标签页
+      // 检查当前活动标签页是否已经是目标URL
+      if (currentActiveTab && currentActiveTab.url === url) {
+        // 如果已经是当前活动标签页，显示提示
+        info('您已经在当前原文页面');
+        return;
+      }
+
+      // 如果已存在但不是当前活动标签页，激活该标签页
       await browser.tabs.update(existingTab.id, { active: true });
       // 如果标签页在当前窗口，可能还需要切换到该标签页
       await browser.tabs.highlight({

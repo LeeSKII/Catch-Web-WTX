@@ -503,37 +503,39 @@ export function useChat() {
    * 清空当前对话
    */
   const clearChat = () => {
-    if (messages.value.length === 0) {
+    // 过滤掉系统消息，只检查用户和AI的消息
+    const userAndAssistantMessages = messages.value.filter((msg) => msg.role !== "system");
+    if (userAndAssistantMessages.length === 0) {
       warning("当前对话已经是空的");
       return;
     }
 
-    if (confirm("确定要清空当前对话吗？")) {
-      // 清空所有非系统消息
-      messages.value = messages.value.filter((msg) => msg.role === "system");
+    // 清空所有非系统消息
+    messages.value = messages.value.filter((msg) => msg.role === "system");
 
-      // 如果引用列表不为空，确保系统消息存在且内容正确
-      if (referenceList.value.length > 0) {
-        updateSystemMessages();
-      }
-
-      // 更新聊天历史
-      const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
-      if (chat) {
-        chat.messages = [...messages.value];
-        chat.updatedAt = new Date();
-        saveChatHistory();
-      }
-
-      success("对话已清空");
+    // 如果引用列表不为空，确保系统消息存在且内容正确
+    if (referenceList.value.length > 0) {
+      updateSystemMessages();
     }
+
+    // 更新聊天历史
+    const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
+    if (chat) {
+      chat.messages = [...messages.value];
+      chat.updatedAt = new Date();
+      saveChatHistory();
+    }
+
+    success("对话已清空");
   };
 
   /**
    * 保存当前对话
    */
   const saveChat = () => {
-    if (messages.value.length === 0) {
+    // 过滤掉系统消息，只检查用户和AI的消息
+    const userAndAssistantMessages = messages.value.filter((msg) => msg.role !== "system");
+    if (userAndAssistantMessages.length === 0) {
       warning("没有可保存的对话内容");
       return;
     }
