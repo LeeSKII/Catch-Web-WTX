@@ -1,9 +1,9 @@
 <template>
   <div :class="['message', message.role, { 'streaming': isStreaming }]">
-    <div class="message-avatar">
-      {{ message.role === "user" ? "👤" : "🤖" }}
-    </div>
-    <div class="message-content">
+    <div class="message-header">
+      <div class="message-avatar">
+        {{ message.role === "user" ? "👤" : "🤖" }}
+      </div>
       <div class="message-role">
         {{ message.role === "user" ? "User" : "AI" }}
         <button
@@ -15,6 +15,8 @@
           ⏹️
         </button>
       </div>
+    </div>
+    <div class="message-content">
       <div
         class="message-text"
         v-if="message.role === 'user'"
@@ -97,7 +99,49 @@ const formatTime = (timestamp: Date): string => {
 <style scoped>
 .message {
   display: flex;
+  flex-direction: column;
   margin-bottom: 15px;
+}
+
+.message.assistant {
+  align-items: flex-end;
+}
+
+.message.assistant .message-header {
+  flex-direction: row-reverse;
+}
+
+.message.assistant .message-avatar {
+  margin-right: 0;
+  margin-left: 12px;
+}
+
+.message.assistant .message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  margin-left: 0;
+  margin-right: 48px;
+}
+
+.message.assistant .message-text {
+  background: var(--accent-color);
+  color: white;
+  border-radius: 16px 4px 16px 16px;
+  max-width: 80%;
+  text-align: left;
+}
+
+.message.user .message-text {
+  border-radius: 4px 16px 16px 16px;
+  text-align: left;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
 .message-avatar {
@@ -124,16 +168,23 @@ const formatTime = (timestamp: Date): string => {
 
 .message-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 48px;
+}
+
+.message.user .message-content {
+  align-items: flex-start;
 }
 
 .message-role {
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 4px;
   color: var(--markdown-text-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex: 1;
 }
 
 .message-role .stop-btn {
@@ -209,11 +260,12 @@ const formatTime = (timestamp: Date): string => {
 
 .message-text {
   background: var(--section-bg);
-  padding: 10px;
+  padding: 10px 14px;
   border-radius: var(--border-radius);
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
+  max-width: 80%;
 }
 
 .message.user .message-text {
