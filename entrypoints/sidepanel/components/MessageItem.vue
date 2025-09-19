@@ -128,7 +128,8 @@ const formatTime = (timestamp: Date): string => {
   background: var(--accent-color);
   color: white;
   border-radius: 16px 4px 16px 16px;
-  width: 100%;
+  width: fit-content; /* 改为fit-content，根据内容自适应宽度 */
+  max-width: 100%; /* 最大宽度不超过父容器 */
   text-align: left;
 }
 
@@ -166,14 +167,18 @@ const formatTime = (timestamp: Date): string => {
 }
 
 .message-content {
-  flex: 1;
   display: flex;
   flex-direction: column;
   margin: 0 12px;
+  max-width: calc(100% - 60px); /* 减去头像和边距的宽度 */
 }
 
 .message.user .message-content {
   align-items: flex-start;
+}
+
+.message.assistant .message-content {
+  align-items: flex-end;
 }
 
 .message-role {
@@ -264,7 +269,9 @@ const formatTime = (timestamp: Date): string => {
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
-  width: 100%;
+  width: fit-content; /* 改为fit-content，根据内容自适应宽度 */
+  max-width: 100%; /* 最大宽度不超过父容器 */
+  min-width: 20%; /* 添加最小宽度，确保消息框不会太窄 */
 }
 
 .message.user .message-text {

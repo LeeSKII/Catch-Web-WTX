@@ -12,7 +12,7 @@ import OpenAI from "openai";
 const logger = createLogger("AISummary");
 
 export function useAISummary() {
-  const { settings } = useSettings();
+  const { settings, loadSettings } = useSettings();
   const isLoadingAISummary: Ref<boolean> = ref(false);
   const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref("");
@@ -155,6 +155,9 @@ export function useAISummary() {
         return { success: false, message: "请先提取网页数据" };
       }
 
+      // 在检查API密钥前重新加载设置，确保获取到最新的API密钥
+      loadSettings();
+      
       // 检查API密钥，每次都从最新的设置中获取
       const apiKey = settings.openaiApiKey;
       if (!apiKey) {
