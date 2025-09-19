@@ -8,7 +8,7 @@
         {{ message.role === "user" ? "User" : "AI" }}
         <button
           v-if="isStreaming"
-          class="stop-btn"
+          :class="['stop-btn', { 'streaming': isStreaming }]"
           @click="$emit('stop-streaming')"
           title="停止生成"
         >
@@ -146,8 +146,8 @@ const formatTime = (timestamp: Date): string => {
   color: white;
   cursor: pointer;
   font-size: 16px;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -156,6 +156,7 @@ const formatTime = (timestamp: Date): string => {
   box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
   position: relative;
   overflow: hidden;
+  outline: none;
 }
 
 .stop-btn::before {
@@ -165,14 +166,14 @@ const formatTime = (timestamp: Date): string => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  transition: transform 0.4s ease;
 }
 
 .stop-btn:hover {
   box-shadow: 0 6px 16px rgba(255, 71, 87, 0.4);
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.05);
 }
 
 .stop-btn:hover::before {
@@ -182,6 +183,28 @@ const formatTime = (timestamp: Date): string => {
 .stop-btn:active {
   transform: translateY(0) scale(0.95);
   box-shadow: 0 2px 8px rgba(255, 71, 87, 0.2);
+}
+
+.stop-btn:focus {
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.4);
+  outline: none;
+}
+
+/* 添加脉冲动画效果 */
+.stop-btn.streaming {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 71, 87, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
+  }
 }
 
 .message-text {

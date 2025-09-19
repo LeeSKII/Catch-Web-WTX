@@ -821,14 +821,20 @@ watch(aiSummaryType, async () => {
 // 监听标签页切换，当切换到AI标签时刷新AI总结
 watch(currentTab, async (newTab, oldTab) => {
   logger.debug('标签页切换', { from: oldTab, to: newTab });
-  
+
+  // 当切换到聊天标签时，重新加载设置以确保获取最新的API密钥
+  if (newTab === 'chat') {
+    loadSettings();
+    logger.debug('切换到聊天标签页，已重新加载设置');
+  }
+
   // 只有当切换到AI标签时才执行刷新操作
   if (newTab === 'ai') {
     // 优先使用已提取数据中的URL，避免调用browser.tabs.query引入延迟
     const url = extractedData.value.url;
     if (url) {
       logger.debug('切换到AI标签页，开始加载AI总结', { url });
-      
+
       // 调用loadAndDisplayAISummary加载AI总结
       // 该函数已经修改为异步执行数据库查询，不会阻塞UI
       // 不再await，立即返回以提高响应速度
@@ -840,7 +846,7 @@ watch(currentTab, async (newTab, oldTab) => {
         if (tabs && tabs[0] && tabs[0].url) {
           const currentUrl = tabs[0].url;
           logger.debug('切换到AI标签页，开始加载AI总结', { url: currentUrl });
-          
+
           // 调用loadAndDisplayAISummary加载AI总结
           // 该函数已经修改为异步执行数据库查询，不会阻塞UI
           loadAndDisplayAISummary(currentUrl, '标签切换');
