@@ -1,104 +1,136 @@
 <template>
   <div class="settings-container">
-    <div class="section">
-      <div class="action-section">
-        <div class="action-title">数据管理</div>
-        <div class="action-buttons">
-          <button
-            :class="[
-              'btn btn-refresh',
-              { 'btn-loading': isRefreshButtonDisabled },
-            ]"
-            @click="handleRefreshData"
-            :disabled="isRefreshButtonDisabled"
-          >
-            {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
-          </button>
-          <button
-            :class="[
-              extractedData.isBookmarked
-                ? 'btn btn-update'
-                : 'btn btn-bookmark',
-              {
-                'btn-loading':
-                  isBookmarkButtonDisabled ||
-                  isCheckingBookmark ||
-                  extractedData.isBookmarked === undefined,
-              },
-            ]"
-            @click="handleBookmarkAction"
-            :disabled="
-              isBookmarkButtonDisabled ||
-              isCheckingBookmark ||
-              extractedData.isBookmarked === undefined
-            "
-          >
-            <span
-              v-if="
+    <!-- 页面加载状态指示器 -->
+    <div v-if="isPageLoading" class="loading-indicator">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">页面加载中，请稍候...</div>
+    </div>
+
+    <!-- 结果内容（在加载时隐藏） -->
+    <div v-show="!isPageLoading">
+      <div class="section">
+        <!-- 统计信息 -->
+        <StatsDisplay
+          :stats="stats"
+          :extracted-data="props.extractedData"
+          :is-checking-bookmark="props.isCheckingBookmark"
+        />
+        <div class="action-section">
+          <div class="action-title">数据管理</div>
+          <div class="action-buttons">
+            <button
+              :class="[
+                'btn btn-refresh',
+                { 'btn-loading': isRefreshButtonDisabled },
+              ]"
+              @click="handleRefreshData"
+              :disabled="isRefreshButtonDisabled"
+            >
+              {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
+            </button>
+            <button
+              :class="[
+                extractedData.isBookmarked
+                  ? 'btn btn-update'
+                  : 'btn btn-bookmark',
+                {
+                  'btn-loading':
+                    isBookmarkButtonDisabled ||
+                    isCheckingBookmark ||
+                    extractedData.isBookmarked === undefined,
+                },
+              ]"
+              @click="handleBookmarkAction"
+              :disabled="
                 isBookmarkButtonDisabled ||
                 isCheckingBookmark ||
                 extractedData.isBookmarked === undefined
               "
-              class="loading-icon"
             >
-              <svg class="spinner" viewBox="0 0 50 50">
-                <circle
-                  class="path"
-                  cx="25"
-                  cy="25"
-                  r="20"
-                  fill="none"
-                  stroke-width="5"
-                ></circle>
-              </svg>
-            </span>
-            <span v-else>{{
-              extractedData.isBookmarked ? "更新" : "收藏"
-            }}</span>
-          </button>
+              <span
+                v-if="
+                  isBookmarkButtonDisabled ||
+                  isCheckingBookmark ||
+                  extractedData.isBookmarked === undefined
+                "
+                class="loading-icon"
+              >
+                <svg class="spinner" viewBox="0 0 50 50">
+                  <circle
+                    class="path"
+                    cx="25"
+                    cy="25"
+                    r="20"
+                    fill="none"
+                    stroke-width="5"
+                  ></circle>
+                </svg>
+              </span>
+              <span v-else>{{
+                extractedData.isBookmarked ? "更新" : "收藏"
+              }}</span>
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="section-title">
-        <span>网页信息</span>
-        <div>
-          <button class="btn btn-secondary" @click="$emit('copy-all-data')">
-            复制全部
-          </button>
-          <button class="btn btn-primary" @click="$emit('export-data')">
-            导出数据
-          </button>
+        <div class="section-title">
+          <span>网页信息</span>
+          <div>
+            <button class="btn btn-secondary" @click="$emit('copy-all-data')">
+              复制全部
+            </button>
+            <button class="btn btn-primary" @click="$emit('export-data')">
+              导出数据
+            </button>
+          </div>
+        </div>
+
+        <div class="section-content">
+          <div v-if="extractedData.title">
+            <strong>标题:</strong>
+            <span :title="extractedData.title">
+              {{
+                extractedData.title.length > 50
+                  ? extractedData.title.substring(0, 50) + "..."
+                  : extractedData.title
+              }}
+            </span>
+          </div>
+          <div v-if="extractedData.host">
+            <strong>主域名:</strong> {{ extractedData.host }}
+          </div>
+          <div v-if="extractedData.wordCount">
+            <strong>字数:</strong> {{ extractedData.wordCount }}
+          </div>
+          <div v-if="extractedData.article !== undefined">
+            <strong>文章内容:</strong>
+            <span v-if="extractedData.article" :title="extractedData.article">
+              {{
+                extractedData.article.length > 100
+                  ? extractedData.article.substring(0, 100) + "..."
+                  : extractedData.article
+              }}
+            </span>
+            <span v-else>未找到article标签</span>
+          </div>
         </div>
       </div>
 
-      <div class="section-content">
-        <div v-if="extractedData.title">
-          <strong>标题:</strong>
-          <span :title="extractedData.title">
-            {{
-              extractedData.title.length > 50
-                ? extractedData.title.substring(0, 50) + "..."
-                : extractedData.title
-            }}
-          </span>
-        </div>
-        <div v-if="extractedData.host">
-          <strong>主域名:</strong> {{ extractedData.host }}
-        </div>
-        <div v-if="extractedData.wordCount">
-          <strong>字数:</strong> {{ extractedData.wordCount }}
-        </div>
-        <div v-if="extractedData.article !== undefined">
-          <strong>文章内容:</strong>
-          <span v-if="extractedData.article" :title="extractedData.article">
-            {{
-              extractedData.article.length > 100
-                ? extractedData.article.substring(0, 100) + "..."
-                : extractedData.article
-            }}
-          </span>
-          <span v-else>未找到article标签</span>
-        </div>
-      </div>
+      <!-- 图片 -->
+      <ImageGrid
+        :extracted-data="extractedData"
+        :image-filter="imageFilter"
+        @update:image-filter="(value) => (imageFilter = value)"
+        @view-all-images="handleViewAllImages"
+        @download-all-images="handleDownloadAllImages"
+      />
+
+      <!-- 链接 -->
+      <LinkList
+        :extracted-data="extractedData"
+        :link-filter="linkFilter"
+        @update:link-filter="(value) => (linkFilter = value)"
+        @view-all-links="handleViewAllLinks"
+      />
     </div>
   </div>
 </template>
@@ -106,10 +138,15 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import type { ExtractedData } from "../types";
+import StatsDisplay from "./StatsDisplay.vue";
+import ImageGrid from "./ImageGrid.vue";
+import LinkList from "./LinkList.vue";
+import { computed } from "vue";
 
 const props = defineProps<{
   extractedData: ExtractedData;
   isCheckingBookmark: boolean;
+  isPageLoading: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -117,11 +154,18 @@ const emit = defineEmits<{
   "refresh-data": [];
   "export-data": [];
   "bookmark-action": [isBookmarked: boolean];
+  "view-all-images": [];
+  "download-all-images": [];
+  "view-all-links": [];
+  "update:image-filter": [value: string];
+  "update:link-filter": [value: string];
 }>();
 
 // 按钮禁用状态
 const isBookmarkButtonDisabled = ref(false);
 const isRefreshButtonDisabled = ref(false);
+const imageFilter = ref("");
+const linkFilter = ref("");
 
 const handleBookmarkAction = () => {
   if (
@@ -150,6 +194,26 @@ const resetButtonStates = () => {
 defineExpose({
   resetButtonStates,
 });
+
+// 计算属性
+const stats = computed(() => ({
+  imagesCount: props.extractedData.images?.length || 0,
+  linksCount: props.extractedData.links?.length || 0,
+  wordsCount: props.extractedData.wordCount || 0,
+}));
+
+// 事件处理函数
+const handleViewAllImages = () => {
+  emit("view-all-images");
+};
+
+const handleDownloadAllImages = () => {
+  emit("download-all-images");
+};
+
+const handleViewAllLinks = () => {
+  emit("view-all-links");
+};
 </script>
 
 <style scoped>
@@ -180,7 +244,6 @@ defineExpose({
 .section {
   background: var(--section-bg);
   border-radius: var(--border-radius);
-  padding: 15px;
   margin-bottom: 15px;
   box-shadow: var(--box-shadow);
 }

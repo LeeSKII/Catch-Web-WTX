@@ -875,22 +875,14 @@ watch(isDarkMode, (newValue) => {
       v-show="currentTab === 'results'"
       class="tab-content active"
     >
-      <!-- 页面加载状态指示器（仅在结果面板中显示） -->
-      <div v-if="isPageLoading" class="loading-indicator">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">页面加载中，请稍候...</div>
-      </div>
-      
       <!-- 结果内容（在加载时隐藏） -->
       <div v-show="!isPageLoading">
-      <!-- 统计信息 -->
-      <StatsDisplay :stats="stats" :extracted-data="extractedData" :is-checking-bookmark="isCheckingBookmark" />
-
       <!-- 网页信息 -->
       <WebInfoSection
         ref="webInfoSectionRef"
         :extracted-data="extractedData"
         :is-checking-bookmark="isCheckingBookmark"
+        :is-page-loading="isPageLoading"
         @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
         @export-data="handleExportData"
@@ -898,21 +890,8 @@ watch(isDarkMode, (newValue) => {
       />
 
       <!-- 图片 -->
-      <ImageGrid
-        :extracted-data="extractedData"
-        :image-filter="imageFilter"
-        @update:image-filter="(value) => (imageFilter = value)"
-        @view-all-images="handleViewAllImages"
-        @download-all-images="handleDownloadAllImages"
-      />
 
       <!-- 链接 -->
-      <LinkList
-        :extracted-data="extractedData"
-        :link-filter="linkFilter"
-        @update:link-filter="(value) => (linkFilter = value)"
-        @view-all-links="handleViewAllLinks"
-      />
       </div>
     </div>
 
