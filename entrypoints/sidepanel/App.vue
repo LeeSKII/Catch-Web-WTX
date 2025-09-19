@@ -318,6 +318,8 @@ const handleToggleDarkMode = () => {
 
 const handleSaveSettings = () => {
   saveSettings();
+  // 确保设置保存后，重新加载设置以更新所有组件的状态
+  loadSettings();
   success("设置已保存！设置将立即生效。");
 };
 

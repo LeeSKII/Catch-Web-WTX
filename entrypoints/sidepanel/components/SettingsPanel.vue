@@ -192,19 +192,9 @@ watch(() => props.isDarkMode, (newIsDarkMode) => {
   isDarkModeToggle.value = newIsDarkMode;
 });
 
-// 监听本地设置变化，通知父组件并立即保存
+// 监听本地设置变化，通知父组件
 watch(localSettings, (newSettings) => {
   emit('update:settings', { ...newSettings });
-  // 立即保存设置到localStorage，确保其他组件能够获取到最新的配置
-  const settingsKeys = Object.keys(newSettings) as Array<keyof Settings>;
-  settingsKeys.forEach(key => {
-    if (key === 'openaiApiKey') {
-      // 对于API密钥，即使为空也要保存，以确保能正确清除旧值
-      localStorage.setItem(key, newSettings[key].trim());
-    } else {
-      localStorage.setItem(key, newSettings[key].toString());
-    }
-  });
 }, { deep: true });
 </script>
 

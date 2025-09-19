@@ -11,7 +11,7 @@ import { ExtractedData } from "../types";
 
 const logger = createLogger("Chat");
 const { success, error, warning, info } = useToast();
-const { settings } = useSettings();
+const { settings, loadSettings } = useSettings();
 const {
   createAbortController,
   abortRequest,
@@ -394,6 +394,9 @@ export function useChat() {
     let streamingMessageIndex = messages.value.length - 1;
 
     try {
+      // 在发送消息前重新加载设置，确保获取到最新的API密钥
+      loadSettings();
+      
       // 获取API密钥和baseUrl，每次都从最新的设置中获取
       const apiKey = settings.openaiApiKey;
       const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
