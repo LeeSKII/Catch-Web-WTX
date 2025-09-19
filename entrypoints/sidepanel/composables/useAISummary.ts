@@ -18,6 +18,9 @@ export function useAISummary() {
   const aiSummaryContent: Ref<string> = ref("");
   const aiSummaryStatus: Ref<string> = ref("");
   const aiSummaryType: Ref<string> = ref("full");
+  
+  // 防重复调用：记录当前正在处理的URL
+  const currentProcessingUrl: Ref<string> = ref("");
 
   // 获取Supabase客户端单例实例
   const client = getSupabaseClient();
@@ -331,6 +334,12 @@ export function useAISummary() {
   ) => {
     logger.debug("loadAndDisplayAISummary() 被调用", { source, url });
 
+    // 防重复调用：如果正在处理同一个URL，直接跳过
+    if (currentProcessingUrl.value === url && isQueryingDatabase.value) {
+      logger.debug(`正在处理URL ${url}，跳过重复调用`, { source });
+      return { success: true, skipped: true };
+    }
+
     // 不再检查isLoadingAISummary.value，允许并发请求以提高响应速度
     // isLoadingAISummary.value = true;
 
@@ -348,6 +357,15 @@ export function useAISummary() {
         return { success: true, fromCache: true };
       } else {
         logger.debug(`从${source}的storage中没有数据，尝试从数据库加载`);
+        
+        // 关键修复：当storage中没有数据时，立即清空显示的内容
+        // 这样可以避免显示上一个页面的AI总结
+        aiSummaryContent.value = "";
+        aiSummaryStatus.value = "";
+        
+        // 设置当前正在处理的URL
+        currentProcessingUrl.value = url;
+        
         // 如果storage中没有，设置加载状态
         isLoadingAISummary.value = true;
 
@@ -359,26 +377,26 @@ export function useAISummary() {
           // 结束数据库查询状态
           isQueryingDatabase.value = false;
           isLoadingAISummary.value = false;
+          // 清空当前处理的URL
+          currentProcessingUrl.value = "";
 
           if (displayNewsSummarizer(newsData)) {
             logger.debug(`从${source}的数据库中成功显示数据并保存到storage`);
           } else {
             logger.debug(`从${source}的数据库中也没有找到数据`);
-            // 只有在没有找到任何数据时才清空内容
-            if (!aiSummaryContent.value) {
-              aiSummaryContent.value = "";
-              aiSummaryStatus.value = "";
-            }
+            // 数据库中也没有数据，保持清空状态
+            aiSummaryContent.value = "";
+            aiSummaryStatus.value = "";
           }
         }).catch((error) => {
           logger.error(`从${source}加载数据库时出错`, error);
           isLoadingAISummary.value = false;
           isQueryingDatabase.value = false;
-          // 只有在没有内容时才清空，避免覆盖已显示的缓存内容
-          if (!aiSummaryContent.value) {
-            aiSummaryContent.value = "";
-            aiSummaryStatus.value = "";
-          }
+          // 清空当前处理的URL
+          currentProcessingUrl.value = "";
+          // 数据库查询出错，保持清空状态
+          aiSummaryContent.value = "";
+          aiSummaryStatus.value = "";
         });
 
         // 立即返回，不等待数据库查询完成
@@ -386,13 +404,13 @@ export function useAISummary() {
       }
     } catch (error) {
       logger.error(`从${source}加载AI总结时出错`, error);
-      // 只有在没有内容时才清空，避免覆盖已显示的缓存内容
-      if (!aiSummaryContent.value) {
-        aiSummaryContent.value = "";
-        aiSummaryStatus.value = "";
-      }
+      // 出错时清空内容
+      aiSummaryContent.value = "";
+      aiSummaryStatus.value = "";
       isLoadingAISummary.value = false;
       isQueryingDatabase.value = false;
+      // 清空当前处理的URL
+      currentProcessingUrl.value = "";
       return { success: false, message: "加载AI总结时出错" };
     }
   };
@@ -401,11 +419,19 @@ export function useAISummary() {
   const switchSummaryType = async (url: string, summaryType: string) => {
     logger.debug("switchSummaryType() 被调用", { url, summaryType });
 
+    // 防重复调用：如果正在处理同一个URL，直接跳过
+    if (currentProcessingUrl.value === url && isLoadingAISummary.value) {
+      logger.debug(`正在处理URL ${url}，跳过重复调用`, { source: "switchSummaryType" });
+      return { success: true, skipped: true };
+    }
+
     if (isLoadingAISummary.value) {
       logger.debug("正在加载AI总结，跳过此次请求");
       return { success: false, message: "正在加载AI总结" };
     }
 
+    // 设置当前正在处理的URL
+    currentProcessingUrl.value = url;
     isLoadingAISummary.value = true;
 
     try {
@@ -419,19 +445,27 @@ export function useAISummary() {
           summaryData.createdAt
         ).toLocaleString()}`;
         isLoadingAISummary.value = false;
+        // 清空当前处理的URL
+        currentProcessingUrl.value = "";
         return { success: true, fromCache: true };
       } else {
         logger.debug(`storage中没有找到${summaryType}类型的总结数据`);
+        // 关键修复：当storage中没有数据时，立即清空显示的内容
         aiSummaryContent.value = "";
         aiSummaryStatus.value = "没有找到缓存数据";
         isLoadingAISummary.value = false;
+        // 清空当前处理的URL
+        currentProcessingUrl.value = "";
         return { success: false, message: "没有找到缓存数据" };
       }
     } catch (error) {
       logger.error("切换总结类型时出错", error);
+      // 出错时清空内容
       aiSummaryContent.value = "";
       aiSummaryStatus.value = "";
       isLoadingAISummary.value = false;
+      // 清空当前处理的URL
+      currentProcessingUrl.value = "";
       return { success: false, message: "切换总结类型时出错" };
     }
   };
