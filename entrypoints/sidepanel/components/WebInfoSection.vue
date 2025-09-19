@@ -1,97 +1,103 @@
 <template>
-  <div class="section">
-    <div class="action-section">
-      <div class="action-title">数据管理</div>
-      <div class="action-buttons">
-        <button
-          :class="[
-            'btn btn-refresh',
-            { 'btn-loading': isRefreshButtonDisabled },
-          ]"
-          @click="handleRefreshData"
-          :disabled="isRefreshButtonDisabled"
-        >
-          {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
-        </button>
-        <button
-          :class="[
-            extractedData.isBookmarked ? 'btn btn-update' : 'btn btn-bookmark',
-            {
-              'btn-loading':
-                isBookmarkButtonDisabled ||
-                isCheckingBookmark ||
-                extractedData.isBookmarked === undefined,
-            },
-          ]"
-          @click="handleBookmarkAction"
-          :disabled="
-            isBookmarkButtonDisabled ||
-            isCheckingBookmark ||
-            extractedData.isBookmarked === undefined
-          "
-        >
-          <span
-            v-if="
+  <div class="settings-container">
+    <div class="section">
+      <div class="action-section">
+        <div class="action-title">数据管理</div>
+        <div class="action-buttons">
+          <button
+            :class="[
+              'btn btn-refresh',
+              { 'btn-loading': isRefreshButtonDisabled },
+            ]"
+            @click="handleRefreshData"
+            :disabled="isRefreshButtonDisabled"
+          >
+            {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
+          </button>
+          <button
+            :class="[
+              extractedData.isBookmarked
+                ? 'btn btn-update'
+                : 'btn btn-bookmark',
+              {
+                'btn-loading':
+                  isBookmarkButtonDisabled ||
+                  isCheckingBookmark ||
+                  extractedData.isBookmarked === undefined,
+              },
+            ]"
+            @click="handleBookmarkAction"
+            :disabled="
               isBookmarkButtonDisabled ||
               isCheckingBookmark ||
               extractedData.isBookmarked === undefined
             "
-            class="loading-icon"
           >
-            <svg class="spinner" viewBox="0 0 50 50">
-              <circle
-                class="path"
-                cx="25"
-                cy="25"
-                r="20"
-                fill="none"
-                stroke-width="5"
-              ></circle>
-            </svg>
-          </span>
-          <span v-else>{{ extractedData.isBookmarked ? "更新" : "收藏" }}</span>
-        </button>
+            <span
+              v-if="
+                isBookmarkButtonDisabled ||
+                isCheckingBookmark ||
+                extractedData.isBookmarked === undefined
+              "
+              class="loading-icon"
+            >
+              <svg class="spinner" viewBox="0 0 50 50">
+                <circle
+                  class="path"
+                  cx="25"
+                  cy="25"
+                  r="20"
+                  fill="none"
+                  stroke-width="5"
+                ></circle>
+              </svg>
+            </span>
+            <span v-else>{{
+              extractedData.isBookmarked ? "更新" : "收藏"
+            }}</span>
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="section-title">
-      <span>网页信息</span>
-      <div>
-        <button class="btn btn-secondary" @click="$emit('copy-all-data')">
-          复制全部
-        </button>
-        <button class="btn btn-primary" @click="$emit('export-data')">
-          导出数据
-        </button>
+      <div class="section-title">
+        <span>网页信息</span>
+        <div>
+          <button class="btn btn-secondary" @click="$emit('copy-all-data')">
+            复制全部
+          </button>
+          <button class="btn btn-primary" @click="$emit('export-data')">
+            导出数据
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="section-content">
-      <div v-if="extractedData.title">
-        <strong>标题:</strong>
-        <span :title="extractedData.title">
-          {{
-            extractedData.title.length > 50
-              ? extractedData.title.substring(0, 50) + "..."
-              : extractedData.title
-          }}
-        </span>
-      </div>
-      <div v-if="extractedData.host">
-        <strong>主域名:</strong> {{ extractedData.host }}
-      </div>
-      <div v-if="extractedData.wordCount">
-        <strong>字数:</strong> {{ extractedData.wordCount }}
-      </div>
-      <div v-if="extractedData.article !== undefined">
-        <strong>文章内容:</strong>
-        <span v-if="extractedData.article" :title="extractedData.article">
-          {{
-            extractedData.article.length > 100
-              ? extractedData.article.substring(0, 100) + "..."
-              : extractedData.article
-          }}
-        </span>
-        <span v-else>未找到article标签</span>
+      <div class="section-content">
+        <div v-if="extractedData.title">
+          <strong>标题:</strong>
+          <span :title="extractedData.title">
+            {{
+              extractedData.title.length > 50
+                ? extractedData.title.substring(0, 50) + "..."
+                : extractedData.title
+            }}
+          </span>
+        </div>
+        <div v-if="extractedData.host">
+          <strong>主域名:</strong> {{ extractedData.host }}
+        </div>
+        <div v-if="extractedData.wordCount">
+          <strong>字数:</strong> {{ extractedData.wordCount }}
+        </div>
+        <div v-if="extractedData.article !== undefined">
+          <strong>文章内容:</strong>
+          <span v-if="extractedData.article" :title="extractedData.article">
+            {{
+              extractedData.article.length > 100
+                ? extractedData.article.substring(0, 100) + "..."
+                : extractedData.article
+            }}
+          </span>
+          <span v-else>未找到article标签</span>
+        </div>
       </div>
     </div>
   </div>
@@ -147,6 +153,30 @@ defineExpose({
 </script>
 
 <style scoped>
+.settings-container {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* 自定义滚动条样式 */
+.settings-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+.settings-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.settings-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
 .section {
   background: var(--section-bg);
   border-radius: var(--border-radius);
