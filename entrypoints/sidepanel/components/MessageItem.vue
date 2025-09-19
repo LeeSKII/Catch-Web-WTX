@@ -125,12 +125,20 @@ const formatTime = (timestamp: Date): string => {
 }
 
 .message.assistant .message-text {
-  background: var(--accent-color);
-  color: white;
+  background: #f0f4f8;
+  color: #2c3e50;
   border-radius: 16px 4px 16px 16px;
   width: fit-content; /* 改为fit-content，根据内容自适应宽度 */
   max-width: 100%; /* 最大宽度不超过父容器 */
   text-align: left;
+  border: 1px solid #e1e8ed;
+}
+
+/* 暗色模式下的AI消息样式 */
+[data-theme="dark"] .message.assistant .message-text {
+  background: #4a5568;
+  color: #f7fafc;
+  border: 1px solid #718096;
 }
 
 .message.user .message-text {
