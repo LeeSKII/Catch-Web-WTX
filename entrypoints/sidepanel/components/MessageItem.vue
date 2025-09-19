@@ -12,7 +12,7 @@
           @click="$emit('stop-streaming')"
           title="停止生成"
         >
-          ■
+          ⏹️
         </button>
       </div>
       <div
@@ -136,14 +136,52 @@ const formatTime = (timestamp: Date): string => {
   align-items: center;
 }
 
+.message-role .stop-btn {
+  margin-left: 8px;
+}
+
 .stop-btn {
-  background: none;
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
   border: none;
-  color: var(--error-color, #ff4757);
+  color: white;
   cursor: pointer;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.stop-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.stop-btn:hover {
+  box-shadow: 0 6px 16px rgba(255, 71, 87, 0.4);
+  transform: translateY(-2px);
+}
+
+.stop-btn:hover::before {
+  transform: translateX(100%);
+}
+
+.stop-btn:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.2);
 }
 
 .message-text {
