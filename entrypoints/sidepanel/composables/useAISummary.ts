@@ -1,6 +1,5 @@
 import { ref, Ref } from "vue";
-import { AISummaryData, NewsData } from "../types";
-import { getSupabaseClient } from "./useSupabase";
+import { AISummaryData } from "../types";
 import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
@@ -14,128 +13,15 @@ const logger = createLogger("AISummary");
 export function useAISummary() {
   const { settings, loadSettings } = useSettings();
   const isLoadingAISummary: Ref<boolean> = ref(false);
-  const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref("");
   const aiSummaryStatus: Ref<string> = ref("");
   const aiSummaryType: Ref<string> = ref("full");
-  
+
   // 防重复调用：记录当前正在处理的URL
   const currentProcessingUrl: Ref<string> = ref("");
 
-  // 获取Supabase客户端单例实例
-  const client = getSupabaseClient();
-
   const { createAbortController, cleanupAbortController } =
     useAbortController();
-
-  const getNews = async (url: string): Promise<NewsData[]> => {
-    logger.debug("getNews() 被调用", { url });
-
-    // 创建AbortController用于数据库查询
-    const abortController = createAbortController("databaseQuery");
-
-    try {
-      // 使用Promise.race来处理中止信号
-      const queryPromise = client
-        .from("News")
-        .select("url,summarizer,ai_key_info")
-        .eq("url", url);
-      
-      const abortPromise = new Promise((_, reject) => {
-        const abortHandler = () => {
-          reject(new Error("数据库查询被中止"));
-        };
-        
-        if (abortController.signal.aborted) {
-          abortHandler();
-        } else {
-          abortController.signal.addEventListener("abort", abortHandler);
-        }
-      });
-
-      const result = await Promise.race([
-        queryPromise,
-        abortPromise
-      ]) as any;
-
-      // 如果是中止导致的reject，result会是undefined
-      if (!result) {
-        logger.debug("数据库查询被中止");
-        return [];
-      }
-
-      const { data, error } = result;
-
-      if (error) {
-        // 检查是否是中止错误
-        if (abortController.signal.aborted) {
-          logger.debug("数据库查询被中止");
-          return [];
-        }
-        logger.error("数据库查询错误", error);
-        return [];
-      }
-
-      logger.debug("数据库查询结果", data);
-      return data || [];
-    } catch (error) {
-      // 检查是否是中止错误
-      if (abortController.signal.aborted || (error instanceof Error && error.message === "数据库查询被中止")) {
-        logger.debug("数据库查询被中止");
-        return [];
-      }
-      logger.error("getNews() 异常", error);
-      return [];
-    } finally {
-      cleanupAbortController("databaseQuery");
-    }
-  };
-
-  const displayNewsSummarizer = (summarizerData: NewsData[]): boolean => {
-    logger.debug("displayNewsSummarizer() 被调用", { data: summarizerData });
-
-    if (!summarizerData || summarizerData.length === 0) {
-      logger.debug("没有summarizer数据，返回false");
-      return false; // 没有数据，返回false
-    }
-
-    const newsData = summarizerData[0];
-    let content = "";
-
-    // 根据当前选择的总结类型获取相应内容
-    if (aiSummaryType.value === "keyinfo" && newsData.ai_key_info) {
-      content = newsData.ai_key_info;
-      logger.debug("使用ai_key_info内容");
-    } else if (newsData.summarizer) {
-      content = newsData.summarizer;
-      logger.debug("使用summarizer内容");
-    } else {
-      logger.debug("没有找到相应内容，返回false");
-      return false; // 没有内容，返回false
-    }
-
-    // 显示内容
-    aiSummaryContent.value = content;
-    aiSummaryStatus.value = "数据库内容";
-
-    // 将数据库中的内容保存到storage中，以便下次快速访问
-    const summaryData = {
-      content: content,
-      summaryType: aiSummaryType.value,
-      createdAt: new Date().toISOString(),
-      url: newsData.url,
-    };
-    localStorage.setItem(
-      `aiSummary_${newsData.url}_${aiSummaryType.value}`,
-      JSON.stringify(summaryData)
-    );
-    logger.debug("已将数据库内容保存到storage", {
-      url: newsData.url,
-      type: aiSummaryType.value,
-    });
-
-    return true; // 成功显示，返回true
-  };
 
   const generateAISummary = async (content: string, extractedData: any) => {
     if (isLoadingAISummary.value) {
@@ -334,15 +220,6 @@ export function useAISummary() {
   ) => {
     logger.debug("loadAndDisplayAISummary() 被调用", { source, url });
 
-    // 防重复调用：如果正在处理同一个URL，直接跳过
-    if (currentProcessingUrl.value === url && isQueryingDatabase.value) {
-      logger.debug(`正在处理URL ${url}，跳过重复调用`, { source });
-      return { success: true, skipped: true };
-    }
-
-    // 不再检查isLoadingAISummary.value，允许并发请求以提高响应速度
-    // isLoadingAISummary.value = true;
-
     try {
       // 首先尝试从storage加载AI总结（立即显示，不阻塞UI）
       const summaryData = loadAISummary(url, aiSummaryType.value);
@@ -356,61 +233,20 @@ export function useAISummary() {
         // 立即显示缓存内容，不设置isLoading状态
         return { success: true, fromCache: true };
       } else {
-        logger.debug(`从${source}的storage中没有数据，尝试从数据库加载`);
-        
+        logger.debug(`从${source}的storage中没有数据`);
+
         // 关键修复：当storage中没有数据时，立即清空显示的内容
         // 这样可以避免显示上一个页面的AI总结
         aiSummaryContent.value = "";
         aiSummaryStatus.value = "";
-        
-        // 设置当前正在处理的URL
-        currentProcessingUrl.value = url;
-        
-        // 如果storage中没有，设置加载状态
-        isLoadingAISummary.value = true;
 
-        // 设置数据库查询状态
-        isQueryingDatabase.value = true;
-
-        // 从数据库加载summarizer和ai_key_info (异步执行，不阻塞UI)
-        getNews(url).then((newsData) => {
-          // 结束数据库查询状态
-          isQueryingDatabase.value = false;
-          isLoadingAISummary.value = false;
-          // 清空当前处理的URL
-          currentProcessingUrl.value = "";
-
-          if (displayNewsSummarizer(newsData)) {
-            logger.debug(`从${source}的数据库中成功显示数据并保存到storage`);
-          } else {
-            logger.debug(`从${source}的数据库中也没有找到数据`);
-            // 数据库中也没有数据，保持清空状态
-            aiSummaryContent.value = "";
-            aiSummaryStatus.value = "";
-          }
-        }).catch((error) => {
-          logger.error(`从${source}加载数据库时出错`, error);
-          isLoadingAISummary.value = false;
-          isQueryingDatabase.value = false;
-          // 清空当前处理的URL
-          currentProcessingUrl.value = "";
-          // 数据库查询出错，保持清空状态
-          aiSummaryContent.value = "";
-          aiSummaryStatus.value = "";
-        });
-
-        // 立即返回，不等待数据库查询完成
-        return { success: true, fromDatabase: true, async: true };
+        return { success: true };
       }
     } catch (error) {
       logger.error(`从${source}加载AI总结时出错`, error);
       // 出错时清空内容
       aiSummaryContent.value = "";
       aiSummaryStatus.value = "";
-      isLoadingAISummary.value = false;
-      isQueryingDatabase.value = false;
-      // 清空当前处理的URL
-      currentProcessingUrl.value = "";
       return { success: false, message: "加载AI总结时出错" };
     }
   };
@@ -470,87 +306,17 @@ export function useAISummary() {
     }
   };
 
-  // 新增函数：预加载数据库中的summarizer和ai_key_info到storage
-  const preloadDataToStorage = async (url: string) => {
-    logger.debug("preloadDataToStorage() 被调用", { url });
-
-    try {
-      // 检查是否已经存在缓存
-      const fullSummary = loadAISummary(url, "full");
-      const keyInfoSummary = loadAISummary(url, "keyinfo");
-
-      // 如果都已经缓存，则不需要重复加载
-      if (fullSummary && keyInfoSummary) {
-        logger.debug("summarizer和ai_key_info都已缓存，跳过预加载");
-        return { success: true, message: "数据已缓存" };
-      }
-
-      // 从数据库加载数据
-      const newsData = await getNews(url);
-
-      if (newsData && newsData.length > 0) {
-        const data = newsData[0];
-        let hasNewData = false;
-
-        // 如果有summarizer且未缓存，则缓存
-        if (data.summarizer && !fullSummary) {
-          const summaryData = {
-            content: data.summarizer,
-            summaryType: "full",
-            createdAt: new Date().toISOString(),
-            url: url,
-          };
-          localStorage.setItem(
-            `aiSummary_${url}_full`,
-            JSON.stringify(summaryData)
-          );
-          logger.debug("已预加载summarizer到storage");
-          hasNewData = true;
-        }
-
-        // 如果有ai_key_info且未缓存，则缓存
-        if (data.ai_key_info && !keyInfoSummary) {
-          const keyInfoData = {
-            content: data.ai_key_info,
-            summaryType: "keyinfo",
-            createdAt: new Date().toISOString(),
-            url: url,
-          };
-          localStorage.setItem(
-            `aiSummary_${url}_keyinfo`,
-            JSON.stringify(keyInfoData)
-          );
-          logger.debug("已预加载ai_key_info到storage");
-          hasNewData = true;
-        }
-
-        if (hasNewData) {
-          return { success: true, message: "数据预加载成功" };
-        } else {
-          return { success: true, message: "没有新数据需要预加载" };
-        }
-      } else {
-        return { success: false, message: "数据库中没有找到数据" };
-      }
-    } catch (error) {
-      logger.error("预加载数据到storage时出错", error);
-      return { success: false, message: "预加载数据失败" };
-    }
-  };
 
   return {
     isLoadingAISummary,
-    isQueryingDatabase,
     aiSummaryContent,
     aiSummaryStatus,
     aiSummaryType,
     generateAISummary,
     saveAISummary,
     loadAISummary,
-    getNews,
     clearAISummaryCache,
     loadAndDisplayAISummary,
-    preloadDataToStorage,
     switchSummaryType,
   };
 }

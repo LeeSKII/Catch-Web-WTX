@@ -8,6 +8,7 @@ import { useBookmark } from "./composables/useBookmark";
 import { useAISummary } from "./composables/useAISummary";
 import { useAbortController } from "./composables/useAbortController";
 import { useChat } from "./composables/useChat";
+import { useTabListeners } from "./composables/useTabListeners";
 import { browser } from "wxt/browser";
 import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
@@ -510,184 +511,6 @@ const handleAddReference = async () => {
 let lastProcessedUrl = "";
 let isProcessing = false;
 
-// 监听器
-const setupTabListeners = () => {
-  // 监听浏览器tab切换事件
-  browser.tabs.onActivated.addListener(async (activeInfo: any) => {
-    logger.debug("chrome.tabs.onActivated 被调用", { tabId: activeInfo.tabId });
-
-    // 获取当前tab的URL
-    browser.tabs.get(activeInfo.tabId, async (tab: any) => {
-      logger.debug("Tab切换时获取到的tab信息", {
-        id: tab.id,
-        url: tab.url,
-        status: tab.status,
-        title: tab.title,
-        lastProcessedUrl,
-        isProcessing,
-      });
-
-      if (tab && tab.url) {
-        // 优先处理新tab的切换，中断所有正在进行的网络请求
-        logger.debug("Tab切换，中断所有正在进行的网络请求", { url: tab.url });
-        abortAllRequests();
-        
-        // 重置处理状态，确保新tab能够被处理
-        isProcessing = false;
-        lastProcessedUrl = tab.url;
-        isProcessing = true;
-
-        // 检查切换到的tab是否正在加载
-        if (tab.status === "loading") {
-          logger.debug("切换到的tab正在加载，设置loading状态");
-          isPageLoading.value = true;
-          clearPanelData();
-        }
-
-        try {
-          // 优化：优先加载AI总结（从缓存中快速显示），然后再执行数据提取
-          loadAndDisplayAISummary(tab.url, "Tab切换");
-          
-          // 当用户切换到不同的tab时，自动执行数据提取
-          await refreshDataForNewTab();
-          
-          // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-          if (tab.url && extractedData.value.isBookmarked) {
-            logger.debug("Tab切换时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-            await preloadDataToStorage(tab.url);
-          }
-        } catch (error) {
-          logger.error("Tab切换处理过程中出错", error);
-        } finally {
-          isProcessing = false;
-          isPageLoading.value = false;
-        }
-      } else {
-        logger.debug("Tab切换时跳过处理", {
-          hasTab: !!tab,
-          hasUrl: !!tab?.url,
-          isProcessing,
-        });
-      }
-    });
-  });
-
-  // 添加webNavigation API监听器
-  if (browser.webNavigation) {
-    console.log("webNavigation API is available");
-
-    // 监听导航开始事件
-    browser.webNavigation.onCommitted.addListener(async (details) => {
-      logger.debug("webNavigation.onCommitted 被调用", {
-        tabId: details.tabId,
-        url: details.url,
-        frameId: details.frameId,
-        transitionType: details.transitionType,
-        transitionQualifiers: details.transitionQualifiers,
-      });
-
-      // 只处理主框架的导航变化
-      if (details.frameId === 0) {
-        // 获取当前活动标签页
-        const tabs = await browser.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        if (tabs && tabs[0] && tabs[0].id === details.tabId) {
-          // 优先处理新导航，中断所有正在进行的网络请求
-          logger.debug("检测到导航开始，中断所有正在进行的网络请求", { url: details.url });
-          abortAllRequests();
-          
-          // 重置处理状态，确保新导航能够被处理
-          isProcessing = false;
-          isPageLoading.value = true;
-          clearPanelData();
-          lastProcessedUrl = details.url;
-        }
-      }
-    });
-
-    // 监听导航完成事件
-    browser.webNavigation.onCompleted.addListener(async (details) => {
-      logger.debug("webNavigation.onCompleted 被调用", {
-        tabId: details.tabId,
-        url: details.url,
-        frameId: details.frameId,
-      });
-
-      // 只处理主框架的导航完成
-      if (details.frameId === 0) {
-        // 获取当前活动标签页
-        const tabs = await browser.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        if (tabs && tabs[0] && tabs[0].id === details.tabId && !isProcessing) {
-          logger.debug("检测到导航完成，重新提取数据", { url: details.url });
-          isProcessing = true;
-          isPageLoading.value = false;
-
-          try {
-            // 优化：优先加载AI总结（从缓存中快速显示），然后再执行数据提取
-            loadAndDisplayAISummary(details.url, "导航完成");
-            
-            // 刷新数据
-            await refreshDataForNewTab();
-
-            // 检查是否是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-            if (details.url && extractedData.value.isBookmarked) {
-              logger.debug("导航完成时检测到收藏数据，预加载summarizer和ai_key_info到storage");
-              await preloadDataToStorage(details.url);
-            }
-          } catch (error) {
-            logger.error("导航完成处理过程中出错", error);
-          } finally {
-            isProcessing = false;
-          }
-        }
-      }
-    });
-
-    // 监听导航错误事件
-    browser.webNavigation.onErrorOccurred.addListener((details) => {
-      logger.debug("webNavigation.onErrorOccurred 被调用", {
-        tabId: details.tabId,
-        url: details.url,
-        frameId: details.frameId,
-        error: details.error,
-      });
-
-      // 只处理主框架的导航错误
-      if (details.frameId === 0) {
-        // 获取当前活动标签页
-        browser.tabs
-          .query({ active: true, currentWindow: true })
-          .then((tabs) => {
-            if (tabs && tabs[0] && tabs[0].id === details.tabId) {
-              logger.debug("检测到导航错误，取消加载状态", {
-                url: details.url,
-              });
-              isPageLoading.value = false;
-            }
-          });
-      }
-    });
-  } else {
-    console.error("webNavigation API is not available");
-  }
-};
-
-const removeTabListeners = () => {
-  browser.tabs.onActivated.removeListener(() => {});
-
-  // 移除webNavigation监听器
-  if (browser.webNavigation) {
-    browser.webNavigation.onCommitted.removeListener(() => {});
-    browser.webNavigation.onCompleted.removeListener(() => {});
-    browser.webNavigation.onErrorOccurred.removeListener(() => {});
-  }
-};
-
 const clearPanelData = () => {
   // 清空提取的数据
   clearExtractedData();
@@ -756,6 +579,13 @@ const waitForTabToLoad = (tabId: number) => {
   });
 };
 
+// 使用 useTabListeners composable
+const { setupTabListeners, removeTabListeners } = useTabListeners(
+  refreshDataForNewTab,
+  loadAndDisplayAISummary,
+  clearPanelData
+);
+
 // 生命周期钩子
 onMounted(async () => {
   console.log("[DEBUG MODE:browser]", browser);
@@ -771,8 +601,13 @@ onMounted(async () => {
   // 清理过期数据
   cleanExpiredData();
 
-  // 设置标签页监听器
-  setupTabListeners();
+  // 设置标签页监听器，传递 DOM loading 状态变化的回调函数
+  setupTabListeners((isLoading: boolean) => {
+    isPageLoading.value = isLoading;
+    if (isLoading) {
+      clearPanelData();
+    }
+  });
 
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();

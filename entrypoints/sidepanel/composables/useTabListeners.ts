@@ -42,13 +42,65 @@ export function useTabListeners(
           resolve(); // 出错时也resolve，避免无限等待
         }
       };
-      
+
       checkTabStatus();
     });
   };
 
+  // 监听网页 DOM loading 状态变化
+  const setupDOMLoadingListener = (callback: (isLoading: boolean) => void) => {
+    // 使用 webNavigation API 监听网页导航状态
+    if (browser.webNavigation) {
+      const handleNavigationStart = (details: any) => {
+        // 只处理主框架的导航开始
+        if (details.frameId === 0) {
+          logger.debug('检测到网页导航开始', { url: details.url });
+          callback(true); // 设置 loading 状态为 true
+        }
+      };
+
+      const handleNavigationComplete = (details: any) => {
+        // 只处理主框架的导航完成
+        if (details.frameId === 0) {
+          logger.debug('检测到网页导航完成', { url: details.url });
+          callback(false); // 设置 loading 状态为 false
+        }
+      };
+
+      const handleNavigationError = (details: any) => {
+        // 只处理主框架的导航错误
+        if (details.frameId === 0) {
+          logger.debug('检测到网页导航错误', { url: details.url, error: details.error });
+          callback(false); // 设置 loading 状态为 false
+        }
+      };
+
+      // 添加事件监听器
+      browser.webNavigation.onCommitted.addListener(handleNavigationStart);
+      browser.webNavigation.onCompleted.addListener(handleNavigationComplete);
+      browser.webNavigation.onErrorOccurred.addListener(handleNavigationError);
+
+      // 返回清理函数
+      return () => {
+        browser.webNavigation.onCommitted.removeListener(handleNavigationStart);
+        browser.webNavigation.onCompleted.removeListener(handleNavigationComplete);
+        browser.webNavigation.onErrorOccurred.removeListener(handleNavigationError);
+      };
+    }
+
+    // 如果 webNavigation API 不可用，返回空清理函数
+    return () => {};
+  };
+
   // 设置标签页监听器
-  const setupTabListeners = () => {
+  const setupTabListeners = (onDOMLoadingChange?: (isLoading: boolean) => void) => {
+    // 设置 DOM loading 状态监听器
+    cleanupDOMListener = setupDOMLoadingListener((isLoading: boolean) => {
+      if (onDOMLoadingChange) {
+        onDOMLoadingChange(isLoading);
+      }
+    });
+
     // 监听新标签页创建事件
     browser.tabs.onCreated.addListener(async (tab: any) => {
       logger.debug('chrome.tabs.onCreated 被调用', {
@@ -61,7 +113,7 @@ export function useTabListeners(
       // 如果新创建的标签页是活动标签页，说明是自动跳转的情况
       if (tab.active) {
         logger.debug('新创建的标签页是活动标签页，等待加载完成');
-        
+
         // 等待一小段时间确保tab信息已经更新
         setTimeout(async () => {
           try {
@@ -110,11 +162,17 @@ export function useTabListeners(
           // 优先处理新tab的切换，中断所有正在进行的网络请求
           logger.debug('Tab切换，中断所有正在进行的网络请求', { url: tab.url });
           abortAllRequests();
-          
+
           // 重置处理状态，确保新tab能够被处理
           isProcessing = false;
           lastProcessedUrl = tab.url;
           isProcessing = true;
+
+          // 显示loading状态
+          if (onDOMLoadingChange) {
+            onDOMLoadingChange(true);
+          }
+          clearPanelData();
 
           try {
             // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
@@ -122,6 +180,10 @@ export function useTabListeners(
             await loadAndDisplayAISummary(tab.url, 'Tab切换');
           } finally {
             isProcessing = false;
+            // 隐藏loading状态
+            if (onDOMLoadingChange) {
+              onDOMLoadingChange(false);
+            }
           }
         } else {
           logger.debug('Tab切换时跳过处理', {
@@ -188,10 +250,18 @@ export function useTabListeners(
   };
 
   // 移除标签页监听器
+  let cleanupDOMListener: (() => void) | null = null;
+
   const removeTabListeners = () => {
     browser.tabs.onCreated.removeListener(() => {});
     browser.tabs.onActivated.removeListener(() => {});
     browser.tabs.onUpdated.removeListener(() => {});
+
+    // 清理 DOM loading 监听器
+    if (cleanupDOMListener) {
+      cleanupDOMListener();
+      cleanupDOMListener = null;
+    }
   };
 
   // 在组件卸载时移除监听器
