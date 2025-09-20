@@ -159,7 +159,7 @@ const handleExtractData = async () => {
         if (isBookmarked) {
           preloadDataToStorage(url).then(() => {
             logger.debug("预加载数据库数据到storage完成", { url });
-          }).catch((error) => {
+          }).catch((error: unknown) => {
             logger.error("预加载数据库数据失败", error);
           });
         }

@@ -15,7 +15,7 @@ const logger = createLogger('TabListeners');
  */
 export function useTabListeners(
   refreshDataForNewTab: () => Promise<void>,
-  loadAndDisplayAISummary: (url: string, source: string) => Promise<void>,
+  loadAndDisplayAISummary: (url: string, source?: string) => Promise<any>,
   clearPanelData: () => void
 ) {
   // 记录上一次处理的URL，避免重复处理
