@@ -59,11 +59,53 @@ export function useTabListeners(
         }
       };
 
-      const handleNavigationComplete = (details: any) => {
+      const handleNavigationComplete = async (details: any) => {
         // 只处理主框架的导航完成
         if (details.frameId === 0) {
           logger.debug('检测到网页导航完成', { url: details.url });
           callback(false); // 设置 loading 状态为 false
+          
+          // 获取当前活动标签页
+          try {
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            // 放宽URL匹配条件，只要当前活动标签页存在且URL不为空，并且不是正在处理中，就触发数据提取
+            if (tabs[0] && tabs[0].url && !isProcessing) {
+              logger.debug('webNavigation完成时触发数据提取', {
+                webNavigationUrl: details.url,
+                tabUrl: tabs[0].url,
+                urlMatch: tabs[0].url === details.url
+              });
+              lastProcessedUrl = details.url;
+              isProcessing = true;
+
+              try {
+                // 清空面板内容
+                clearPanelData();
+                
+                // 刷新数据
+                await refreshDataForNewTab();
+                
+                // 使用tab的实际URL来加载AI总结，而不是details.url
+                loadAndDisplayAISummary(tabs[0].url, 'webNavigation完成').catch((error) => {
+                  logger.error('webNavigation完成时加载AI总结失败', error);
+                });
+              } catch (error) {
+                logger.error('webNavigation完成时处理数据出错', error);
+              } finally {
+                isProcessing = false;
+              }
+            } else {
+              logger.debug('webNavigation完成时跳过数据提取', {
+                hasTab: !!tabs[0],
+                hasUrl: !!tabs[0]?.url,
+                isProcessing,
+                webNavigationUrl: details.url,
+                tabUrl: tabs[0]?.url
+              });
+            }
+          } catch (error) {
+            logger.error('获取当前活动标签页时出错', error);
+          }
         }
       };
 
@@ -75,16 +117,68 @@ export function useTabListeners(
         }
       };
 
+      // 处理SPA路由变化（history.pushState/replaceState）
+      const handleHistoryStateUpdated = async (details: any) => {
+        // 只处理主框架的历史状态更新
+        if (details.frameId === 0) {
+          logger.debug('检测到SPA路由变化', { url: details.url });
+          
+          // 获取当前活动标签页
+          try {
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            // 放宽URL匹配条件，只要当前活动标签页存在且URL不为空，并且不是正在处理中，就触发数据提取
+            if (tabs[0] && tabs[0].url && !isProcessing) {
+              logger.debug('SPA路由变化时触发数据提取', {
+                historyStateUrl: details.url,
+                tabUrl: tabs[0].url,
+                urlMatch: tabs[0].url === details.url
+              });
+              lastProcessedUrl = details.url;
+              isProcessing = true;
+
+              try {
+                // 清空面板内容
+                clearPanelData();
+                
+                // 刷新数据
+                await refreshDataForNewTab();
+                
+                // 使用tab的实际URL来加载AI总结，而不是details.url
+                loadAndDisplayAISummary(tabs[0].url, 'SPA路由变化').catch((error) => {
+                  logger.error('SPA路由变化时加载AI总结失败', error);
+                });
+              } catch (error) {
+                logger.error('SPA路由变化时处理数据出错', error);
+              } finally {
+                isProcessing = false;
+              }
+            } else {
+              logger.debug('SPA路由变化时跳过数据提取', {
+                hasTab: !!tabs[0],
+                hasUrl: !!tabs[0]?.url,
+                isProcessing,
+                historyStateUrl: details.url,
+                tabUrl: tabs[0]?.url
+              });
+            }
+          } catch (error) {
+            logger.error('获取当前活动标签页时出错', error);
+          }
+        }
+      };
+
       // 添加事件监听器
       browser.webNavigation.onCommitted.addListener(handleNavigationStart);
       browser.webNavigation.onCompleted.addListener(handleNavigationComplete);
       browser.webNavigation.onErrorOccurred.addListener(handleNavigationError);
+      browser.webNavigation.onHistoryStateUpdated.addListener(handleHistoryStateUpdated);
 
       // 返回清理函数
       return () => {
         browser.webNavigation.onCommitted.removeListener(handleNavigationStart);
         browser.webNavigation.onCompleted.removeListener(handleNavigationComplete);
         browser.webNavigation.onErrorOccurred.removeListener(handleNavigationError);
+        browser.webNavigation.onHistoryStateUpdated.removeListener(handleHistoryStateUpdated);
       };
     }
 
@@ -221,11 +315,12 @@ export function useTabListeners(
           isProcessing
         });
 
-        // 只处理当前活动标签页的URL变化，且页面加载完成时
+        // 处理当前活动标签页的URL变化（包括页面状态变化和URL变化）
         if (
           tab.active &&
-          changeInfo.status === 'complete' &&
-          tab.url
+          tab.url &&
+          (changeInfo.status === 'complete' || changeInfo.url) &&
+          !isProcessing
         ) {
           // 优先处理URL更新，中断所有正在进行的网络请求
           logger.debug('检测到URL变化且页面加载完成，中断所有正在进行的网络请求', { url: tab.url });
