@@ -167,8 +167,10 @@ const handleExtractData = async () => {
         logger.error("异步检查收藏状态失败", error);
       });
       
-      // 加载并显示AI总结
-      await loadAndDisplayAISummary(url, "数据提取");
+      // 异步加载并显示AI总结，不阻塞页面显示
+      loadAndDisplayAISummary(url, "数据提取").catch((error) => {
+        logger.error("异步加载AI总结失败", error);
+      });
     } else {
       error(extractResult.message || "数据提取失败");
     }
@@ -180,6 +182,9 @@ const handleExtractData = async () => {
     if (webInfoSectionRef.value) {
       webInfoSectionRef.value.resetButtonStates();
     }
+    
+    // 确保在数据提取完成后，将页面加载状态设置为 false
+    isPageLoading.value = false;
   }
 };
 
@@ -545,6 +550,9 @@ const refreshDataForNewTab = async () => {
     // extractData函数内部会等待DOM完全加载
     await handleExtractData();
   }
+  
+  // 确保在数据提取完成后，将页面加载状态设置为 false
+  isPageLoading.value = false;
 };
 
 // 等待标签页加载完成的函数
@@ -608,8 +616,14 @@ onMounted(async () => {
   // 加载当前页面的AI总结
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
-    await loadAndDisplayAISummary(tabs[0].url, "初始加载");
+    // 异步加载AI总结，不阻塞页面显示
+    loadAndDisplayAISummary(tabs[0].url, "初始加载").catch((error) => {
+      logger.error("初始加载AI总结失败", error);
+    });
   }
+  
+  // 确保在初始数据加载完成后，将页面加载状态设置为 false
+  isPageLoading.value = false;
   
   // 确保引用列表被加载
   logger.debug("App.vue onMounted: 确保引用列表被加载");
@@ -637,7 +651,10 @@ watch(aiSummaryType, async () => {
       // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
       if (!result.success) {
         logger.debug("storage中没有找到数据，尝试从数据库加载");
-        loadAndDisplayAISummary(url, "总结类型切换"); // 不再await，提高响应速度
+        // 异步加载AI总结，不阻塞页面显示
+        loadAndDisplayAISummary(url, "总结类型切换").catch((error) => {
+          logger.error("总结类型切换时加载AI总结失败", error);
+        });
       }
     } else {
       // 如果页面未收藏，直接使用switchSummaryType函数，不查询数据库
@@ -666,9 +683,10 @@ watch(currentTab, async (newTab, oldTab) => {
       logger.debug('切换到AI标签页，开始加载AI总结', { url });
 
       // 调用loadAndDisplayAISummary加载AI总结
-      // 该函数已经修改为异步执行数据库查询，不会阻塞UI
-      // 不再await，立即返回以提高响应速度
-      loadAndDisplayAISummary(url, '标签切换');
+      // 异步加载AI总结，不阻塞页面显示
+      loadAndDisplayAISummary(url, '标签切换').catch((error) => {
+        logger.error('标签切换时加载AI总结失败', error);
+      });
     } else {
       // 如果没有已提取的URL，则调用browser.tabs.query获取当前tab的URL
       logger.debug('没有已提取的URL，调用browser.tabs.query获取URL');
@@ -678,8 +696,10 @@ watch(currentTab, async (newTab, oldTab) => {
           logger.debug('切换到AI标签页，开始加载AI总结', { url: currentUrl });
 
           // 调用loadAndDisplayAISummary加载AI总结
-          // 该函数已经修改为异步执行数据库查询，不会阻塞UI
-          loadAndDisplayAISummary(currentUrl, '标签切换');
+          // 异步加载AI总结，不阻塞页面显示
+          loadAndDisplayAISummary(currentUrl, '标签切换').catch((error) => {
+            logger.error('标签切换时加载AI总结失败', error);
+          });
         }
       }).catch((error) => {
         logger.error('获取当前tab URL时出错', error);

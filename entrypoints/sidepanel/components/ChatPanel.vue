@@ -1,7 +1,6 @@
 <template>
   <div class="chat-panel">
     <div class="chat-header">
-      <h3>AI 对话</h3>
       <div class="chat-actions">
         <button
           class="btn btn-primary"
@@ -105,7 +104,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
 import { browser } from "wxt/browser";
-import { marked } from 'marked';
+import { marked } from "marked";
 import Confirm from "./Confirm.vue";
 import MessageItem from "./MessageItem.vue";
 import ReferenceList from "./ReferenceList.vue";
@@ -190,14 +189,18 @@ const setupTabListeners = () => {
           if (updatedTab && updatedTab.title) {
             // 保存原始标题（干净的标题，不包含前缀）
             if (!originalTitlesMap.value[tab.url]) {
-              originalTitlesMap.value[tab.url] = getCleanTitle(updatedTab.title);
+              originalTitlesMap.value[tab.url] = getCleanTitle(
+                updatedTab.title
+              );
             }
 
             if (isInReferenceList) {
               console.log("新标签页URL匹配引用列表，将更新标题:", tab.url);
 
               // 添加前缀
-              const newTitle = addReferencePrefix(originalTitlesMap.value[tab.url]);
+              const newTitle = addReferencePrefix(
+                originalTitlesMap.value[tab.url]
+              );
 
               // 更新标签页标题
               if (newTitle !== updatedTab.title) {
@@ -258,7 +261,8 @@ const setupTabListeners = () => {
         console.log("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
 
         // 添加前缀
-        const originalTitleForUrl = originalTitlesMap.value[tab.url] || getCleanTitle(tab.title || "");
+        const originalTitleForUrl =
+          originalTitlesMap.value[tab.url] || getCleanTitle(tab.title || "");
         const newTitle = addReferencePrefix(originalTitleForUrl);
 
         // 更新标签页标题
@@ -320,9 +324,9 @@ const isUrlInReferenceList = (url: string): boolean => {
 const updateReferencedUrlsMap = () => {
   // 重置映射
   referencedUrlsMap.value = {};
-  
+
   // 根据当前引用列表更新映射
-  props.referenceList.forEach(item => {
+  props.referenceList.forEach((item) => {
     if (item.url) {
       referencedUrlsMap.value[item.url] = true;
     }
@@ -332,15 +336,15 @@ const updateReferencedUrlsMap = () => {
 // 获取干净的标题（移除引用前缀）
 const getCleanTitle = (title: string): string => {
   if (!title) return title;
-  
+
   // 处理可能存在的多种前缀格式
   let cleanTitle = title;
-  
+
   // 移除标准前缀 "[📌已引用] "
   if (cleanTitle.startsWith(REFERENCE_PREFIX)) {
     cleanTitle = cleanTitle.substring(REFERENCE_PREFIX.length);
   }
-  
+
   // 移除不带空格的前缀 "[📌已引用]"
   const prefixWithoutSpace = "[📌已引用]";
   if (cleanTitle.startsWith(prefixWithoutSpace)) {
@@ -350,9 +354,12 @@ const getCleanTitle = (title: string): string => {
       cleanTitle = cleanTitle.substring(1);
     }
   }
-  
+
   // 处理可能存在的前缀重复情况
-  while (cleanTitle.startsWith(REFERENCE_PREFIX) || cleanTitle.startsWith(prefixWithoutSpace)) {
+  while (
+    cleanTitle.startsWith(REFERENCE_PREFIX) ||
+    cleanTitle.startsWith(prefixWithoutSpace)
+  ) {
     if (cleanTitle.startsWith(REFERENCE_PREFIX)) {
       cleanTitle = cleanTitle.substring(REFERENCE_PREFIX.length);
     } else if (cleanTitle.startsWith(prefixWithoutSpace)) {
@@ -362,7 +369,7 @@ const getCleanTitle = (title: string): string => {
       }
     }
   }
-  
+
   return cleanTitle;
 };
 
@@ -382,7 +389,7 @@ const updateAllTabTitles = async () => {
   try {
     // 更新引用URL状态映射
     updateReferencedUrlsMap();
-    
+
     // 获取所有标签页
     const tabs = await browser.tabs.query({});
 
@@ -551,11 +558,12 @@ const handleCancel = () => {
 
 // 过滤掉系统消息，只显示用户和AI的消息
 const filteredMessages = computed(() => {
-  const filtered = props.messages.filter((message) => message.role !== "system");
+  const filtered = props.messages.filter(
+    (message) => message.role !== "system"
+  );
   console.log("ChatPanel: 过滤后的消息数量:", filtered.length);
   return filtered;
 });
-
 
 const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === "Enter") {
@@ -572,25 +580,25 @@ const handleKeyDown = (event: KeyboardEvent) => {
 // 处理滚动事件
 const handleScroll = () => {
   if (!messagesContainer.value) return;
-  
+
   const container = messagesContainer.value;
   const currentScrollPosition = container.scrollTop;
   const scrollHeight = container.scrollHeight;
   const clientHeight = container.clientHeight;
-  
+
   // 检查用户是否向上滚动
   if (currentScrollPosition < lastScrollPosition.value) {
     // 用户向上滚动，暂停自动滚动
     isUserScrolling.value = true;
   }
-  
+
   // 检查用户是否滚动到底部
   const isAtBottom = scrollHeight - currentScrollPosition <= clientHeight + 5; // 5px的容差
   if (isAtBottom) {
     // 用户滚动到底部，恢复自动滚动
     isUserScrolling.value = false;
   }
-  
+
   // 保存当前滚动位置
   lastScrollPosition.value = currentScrollPosition;
 };
@@ -612,8 +620,10 @@ const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value && !isUserScrolling.value) {
       const container = messagesContainer.value;
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
-      
+      const isAtBottom =
+        container.scrollHeight - container.scrollTop <=
+        container.clientHeight + 5;
+
       // 只有当用户没有滚动且容器已经在底部时才自动滚动
       if (!isUserScrolling.value || isAtBottom) {
         container.scrollTop = container.scrollHeight;
@@ -633,7 +643,7 @@ watch(
   () => {
     // 如果是新的用户消息，重置用户滚动状态
     const lastMessage = props.messages[props.messages.length - 1];
-    if (lastMessage && lastMessage.role === 'user') {
+    if (lastMessage && lastMessage.role === "user") {
       resetUserScrolling();
     }
     scrollToBottom();
@@ -649,7 +659,7 @@ watch(
     if (oldVal === false && newVal === true) {
       resetUserScrolling();
     }
-    
+
     scrollToBottom();
 
     // 当AI回复完成时，自动聚焦到输入框
@@ -780,9 +790,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
 }
-
-
-
 
 .empty-chat {
   display: flex;

@@ -131,9 +131,18 @@ export function useTabListeners(
 
               try {
                 await refreshDataForNewTab();
-                await loadAndDisplayAISummary(currentTab.url, '新标签页创建');
+                // 异步加载AI总结，不阻塞页面显示
+                loadAndDisplayAISummary(currentTab.url, '新标签页创建').catch((error) => {
+                  logger.error('新标签页创建时加载AI总结失败', error);
+                });
+              } catch (error) {
+                logger.error('新标签页创建时处理数据出错', error);
               } finally {
                 isProcessing = false;
+                // 确保在新标签页创建处理完成后，隐藏loading状态
+                if (onDOMLoadingChange) {
+                  onDOMLoadingChange(false);
+                }
               }
             }
           } catch (error) {
@@ -177,7 +186,12 @@ export function useTabListeners(
           try {
             // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
             await refreshDataForNewTab();
-            await loadAndDisplayAISummary(tab.url, 'Tab切换');
+            // 异步加载AI总结，不阻塞页面显示
+            loadAndDisplayAISummary(tab.url, 'Tab切换').catch((error) => {
+              logger.error('Tab切换时加载AI总结失败', error);
+            });
+          } catch (error) {
+            logger.error('Tab切换时处理数据出错', error);
           } finally {
             isProcessing = false;
             // 隐藏loading状态
@@ -229,10 +243,18 @@ export function useTabListeners(
             // 刷新数据
             await refreshDataForNewTab();
 
-            // 加载AI总结
-            await loadAndDisplayAISummary(tab.url, 'URL更新');
+            // 异步加载AI总结，不阻塞页面显示
+            loadAndDisplayAISummary(tab.url, 'URL更新').catch((error) => {
+              logger.error('URL更新时加载AI总结失败', error);
+            });
+          } catch (error) {
+            logger.error('URL更新时处理数据出错', error);
           } finally {
             isProcessing = false;
+            // 确保在URL更新处理完成后，隐藏loading状态
+            if (onDOMLoadingChange) {
+              onDOMLoadingChange(false);
+            }
           }
         } else {
           logger.debug('onUpdated跳过处理', {
