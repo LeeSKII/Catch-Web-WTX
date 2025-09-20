@@ -14,7 +14,7 @@
     @cancel="$emit('update:visible', false)"
   >
     <div class="prompt-editor">
-      <div>
+      <div class="prompt-controls">
         <div class="prompt-type-selector">
           <label>选择 Prompt 类型：</label>
           <select v-model="selectedPromptType" @change="loadPrompt">
@@ -194,6 +194,13 @@ watch(
   gap: 20px;
 }
 
+.prompt-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .prompt-type-selector {
   display: flex;
   align-items: center;
@@ -247,8 +254,6 @@ watch(
 
 .prompt-actions {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 15px;
 }
 
 .prompt-actions .btn {
