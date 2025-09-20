@@ -133,31 +133,42 @@ const handleExtractData = async () => {
       article: settings.extractArticle,
     };
 
-    // 并行调用 extractData 和 checkBookmarkStatus
-    const [extractResult, tabs] = await Promise.all([
-      extractData(options),
-      browser.tabs.query({ active: true, currentWindow: true })
-    ]);
+    // 获取当前tab信息
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tabs || !tabs[0] || !tabs[0].url) {
+      error("无法获取当前页面URL");
+      return;
+    }
+
+    const url = tabs[0].url;
+
+    // 优先执行页面数据提取
+    const extractResult = await extractData(options);
 
     if (extractResult.success && extractResult.data) {
       success("数据提取成功！");
       saveExtractedData(extractResult.data);
 
-      // 检查收藏状态
-      if (tabs && tabs[0] && tabs[0].url) {
-        const url = tabs[0].url;
-        const isBookmarked = await checkBookmarkStatus(url);
+      // 异步检查收藏状态，不阻塞页面显示
+      checkBookmarkStatus(url).then((isBookmarked) => {
         extractedData.value.isBookmarked = isBookmarked;
+        logger.debug("异步检查收藏状态完成", { url, isBookmarked });
         
         // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
         if (isBookmarked) {
-          logger.debug("检测到收藏数据，预加载summarizer和ai_key_info到storage");
-          await preloadDataToStorage(url);
+          preloadDataToStorage(url).then(() => {
+            logger.debug("预加载数据库数据到storage完成", { url });
+          }).catch((error) => {
+            logger.error("预加载数据库数据失败", error);
+          });
         }
-        
-        // 加载并显示AI总结
-        await loadAndDisplayAISummary(url, "数据提取");
-      }
+      }).catch((error) => {
+        logger.error("异步检查收藏状态失败", error);
+      });
+      
+      // 加载并显示AI总结
+      await loadAndDisplayAISummary(url, "数据提取");
     } else {
       error(extractResult.message || "数据提取失败");
     }
