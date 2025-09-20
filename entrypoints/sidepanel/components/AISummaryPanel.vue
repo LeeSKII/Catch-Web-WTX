@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { marked } from 'marked';
 import { useAISummary } from '../composables/useAISummary';
 import { useStores } from '../stores';
@@ -143,6 +143,10 @@ const {
 
 // 组件内部状态
 const showPromptModal = ref(false);
+
+// 记录上一次处理的URL，避免重复处理
+let lastProcessedUrl = '';
+let isProcessing = false;
 
 // 从store获取数据
 const extractedData = computed(() => dataStore.state.extractedData);
@@ -226,15 +230,75 @@ watch(aiSummaryType, async (newType, oldType) => {
   }
 });
 
+// 监听URL变化的函数
+const handleUrlChange = async (url: string, source: string = "unknown") => {
+  logger.debug("handleUrlChange() 被调用", { url, source, lastProcessedUrl, isProcessing });
+  
+  // 防重复处理：如果URL没有变化或者正在处理中，则跳过
+  if (url === lastProcessedUrl || isProcessing) {
+    logger.debug("URL未变化或正在处理中，跳过", { url, lastProcessedUrl, isProcessing });
+    return;
+  }
+  
+  // 更新处理状态
+  lastProcessedUrl = url;
+  isProcessing = true;
+  
+  try {
+    // 加载并显示新URL的AI总结
+    await loadAndDisplayAISummary(url, source);
+    logger.debug("URL变化时AI总结加载完成", { url, source });
+  } catch (error) {
+    logger.error("URL变化时加载AI总结失败", error);
+  } finally {
+    isProcessing = false;
+  }
+};
+
+// 设置标签页更新监听器
+const setupTabUpdateListener = () => {
+  // 监听当前标签页的URL变化
+  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    // 只处理当前活动标签页的URL变化
+    if (tab.active && tab.url && changeInfo.url) {
+      logger.debug("检测到URL变化", { tabId, url: tab.url, changeInfo });
+      await handleUrlChange(tab.url, "tabs.onUpdated");
+    }
+  });
+  
+  // 监听标签页切换事件
+  browser.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+      const tab = await browser.tabs.get(activeInfo.tabId);
+      if (tab && tab.url && tab.active) {
+        logger.debug("检测到标签页切换", { tabId: tab.id, url: tab.url });
+        await handleUrlChange(tab.url, "tabs.onActivated");
+      }
+    } catch (error) {
+      logger.error("获取切换后的标签页信息失败", error);
+    }
+  });
+};
+
+// 移除标签页监听器
+const removeTabUpdateListener = () => {
+  browser.tabs.onUpdated.removeListener(() => {});
+  browser.tabs.onActivated.removeListener(() => {});
+};
+
 // 生命周期钩子
 onMounted(() => {
   // 加载自定义 prompts
   loadCustomPrompts();
   
+  // 设置标签页更新监听器
+  setupTabUpdateListener();
+  
   // 初始加载当前页面的 AI 总结
   const loadInitialSummary = async () => {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs && tabs[0] && tabs[0].url) {
+      lastProcessedUrl = tabs[0].url; // 记录初始URL
       loadAndDisplayAISummary(tabs[0].url, "组件初始化").catch((error) => {
         logger.error("初始加载AI总结失败", error);
       });
@@ -242,6 +306,11 @@ onMounted(() => {
   };
   
   loadInitialSummary();
+});
+
+onUnmounted(() => {
+  // 移除标签页监听器
+  removeTabUpdateListener();
 });
 </script>
 
