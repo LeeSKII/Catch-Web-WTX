@@ -57,7 +57,9 @@ const {
   aiSummaryStatus,
   aiSummaryType,
   customPrompts,
+  isGeneratingAISummary,
   generateAISummary,
+  pauseAISummary,
   loadAISummary,
   getNews,
   loadAndDisplayAISummary,
@@ -203,6 +205,18 @@ const handleGenerateAISummary = async () => {
       success("AI总结生成成功！");
     } else {
       error(result.message || "AI总结生成失败");
+    }
+  }
+};
+
+const handlePauseAISummary = async () => {
+  const result = await pauseAISummary();
+  
+  if (result) {
+    if (result.success) {
+      success("AI总结已暂停并保存");
+    } else {
+      error(result.message || "暂停AI总结失败");
     }
   }
 };
@@ -762,9 +776,11 @@ watch(isDarkMode, (newValue) => {
         :isExtracting="isExtracting"
         :isPageLoading="isPageLoading"
         :isQueryingDatabase="isQueryingDatabase"
+        :isGeneratingAISummary="isGeneratingAISummary"
         :custom-prompts="customPrompts"
         :default-prompts="getDefaultPrompts()"
         @generate-ai-summary="handleGenerateAISummary"
+        @pause-ai-summary="handlePauseAISummary"
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"
         @update:aiSummaryType="(value) => (aiSummaryType = value)"

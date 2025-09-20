@@ -22,6 +22,7 @@ export function useAISummary() {
     full: "",
     keyinfo: ""
   });
+  const isGeneratingAISummary: Ref<boolean> = ref(false);
   
   // 默认 prompts
   const defaultPrompts = {
@@ -32,7 +33,7 @@ export function useAISummary() {
   // 防重复调用：记录当前正在处理的URL
   const currentProcessingUrl: Ref<string> = ref("");
 
-  const { createAbortController, cleanupAbortController } =
+  const { createAbortController, cleanupAbortController, abortRequest } =
     useAbortController();
 
   const generateAISummary = async (content: string, extractedData: any) => {
@@ -41,11 +42,13 @@ export function useAISummary() {
     }
 
     isLoadingAISummary.value = true;
+    isGeneratingAISummary.value = true;
 
     try {
       if (!content) {
         logger.debug("未识别到任何需要总结的数据");
         isLoadingAISummary.value = false;
+        isGeneratingAISummary.value = false;
         return { success: false, message: "未识别到任何需要总结的数据" };
       }
 
@@ -53,6 +56,7 @@ export function useAISummary() {
       if (Object.keys(extractedData).length === 0) {
         logger.debug("请先提取网页数据");
         isLoadingAISummary.value = false;
+        isGeneratingAISummary.value = false;
         return { success: false, message: "请先提取网页数据" };
       }
 
@@ -64,6 +68,7 @@ export function useAISummary() {
       if (!apiKey) {
         logger.debug("请先在设置中配置OpenAI API密钥");
         isLoadingAISummary.value = false;
+        isGeneratingAISummary.value = false;
         return { success: false, message: "请先在设置中配置OpenAI API密钥" };
       }
 
@@ -76,10 +81,12 @@ export function useAISummary() {
       // 调用OpenAI API
       const result = await callOpenAI(apiKey, system_prompt, content);
       isLoadingAISummary.value = false;
+      isGeneratingAISummary.value = false;
       return result;
     } catch (error) {
       logger.error("生成AI总结时出错", error);
       isLoadingAISummary.value = false;
+      isGeneratingAISummary.value = false;
       return { success: false, message: "生成AI总结时出错" };
     }
   };
@@ -158,20 +165,59 @@ export function useAISummary() {
         }
       }
 
+      // 流结束后，确保生成状态为false
+      isGeneratingAISummary.value = false;
       return { success: true, content: accumulatedContent };
     } catch (error) {
       // 检查是否是中止错误
       if (abortController.signal.aborted || (error instanceof Error && error.name === "AbortError")) {
         logger.debug("AI总结请求被中止");
+        isGeneratingAISummary.value = false;
         return { success: false, message: "请求被中止" };
       }
       logger.error("OpenAI API调用失败", error);
+      isGeneratingAISummary.value = false;
       return {
         success: false,
         message: error instanceof Error ? error.message : "API调用失败",
       };
     } finally {
       cleanupAbortController("aiSummary");
+    }
+  };
+
+  const pauseAISummary = async () => {
+    if (!isGeneratingAISummary.value) {
+      return { success: false, message: "没有正在进行的AI总结" };
+    }
+
+    try {
+      // 中止AI总结请求
+      abortRequest("aiSummary");
+      
+      // 保存当前已生成的内容
+      const tabs = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      
+      if (tabs && tabs[0] && tabs[0].url) {
+        const url = tabs[0].url;
+        if (url && aiSummaryContent.value) {
+          saveAISummary(url, aiSummaryContent.value, aiSummaryType.value);
+          aiSummaryStatus.value = `已暂停并保存 - ${new Date().toLocaleString()}`;
+        }
+      }
+      
+      isGeneratingAISummary.value = false;
+      isLoadingAISummary.value = false;
+      
+      return { success: true, message: "AI总结已暂停并保存" };
+    } catch (error) {
+      logger.error("暂停AI总结时出错", error);
+      isGeneratingAISummary.value = false;
+      isLoadingAISummary.value = false;
+      return { success: false, message: "暂停AI总结时出错" };
     }
   };
 
@@ -434,7 +480,9 @@ export function useAISummary() {
     aiSummaryStatus,
     aiSummaryType,
     customPrompts,
+    isGeneratingAISummary,
     generateAISummary,
+    pauseAISummary,
     saveAISummary,
     loadAISummary,
     clearAISummaryCache,

@@ -24,12 +24,14 @@
           编辑 Prompt
         </button>
         <button
-          class="btn btn-primary"
+          class="btn"
+          :class="isGeneratingAISummary ? 'btn-warning' : 'btn-primary'"
           style="flex: 1"
-          @click="$emit('generate-ai-summary')"
-          :disabled="isLoadingAISummary || isExtracting"
+          @click="isGeneratingAISummary ? $emit('pause-ai-summary') : $emit('generate-ai-summary')"
+          :disabled="isLoadingAISummary && !isGeneratingAISummary || isExtracting"
         >
-          <span v-if="isLoadingAISummary">生成中...</span>
+          <span v-if="isGeneratingAISummary">暂停</span>
+          <span v-else-if="isLoadingAISummary">生成中...</span>
           <span v-else>AI总结</span>
         </button>
       </div>
@@ -106,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref } from 'vue';
 import { marked } from 'marked';
 import PromptEditModal from './PromptEditModal.vue';
 
@@ -118,6 +120,7 @@ const props = defineProps<{
   isExtracting: boolean;
   isPageLoading: boolean;
   isQueryingDatabase: boolean;
+  isGeneratingAISummary: boolean;
   customPrompts: {
     full: string;
     keyinfo: string;
@@ -130,6 +133,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'generate-ai-summary': [];
+  'pause-ai-summary': [];
   'copy-summary': [];
   'clear-cache': [];
   'update:aiSummaryType': [value: string];
