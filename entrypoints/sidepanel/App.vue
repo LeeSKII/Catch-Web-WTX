@@ -710,8 +710,6 @@ watch(isDarkMode, (newValue) => {
       v-show="currentTab === 'results'"
       class="tab-content active"
     >
-      <!-- 结果内容（在加载时隐藏） -->
-      <div v-show="!isPageLoading">
       <!-- 网页信息 -->
       <WebInfoSection
         ref="webInfoSectionRef"
@@ -723,11 +721,6 @@ watch(isDarkMode, (newValue) => {
         @export-data="handleExportData"
         @bookmark-action="handleBookmarkAction"
       />
-
-      <!-- 图片 -->
-
-      <!-- 链接 -->
-      </div>
     </div>
 
     <!-- AI标签页内容 -->
