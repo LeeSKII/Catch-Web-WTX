@@ -196,6 +196,36 @@ const extractedData = computed(() => dataStore.state.extractedData);
 const isPageLoading = computed(() => dataStore.state.isPageLoading);
 const stats = computed(() => dataStore.stats);
 
+// 智能监听数据提取完成并检查收藏状态
+watch(
+  [() => extractedData.value.url, () => extractedData.value.title, () => isPageLoading.value],
+  async ([url, title, pageLoading], [prevUrl, prevTitle, prevPageLoading]) => {
+    // 当URL和标题都存在，且页面不在加载状态时，检查收藏状态
+    if (url && title && !pageLoading) {
+      // 避免重复检查：只有当URL发生变化或者从加载状态变为非加载状态时才检查
+      const urlChanged = url !== prevUrl;
+      const loadingFinished = prevPageLoading === true && pageLoading === false;
+      
+      if (urlChanged || loadingFinished) {
+        try {
+          logger.debug("开始检查收藏状态", { url, urlChanged, loadingFinished });
+          const isBookmarked = await checkBookmarkStatus(url);
+          // 更新本地状态中的收藏状态
+          dataStore.updateExtractedData({
+            ...extractedData.value,
+            isBookmarked
+          });
+          logger.debug("收藏状态检查完成", { url, isBookmarked });
+        } catch (error) {
+          logger.error("检查收藏状态失败", error);
+        }
+      }
+    }
+  },
+  { immediate: true }
+);
+
+
 // 方法
 const handleBookmarkAction = async () => {
   if (extractedData.value.isBookmarked === undefined || isBookmarkButtonDisabled.value) {
