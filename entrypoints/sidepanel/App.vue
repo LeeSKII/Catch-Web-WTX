@@ -50,27 +50,15 @@ const {
   clearExtractedData,
 } = useDataExtractor();
 const { checkBookmarkStatus, isCheckingBookmark } = useBookmark();
-// AISummaryPanel 现在直接在组件内部使用 useAISummary
-// 这里只保留需要在 App.vue 中使用的功能
+// App.vue 中保留收藏功能相关的 useAISummary 功能
 const {
   getNews,
   preloadDataToStorage,
   switchSummaryType,
   loadAISummary,
   generateAISummary,
-  pauseAISummary,
-  loadAndDisplayAISummary,
-  clearAISummaryCache,
-  saveCustomPrompts,
-  loadCustomPrompts,
-  getDefaultPrompts,
   aiSummaryContent,
-  aiSummaryStatus,
   aiSummaryType,
-  isLoadingAISummary,
-  isQueryingDatabase,
-  isGeneratingAISummary,
-  customPrompts,
 } = useAISummary();
 
 // 使用 AbortController
@@ -175,7 +163,6 @@ const handleExtractData = async () => {
         logger.error("异步检查收藏状态失败", error);
       });
       
-      // AI总结的加载现在在 AISummaryPanel 组件内部处理
     } else {
       error(extractResult.message || "数据提取失败");
     }
@@ -542,7 +529,10 @@ const waitForTabToLoad = (tabId: number) => {
 // 使用 useTabListeners composable
 const { setupTabListeners, removeTabListeners } = useTabListeners(
   refreshDataForNewTab,
-  loadAndDisplayAISummary,
+  async (url: string, source?: string) => {
+    // 这里提供一个空函数作为占位符
+    return Promise.resolve();
+  },
   clearPanelData
 );
 
@@ -555,7 +545,6 @@ onMounted(async () => {
   // 加载设置
   loadSettings();
 
-  // 自定义 prompts 现在在 AISummaryPanel 组件内部加载
 
   // 同步暗色模式按钮状态与当前主题
   isDarkModeToggle.value = isDarkMode.value;
@@ -574,7 +563,6 @@ onMounted(async () => {
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();
 
-  // AI总结的初始加载现在在 AISummaryPanel 组件内部处理
   
   // 确保在初始数据加载完成后，将页面加载状态设置为 false
   isPageLoading.value = false;
@@ -592,31 +580,8 @@ onUnmounted(() => {
 });
 
 // 监听器
-watch(aiSummaryType, async () => {
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  if (tabs && tabs[0] && tabs[0].url) {
-    const url = tabs[0].url;
-    
-    // 检查页面是否已收藏
-    if (extractedData.value.isBookmarked) {
-      // 如果页面已收藏，使用switchSummaryType函数，仅在storage中查找数据，不查询数据库
-      const result = await switchSummaryType(url, aiSummaryType.value);
-      
-      // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
-      if (!result.success) {
-        logger.debug("storage中没有找到数据，尝试从数据库加载");
-        // AI总结的加载现在在 AISummaryPanel 组件内部处理
-      }
-    } else {
-      // 如果页面未收藏，直接使用switchSummaryType函数，不查询数据库
-      // 因为未收藏的页面必然没有在数据库内存储相关数据
-      logger.debug("页面未收藏，仅从storage中查找数据，不查询数据库");
-      switchSummaryType(url, aiSummaryType.value); // 不再await，提高响应速度
-    }
-  }
-});
 
-// 监听标签页切换，当切换到AI标签时刷新AI总结
+// 监听标签页切换
 watch(currentTab, async (newTab, oldTab) => {
   logger.debug('标签页切换', { from: oldTab, to: newTab });
 
@@ -626,29 +591,6 @@ watch(currentTab, async (newTab, oldTab) => {
     logger.debug('切换到聊天标签页，已重新加载设置');
   }
 
-  // 只有当切换到AI标签时才执行刷新操作
-  if (newTab === 'ai') {
-    // 优先使用已提取数据中的URL，避免调用browser.tabs.query引入延迟
-    const url = extractedData.value.url;
-    if (url) {
-      logger.debug('切换到AI标签页，开始加载AI总结', { url });
-
-      // AI总结的加载现在在 AISummaryPanel 组件内部处理
-    } else {
-      // 如果没有已提取的URL，则调用browser.tabs.query获取当前tab的URL
-      logger.debug('没有已提取的URL，调用browser.tabs.query获取URL');
-      browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-        if (tabs && tabs[0] && tabs[0].url) {
-          const currentUrl = tabs[0].url;
-          logger.debug('切换到AI标签页，开始加载AI总结', { url: currentUrl });
-
-          // AI总结的加载现在在 AISummaryPanel 组件内部处理
-        }
-      }).catch((error) => {
-        logger.error('获取当前tab URL时出错', error);
-      });
-    }
-  }
 });
 
 watch(isDarkMode, (newValue) => {
