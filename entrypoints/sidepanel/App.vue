@@ -56,6 +56,7 @@ const {
   aiSummaryContent,
   aiSummaryStatus,
   aiSummaryType,
+  customPrompts,
   generateAISummary,
   loadAISummary,
   getNews,
@@ -63,6 +64,9 @@ const {
   clearAISummaryCache,
   preloadDataToStorage,
   switchSummaryType,
+  saveCustomPrompts,
+  loadCustomPrompts,
+  getDefaultPrompts,
 } = useAISummary();
 
 // 使用 AbortController
@@ -285,6 +289,11 @@ const handleClearCache = async () => {
     aiSummaryStatus.value = "";
     success("缓存已清除");
   }
+};
+
+const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
+  saveCustomPrompts(prompts);
+  success("Prompt 已保存！");
 };
 
 
@@ -596,6 +605,9 @@ onMounted(async () => {
   // 加载设置
   loadSettings();
 
+  // 加载自定义 prompts
+  loadCustomPrompts();
+
   // 同步暗色模式按钮状态与当前主题
   isDarkModeToggle.value = isDarkMode.value;
 
@@ -750,10 +762,13 @@ watch(isDarkMode, (newValue) => {
         :isExtracting="isExtracting"
         :isPageLoading="isPageLoading"
         :isQueryingDatabase="isQueryingDatabase"
+        :custom-prompts="customPrompts"
+        :default-prompts="getDefaultPrompts()"
         @generate-ai-summary="handleGenerateAISummary"
         @copy-summary="handleCopySummary"
         @clear-cache="handleClearCache"
         @update:aiSummaryType="(value) => (aiSummaryType = value)"
+        @save-prompts="handleSavePrompts"
       />
     </div>
 

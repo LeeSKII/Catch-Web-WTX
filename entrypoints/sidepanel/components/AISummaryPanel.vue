@@ -17,6 +17,13 @@
 
       <div style="display: flex; gap: 10px">
         <button
+          class="btn btn-secondary"
+          style="flex: 1"
+          @click="showPromptModal = true"
+        >
+          编辑 Prompt
+        </button>
+        <button
           class="btn btn-primary"
           style="flex: 1"
           @click="$emit('generate-ai-summary')"
@@ -86,12 +93,22 @@
       </div>
     </div>
 
+    <!-- Prompt 编辑模态框 -->
+    <PromptEditModal
+      v-model:visible="showPromptModal"
+      :current-prompt-type="aiSummaryType"
+      :custom-prompts="customPrompts"
+      :default-prompts="defaultPrompts"
+      @save-prompts="handleSavePrompts"
+    />
+
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { marked } from 'marked';
+import PromptEditModal from './PromptEditModal.vue';
 
 const props = defineProps<{
   aiSummaryContent: string;
@@ -101,6 +118,14 @@ const props = defineProps<{
   isExtracting: boolean;
   isPageLoading: boolean;
   isQueryingDatabase: boolean;
+  customPrompts: {
+    full: string;
+    keyinfo: string;
+  };
+  defaultPrompts: {
+    full: string;
+    keyinfo: string;
+  };
 }>();
 
 const emit = defineEmits<{
@@ -108,7 +133,16 @@ const emit = defineEmits<{
   'copy-summary': [];
   'clear-cache': [];
   'update:aiSummaryType': [value: string];
+  'save-prompts': [prompts: { full: string; keyinfo: string }];
 }>();
+
+// 模态框显示状态
+const showPromptModal = ref(false);
+
+// 处理保存 prompts
+const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
+  emit('save-prompts', prompts);
+};
 
 const aiSummaryType = computed({
   get: () => props.aiSummaryType,

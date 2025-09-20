@@ -18,6 +18,16 @@ export function useAISummary() {
   const aiSummaryContent: Ref<string> = ref("");
   const aiSummaryStatus: Ref<string> = ref("");
   const aiSummaryType: Ref<string> = ref("full");
+  const customPrompts: Ref<{ full: string; keyinfo: string }> = ref({
+    full: "",
+    keyinfo: ""
+  });
+  
+  // 默认 prompts
+  const defaultPrompts = {
+    full: "对用户提供的内容进行总结，要求简洁明了，突出重点，禁止遗漏任何关键和重要信息，回复语言：简体中文。",
+    keyinfo: "对用户提供的内容提取关键信息，包括：主要主题、重要数据、关键人物、时间地点等核心信息，回复语言：简体中文。"
+  };
 
   // 防重复调用：记录当前正在处理的URL
   const currentProcessingUrl: Ref<string> = ref("");
@@ -60,19 +70,8 @@ export function useAISummary() {
       // 获取总结类型
       const summaryType = aiSummaryType.value;
 
-      // 根据总结类型准备内容
-      let system_prompt = "";
-
-      switch (summaryType) {
-        case "full":
-          system_prompt =
-            "对用户提供的内容进行总结，要求简洁明了，突出重点，禁止遗漏任何关键和重要信息，回复语言：简体中文。";
-          break;
-        case "keyinfo":
-          system_prompt =
-            "对用户提供的内容提取关键信息，包括：主要主题、重要数据、关键人物、时间地点等核心信息，回复语言：简体中文。";
-          break;
-      }
+      // 根据总结类型获取 prompt
+      const system_prompt = getCurrentPrompt(summaryType);
 
       // 调用OpenAI API
       const result = await callOpenAI(apiKey, system_prompt, content);
@@ -371,12 +370,70 @@ export function useAISummary() {
     }
   };
 
+  // 保存自定义 prompts 到 localStorage
+  const saveCustomPrompts = (prompts: { full: string; keyinfo: string }) => {
+    customPrompts.value = prompts;
+    localStorage.setItem('customAIPrompts', JSON.stringify(prompts));
+    logger.debug("自定义 prompts 已保存", prompts);
+  };
+
+  // 从 localStorage 加载自定义 prompts
+  const loadCustomPrompts = () => {
+    try {
+      const savedPrompts = localStorage.getItem('customAIPrompts');
+      if (savedPrompts) {
+        const parsed = JSON.parse(savedPrompts);
+        customPrompts.value = {
+          full: parsed.full || "",
+          keyinfo: parsed.keyinfo || ""
+        };
+        logger.debug("自定义 prompts 已加载", customPrompts.value);
+      } else {
+        // 如果没有保存的 prompts，使用默认值
+        customPrompts.value = {
+          full: "",
+          keyinfo: ""
+        };
+      }
+    } catch (error) {
+      logger.error("加载自定义 prompts 失败", error);
+      customPrompts.value = {
+        full: "",
+        keyinfo: ""
+      };
+    }
+  };
+
+  // 获取当前类型的 prompt
+  const getCurrentPrompt = (summaryType: string): string => {
+    const customPrompt = customPrompts.value[summaryType as keyof typeof customPrompts.value];
+    if (customPrompt && customPrompt.trim()) {
+      return customPrompt;
+    }
+    
+    // 如果没有自定义 prompt，使用默认的
+    return defaultPrompts[summaryType as keyof typeof defaultPrompts] || "对用户提供的内容进行总结，回复语言：简体中文。";
+  };
+
+  // 恢复默认 prompts
+  const restoreDefaultPrompts = () => {
+    customPrompts.value = { ...defaultPrompts };
+    localStorage.setItem('customAIPrompts', JSON.stringify(customPrompts.value));
+    logger.debug("已恢复默认 prompts");
+  };
+
+  // 获取默认 prompts
+  const getDefaultPrompts = () => {
+    return { ...defaultPrompts };
+  };
+
   return {
     isLoadingAISummary,
     isQueryingDatabase,
     aiSummaryContent,
     aiSummaryStatus,
     aiSummaryType,
+    customPrompts,
     generateAISummary,
     saveAISummary,
     loadAISummary,
@@ -385,5 +442,10 @@ export function useAISummary() {
     switchSummaryType,
     getNews,
     preloadDataToStorage,
+    saveCustomPrompts,
+    loadCustomPrompts,
+    getCurrentPrompt,
+    restoreDefaultPrompts,
+    getDefaultPrompts,
   };
 }
