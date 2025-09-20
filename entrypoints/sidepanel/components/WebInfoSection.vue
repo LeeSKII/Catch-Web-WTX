@@ -132,6 +132,22 @@
         @view-all-links="handleViewAllLinks"
       />
     </div>
+
+    <!-- 查看全部图片模态框 -->
+    <ImageModal
+      :show="showAllImagesModal"
+      :images="extractedData.images"
+      @close="showAllImagesModal = false"
+    />
+
+    <!-- 查看全部链接模态框 -->
+    <LinkModal
+      :show="showAllLinksModal"
+      :links="extractedData.links"
+      :link-filter="linkFilter"
+      @close="showAllLinksModal = false"
+      @update:link-filter="(value) => linkFilter = value"
+    />
   </div>
 </template>
 
@@ -140,6 +156,8 @@ import { ref } from "vue";
 import type { ExtractedData } from "../types";
 import StatsDisplay from "./StatsDisplay.vue";
 import ImageGrid from "./ImageGrid.vue";
+import ImageModal from "./ImageModal.vue";
+import LinkModal from "./LinkModal.vue";
 import LinkList from "./LinkList.vue";
 import { computed } from "vue";
 
@@ -154,9 +172,7 @@ const emit = defineEmits<{
   "refresh-data": [];
   "export-data": [];
   "bookmark-action": [isBookmarked: boolean];
-  "view-all-images": [];
   "download-all-images": [];
-  "view-all-links": [];
   "update:image-filter": [value: string];
   "update:link-filter": [value: string];
 }>();
@@ -166,6 +182,8 @@ const isBookmarkButtonDisabled = ref(false);
 const isRefreshButtonDisabled = ref(false);
 const imageFilter = ref("");
 const linkFilter = ref("");
+const showAllImagesModal = ref(false); // 新增：显示所有图片模态框
+const showAllLinksModal = ref(false); // 新增：显示所有链接模态框
 
 const handleBookmarkAction = () => {
   if (
@@ -204,7 +222,12 @@ const stats = computed(() => ({
 
 // 事件处理函数
 const handleViewAllImages = () => {
-  emit("view-all-images");
+  if (!props.extractedData.images || props.extractedData.images.length === 0) {
+    return;
+  }
+
+  // 直接在组件内部管理模态框状态
+  showAllImagesModal.value = true;
 };
 
 const handleDownloadAllImages = () => {
@@ -212,7 +235,12 @@ const handleDownloadAllImages = () => {
 };
 
 const handleViewAllLinks = () => {
-  emit("view-all-links");
+  if (!props.extractedData.links || props.extractedData.links.length === 0) {
+    return;
+  }
+
+  // 直接在组件内部管理模态框状态
+  showAllLinksModal.value = true;
 };
 </script>
 

@@ -282,15 +282,6 @@ const handleClearCache = async () => {
   }
 };
 
-const handleViewAllImages = () => {
-  if (!extractedData.value.images || extractedData.value.images.length === 0) {
-    warning("没有可查看的图片");
-    return;
-  }
-
-  // 功能暂未实现
-  warning("查看全部图片功能正在开发中");
-};
 
 const handleDownloadAllImages = () => {
   if (!extractedData.value.images || extractedData.value.images.length === 0) {
@@ -313,15 +304,6 @@ const handleDownloadAllImages = () => {
   });
 };
 
-const handleViewAllLinks = () => {
-  if (!extractedData.value.links || extractedData.value.links.length === 0) {
-    warning("没有可查看的链接");
-    return;
-  }
-
-  // 功能暂未实现
-  warning("查看全部链接功能正在开发中");
-};
 
 const handleToggleDarkMode = () => {
   toggle();
@@ -731,6 +713,7 @@ watch(isDarkMode, (newValue) => {
         @refresh-data="handleExtractData"
         @export-data="handleExportData"
         @bookmark-action="handleBookmarkAction"
+        @download-all-images="handleDownloadAllImages"
       />
     </div>
 
@@ -803,6 +786,7 @@ watch(isDarkMode, (newValue) => {
 
   <!-- Toast通知容器 -->
   <div id="toast-container" class="toast-container"></div>
+
 </template>
 
 <style scoped>
@@ -1137,4 +1121,5 @@ input:checked + .slider:before {
     transform: rotate(360deg);
   }
 }
+
 </style>

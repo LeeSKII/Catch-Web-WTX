@@ -129,9 +129,11 @@ const filteredImages = computed(() => {
 
 .image-item img {
   width: 100%;
-  height: 80px;
-  object-fit: cover;
+  height: auto;
+  max-height: 120px;
+  object-fit: contain;
   max-width: 100%;
+  background: var(--markdown-bg-light);
 }
 
 .image-info {
