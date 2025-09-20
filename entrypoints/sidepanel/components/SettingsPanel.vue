@@ -172,7 +172,7 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger("SettingsPanel");
 
 // 使用全局状态管理
-const { settingsStore, uiStore } = useStores();
+const { settingsStore, uiStore, dataStore } = useStores();
 
 // 本地设置副本，避免直接修改store
 const localSettings = ref<Settings>({ ...settingsStore.state.settings });
@@ -203,8 +203,8 @@ const handleSaveSettings = () => {
 };
 
 const handleClearData = () => {
-  if (confirm("确定要清除所有数据吗？此操作不可恢复。")) {
-    settingsStore.clearData();
+  if (confirm("确定要清除所有提取的数据吗？")) {
+    dataStore.clearData();
     uiStore.showToast("数据已清除", "success");
   }
 };

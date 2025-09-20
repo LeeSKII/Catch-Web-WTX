@@ -72,83 +72,6 @@ const handleExtractData = async () => {
   }
 };
 
-const handleCopyAllData = () => {
-  const text = JSON.stringify(dataStore.state.extractedData, null, 2);
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      uiStore.showToast("数据已复制到剪贴板！", "success");
-    })
-    .catch((err) => {
-      logger.error("复制失败", err);
-      uiStore.showToast("复制失败，请重试", "error");
-    });
-};
-
-const handleExportData = () => {
-  if (Object.keys(dataStore.state.extractedData).length === 0) {
-    uiStore.showToast("没有数据可导出", "warning");
-    return;
-  }
-
-  const blob = new Blob([JSON.stringify(dataStore.state.extractedData, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-
-  // 获取标题和URL来构建文件名
-  let title = dataStore.state.extractedData.title || "untitled";
-  let urlPart = dataStore.state.extractedData.url || "no-url";
-
-  // 清理标题，移除不适合文件名的字符
-  title = title.replace(/[\\/:*?"<>|]/g, "-").substring(0, 50);
-
-  // 从URL中提取域名部分
-  try {
-    const urlObj = new URL(urlPart);
-    urlPart = urlObj.hostname.replace(/^www\./, "");
-  } catch (e) {
-    urlPart = "invalid-url";
-  }
-
-  const date = new Date().toISOString().slice(0, 10);
-  const filename = `${title}-${urlPart}-${date}.json`;
-
-  browser.downloads.download({
-    url: url,
-    filename: filename,
-    saveAs: true,
-  });
-};
-
-const handleClearData = () => {
-  if (confirm("确定要清除所有提取的数据吗？")) {
-    dataStore.clearData();
-    uiStore.showToast("数据已清除", "success");
-  }
-};
-
-const handleDownloadAllImages = () => {
-  if (!dataStore.state.extractedData.images || dataStore.state.extractedData.images.length === 0) {
-    uiStore.showToast("没有可下载的图片", "warning");
-    return;
-  }
-
-  uiStore.showToast(`开始下载 ${dataStore.state.extractedData.images.length} 张图片`, "success");
-
-  dataStore.state.extractedData.images?.forEach((img, index) => {
-    if (img && img.src) {
-      browser.downloads.download({
-        url: img.src,
-        filename: `image-${index + 1}.${
-          img.src.split(".").pop()?.split("?")[0] || "jpg"
-        }`,
-        saveAs: false,
-      });
-    }
-  });
-};
 
 const handleToggleDarkMode = () => {
   toggle();
@@ -311,11 +234,8 @@ watch(isDarkMode, (newValue) => {
       <!-- 网页信息 -->
       <WebInfoSection
         ref="webInfoSectionRef"
-        @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
-        @export-data="handleExportData"
         @bookmark-action="handleBookmarkAction"
-        @download-all-images="handleDownloadAllImages"
       />
     </div>
 
@@ -344,7 +264,6 @@ watch(isDarkMode, (newValue) => {
     >
       <SettingsPanel
         @save-settings="handleSaveSettings"
-        @clear-data="handleClearData"
         @toggle-dark-mode="handleToggleDarkMode"
       />
     </div>
