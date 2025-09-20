@@ -111,15 +111,16 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import { marked } from 'marked';
 import { useAISummary } from '../composables/useAISummary';
-import { useToast } from '../composables/useToast';
+import { useStores } from '../stores';
 import { browser } from 'wxt/browser';
 import PromptEditModal from './PromptEditModal.vue';
-import type { ExtractedData } from '../types';
+import { createLogger } from '../utils/logger';
 
-// 定义 props
-const props = defineProps<{
-  extractedData: ExtractedData;
-}>();
+// 创建日志器
+const logger = createLogger("AISummaryPanel");
+
+// 使用全局状态管理
+const { dataStore, uiStore } = useStores();
 
 // 使用 composables
 const {
@@ -140,23 +141,24 @@ const {
   switchSummaryType
 } = useAISummary();
 
-const { success, error } = useToast();
-
-// 模态框显示状态
+// 组件内部状态
 const showPromptModal = ref(false);
+
+// 从store获取数据
+const extractedData = computed(() => dataStore.state.extractedData);
 
 // 处理生成 AI 总结
 const handleGenerateAISummary = async () => {
   const result = await generateAISummary(
-    props.extractedData.text || "",
-    props.extractedData
+    extractedData.value.text || "",
+    extractedData.value
   );
 
   if (result) {
     if (result.success) {
-      success("AI总结生成成功！");
+      uiStore.showToast("AI总结生成成功！", "success");
     } else {
-      error(result.message || "AI总结生成失败");
+      uiStore.showToast(result.message || "AI总结生成失败", "error");
     }
   }
 };
@@ -167,9 +169,9 @@ const handlePauseAISummary = async () => {
   
   if (result) {
     if (result.success) {
-      success("AI总结已暂停并保存");
+      uiStore.showToast("AI总结已暂停并保存", "success");
     } else {
-      error(result.message || "暂停AI总结失败");
+      uiStore.showToast(result.message || "暂停AI总结失败", "error");
     }
   }
 };
@@ -177,18 +179,18 @@ const handlePauseAISummary = async () => {
 // 处理复制总结
 const handleCopySummary = () => {
   if (!aiSummaryContent.value) {
-    error("没有可复制的总结内容");
+    uiStore.showToast("没有可复制的总结内容", "error");
     return;
   }
 
   navigator.clipboard
     .writeText(aiSummaryContent.value)
     .then(() => {
-      success("AI总结已复制到剪贴板！");
+      uiStore.showToast("AI总结已复制到剪贴板！", "success");
     })
     .catch((err) => {
-      console.error("复制失败", err);
-      error("复制失败，请重试");
+      logger.error("复制失败", err);
+      uiStore.showToast("复制失败，请重试", "error");
     });
 };
 
@@ -197,14 +199,14 @@ const handleClearCache = async () => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
     clearAISummaryCache(tabs[0].url, aiSummaryType.value);
-    success("缓存已清除");
+    uiStore.showToast("缓存已清除", "success");
   }
 };
 
 // 处理保存 prompts
 const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
   saveCustomPrompts(prompts);
-  success("Prompt 已保存！");
+  uiStore.showToast("Prompt 已保存！", "success");
 };
 
 // 计算属性
@@ -218,7 +220,7 @@ watch(aiSummaryType, async (newType, oldType) => {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs && tabs[0] && tabs[0].url) {
       switchSummaryType(tabs[0].url, newType).catch((error) => {
-        console.error("切换总结类型失败", error);
+        logger.error("切换总结类型失败", error);
       });
     }
   }
@@ -234,7 +236,7 @@ onMounted(() => {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     if (tabs && tabs[0] && tabs[0].url) {
       loadAndDisplayAISummary(tabs[0].url, "组件初始化").catch((error) => {
-        console.error("初始加载AI总结失败", error);
+        logger.error("初始加载AI总结失败", error);
       });
     }
   };

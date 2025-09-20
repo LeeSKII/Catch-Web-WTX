@@ -4,6 +4,7 @@ import { debounce } from '../utils/debounce';
 import { createLogger } from '../utils/logger';
 import { UI_CONFIG, PERFORMANCE_CONFIG } from '../constants';
 import { useAbortController } from './useAbortController';
+import { useStores } from '../stores';
 
 const logger = createLogger('TabListeners');
 
@@ -222,6 +223,7 @@ export function useTabListeners(
                 // AI总结的加载现在在 AISummaryPanel 组件内部处理
               } catch (error) {
                 logger.error('新标签页创建时处理数据出错', error);
+                uiStore.showToast('处理数据时出错', 'error');
               } finally {
                 isProcessing = false;
                 // 确保在新标签页创建处理完成后，隐藏loading状态
@@ -274,6 +276,7 @@ export function useTabListeners(
             // AI总结的加载现在在 AISummaryPanel 组件内部处理
           } catch (error) {
             logger.error('Tab切换时处理数据出错', error);
+            uiStore.showToast('处理数据时出错', 'error');
           } finally {
             isProcessing = false;
             // 隐藏loading状态
@@ -329,6 +332,7 @@ export function useTabListeners(
             // AI总结的加载现在在 AISummaryPanel 组件内部处理
           } catch (error) {
             logger.error('URL更新时处理数据出错', error);
+            uiStore.showToast('处理数据时出错', 'error');
           } finally {
             isProcessing = false;
             // 确保在URL更新处理完成后，隐藏loading状态

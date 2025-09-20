@@ -11,9 +11,9 @@
       <div class="section">
         <!-- 统计信息 -->
         <StatsDisplay
-          :stats="stats"
-          :extracted-data="props.extractedData"
-          :is-checking-bookmark="props.isCheckingBookmark"
+          :stats="stats.value"
+          :extracted-data="extractedData"
+          :is-checking-bookmark="isCheckingBookmark"
         />
         <div class="action-section">
           <div class="action-title">数据管理</div>
@@ -36,22 +36,19 @@
                 {
                   'btn-loading':
                     isBookmarkButtonDisabled ||
-                    isCheckingBookmark ||
-                    extractedData.isBookmarked === undefined,
+                    isCheckingBookmark,
                 },
               ]"
               @click="handleBookmarkAction"
               :disabled="
                 isBookmarkButtonDisabled ||
-                isCheckingBookmark ||
-                extractedData.isBookmarked === undefined
+                isCheckingBookmark
               "
             >
               <span
                 v-if="
                   isBookmarkButtonDisabled ||
-                  isCheckingBookmark ||
-                  extractedData.isBookmarked === undefined
+                  isCheckingBookmark
                 "
                 class="loading-icon"
               >
@@ -152,20 +149,31 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, computed, watch } from "vue";
 import type { ExtractedData } from "../types";
 import StatsDisplay from "./StatsDisplay.vue";
 import ImageGrid from "./ImageGrid.vue";
 import ImageModal from "./ImageModal.vue";
 import LinkModal from "./LinkModal.vue";
 import LinkList from "./LinkList.vue";
-import { computed } from "vue";
+import { useStores } from "../stores";
+import { useBookmark } from "../composables/useBookmark";
+import { getSupabaseClient } from "../composables/useSupabase";
+import { useAISummary } from "../composables/useAISummary";
+import { createLogger } from "../utils/logger";
 
-const props = defineProps<{
-  extractedData: ExtractedData;
-  isCheckingBookmark: boolean;
-  isPageLoading: boolean;
-}>();
+// 创建日志器
+const logger = createLogger("WebInfoSection");
+
+// 使用全局状态管理
+const { dataStore, uiStore } = useStores();
+
+// 使用 composables
+const { checkBookmarkStatus, isCheckingBookmark } = useBookmark();
+const { getNews, preloadDataToStorage, loadAISummary, generateAISummary, aiSummaryContent, aiSummaryType } = useAISummary();
+
+// 获取Supabase客户端单例实例
+const client = getSupabaseClient();
 
 const emit = defineEmits<{
   "copy-all-data": [];
@@ -173,25 +181,184 @@ const emit = defineEmits<{
   "export-data": [];
   "bookmark-action": [isBookmarked: boolean];
   "download-all-images": [];
-  "update:image-filter": [value: string];
-  "update:link-filter": [value: string];
 }>();
 
-// 按钮禁用状态
+// 组件内部状态
 const isBookmarkButtonDisabled = ref(false);
 const isRefreshButtonDisabled = ref(false);
 const imageFilter = ref("");
 const linkFilter = ref("");
-const showAllImagesModal = ref(false); // 新增：显示所有图片模态框
-const showAllLinksModal = ref(false); // 新增：显示所有链接模态框
+const showAllImagesModal = ref(false);
+const showAllLinksModal = ref(false);
 
-const handleBookmarkAction = () => {
-  if (
-    props.extractedData.isBookmarked !== undefined &&
-    !isBookmarkButtonDisabled.value
-  ) {
+// 从store获取数据
+const extractedData = computed(() => dataStore.state.extractedData);
+const isPageLoading = computed(() => dataStore.state.isPageLoading);
+const stats = computed(() => dataStore.stats);
+
+// 方法
+const handleBookmarkAction = async () => {
+  if (extractedData.value.isBookmarked === undefined || isBookmarkButtonDisabled.value) {
+    return;
+  }
+
+  try {
     isBookmarkButtonDisabled.value = true;
-    emit("bookmark-action", props.extractedData.isBookmarked);
+    // isCheckingBookmarkStatus.value = true; // 不再需要，因为useBookmark中的isCheckingBookmark会自动管理
+
+    if (!extractedData.value.url) {
+      uiStore.showToast("无法获取URL，请先提取数据", "error");
+      return;
+    }
+
+    // 获取AI关键信息总结
+    let aiKeyInfo = null;
+    if (aiSummaryType.value === "keyinfo" && aiSummaryContent.value) {
+      aiKeyInfo = aiSummaryContent.value;
+    } else if (aiSummaryContent.value) {
+      // 如果当前不是keyinfo类型，但有AI总结内容，尝试获取keyinfo类型的总结
+      const originalType = aiSummaryType.value;
+      aiSummaryType.value = "keyinfo";
+      
+      try {
+        // 生成关键信息总结
+        const result = await generateAISummary(
+          extractedData.value.text || "",
+          extractedData.value
+        );
+        
+        if (result && result.success) {
+          aiKeyInfo = aiSummaryContent.value;
+        }
+      } catch (summaryError) {
+        logger.error("生成关键信息总结失败", summaryError);
+        // 继续执行，不阻止收藏/更新操作
+      } finally {
+        // 恢复原始类型
+        aiSummaryType.value = originalType;
+      }
+    }
+
+    // 获取AI全文总结
+    let summarizer = null;
+    
+    // 首先尝试从缓存中获取全文总结
+    const fullSummaryFromCache = loadAISummary(extractedData.value.url || "", "full");
+    if (fullSummaryFromCache && fullSummaryFromCache.content) {
+      summarizer = fullSummaryFromCache.content;
+      logger.debug("从缓存中获取到全文总结");
+    } else {
+      // 如果缓存中没有，尝试从数据库获取
+      try {
+        const newsData = await getNews(extractedData.value.url || "");
+        if (newsData && newsData.length > 0 && newsData[0].summarizer) {
+          summarizer = newsData[0].summarizer;
+          logger.debug("从数据库中获取到全文总结");
+        } else if (aiSummaryType.value === "full" && aiSummaryContent.value) {
+          // 如果数据库中没有，但当前显示的是全文总结，则使用当前内容
+          summarizer = aiSummaryContent.value;
+          logger.debug("使用当前显示的全文总结");
+        } else if (extractedData.value.text) {
+          // 如果以上都没有，但文本内容存在，尝试生成全文总结
+          const originalType = aiSummaryType.value;
+          aiSummaryType.value = "full";
+          
+          try {
+            // 生成全文总结
+            const result = await generateAISummary(
+              extractedData.value.text,
+              extractedData.value
+            );
+            
+            if (result && result.success) {
+              summarizer = aiSummaryContent.value;
+              logger.debug("成功生成新的全文总结");
+            }
+          } catch (summaryError) {
+            logger.error("生成全文总结失败", summaryError);
+            // 继续执行，不阻止收藏/更新操作
+          } finally {
+            // 恢复原始类型
+            aiSummaryType.value = originalType;
+          }
+        }
+      } catch (error) {
+        logger.error("获取全文总结时出错", error);
+        // 继续执行，不阻止收藏/更新操作
+      }
+    }
+
+    if (extractedData.value.isBookmarked) {
+      // 更新功能
+      const { data, error: updateError } = await client
+        .from("News")
+        .update({
+          text: extractedData.value.text,
+          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
+          html: extractedData.value.html,
+          images: extractedData.value.images,
+          links: extractedData.value.links,
+          title: extractedData.value.title,
+          url: extractedData.value.url,
+          article: extractedData.value.article,
+          host: extractedData.value.host,
+          word_count: extractedData.value.wordCount,
+          ai_key_info: aiKeyInfo,
+          summarizer: summarizer,
+        })
+        .eq("url", extractedData.value.url)
+        .select();
+
+      if (updateError) {
+        logger.error("更新数据失败", updateError);
+        uiStore.showToast("更新数据失败", "error");
+      } else {
+        uiStore.showToast("数据更新成功！", "success");
+      }
+    } else {
+      // 收藏功能
+      const { data, error: insertError } = await client
+        .from("News")
+        .insert({
+          text: extractedData.value.text,
+          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
+          html: extractedData.value.html,
+          images: extractedData.value.images,
+          links: extractedData.value.links,
+          title: extractedData.value.title,
+          url: extractedData.value.url,
+          article: extractedData.value.article,
+          host: extractedData.value.host,
+          word_count: extractedData.value.wordCount,
+          ai_key_info: aiKeyInfo,
+          summarizer: summarizer,
+        })
+        .select();
+
+      if (insertError) {
+        logger.error("收藏失败", insertError);
+        uiStore.showToast("收藏失败", "error");
+      } else {
+        uiStore.showToast("收藏成功！", "success");
+        // 更新本地状态
+        dataStore.updateExtractedData({
+          ...extractedData.value,
+          isBookmarked: true
+        });
+        
+        // 收藏成功后，将summarizer和ai_key_info数据保存到storage中
+        if (extractedData.value.url) {
+          logger.debug("收藏成功后，预加载summarizer和ai_key_info到storage");
+          await preloadDataToStorage(extractedData.value.url);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error("收藏/更新操作出错", err);
+    uiStore.showToast("操作失败，请重试", "error");
+  } finally {
+    isBookmarkButtonDisabled.value = false;
+    // isCheckingBookmarkStatus.value = false; // 不再需要，因为useBookmark中的isCheckingBookmark会自动管理
   }
 };
 
@@ -206,6 +373,7 @@ const handleRefreshData = () => {
 const resetButtonStates = () => {
   isBookmarkButtonDisabled.value = false;
   isRefreshButtonDisabled.value = false;
+  // isCheckingBookmarkStatus.value = false; // 不再需要，因为useBookmark中的isCheckingBookmark会自动管理
 };
 
 // 暴露方法给父组件
@@ -213,16 +381,9 @@ defineExpose({
   resetButtonStates,
 });
 
-// 计算属性
-const stats = computed(() => ({
-  imagesCount: props.extractedData.images?.length || 0,
-  linksCount: props.extractedData.links?.length || 0,
-  wordsCount: props.extractedData.wordCount || 0,
-}));
-
 // 事件处理函数
 const handleViewAllImages = () => {
-  if (!props.extractedData.images || props.extractedData.images.length === 0) {
+  if (!extractedData.value.images || extractedData.value.images.length === 0) {
     return;
   }
 
@@ -235,7 +396,7 @@ const handleDownloadAllImages = () => {
 };
 
 const handleViewAllLinks = () => {
-  if (!props.extractedData.links || props.extractedData.links.length === 0) {
+  if (!extractedData.value.links || extractedData.value.links.length === 0) {
     return;
   }
 

@@ -147,13 +147,13 @@
         </div>
       </div>
 
-      <button class="btn btn-primary" @click="$emit('save-settings')">
+      <button class="btn btn-primary" @click="handleSaveSettings">
         保存设置
       </button>
       <button
         class="btn btn-warning"
         style="margin-top: 10px"
-        @click="$emit('clear-data')"
+        @click="handleClearData"
       >
         清除数据
       </button>
@@ -162,40 +162,56 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import type { Settings } from '../types';
 import { API_CONFIG } from '../constants';
+import { useStores } from '../stores';
+import { createLogger } from '../utils/logger';
 
-const props = defineProps<{
-  settings: Settings;
-  isDarkMode: boolean;
-}>();
+// 创建日志器
+const logger = createLogger("SettingsPanel");
 
-const emit = defineEmits<{
-  'save-settings': [];
-  'clear-data': [];
-  'toggle-dark-mode': [];
-  'update:settings': [settings: Settings];
-}>();
+// 使用全局状态管理
+const { settingsStore, uiStore } = useStores();
 
-// 本地设置副本，避免直接修改props
-const localSettings = ref<Settings>({ ...props.settings });
-const isDarkModeToggle = ref(props.isDarkMode);
+// 本地设置副本，避免直接修改store
+const localSettings = ref<Settings>({ ...settingsStore.state.settings });
+const isDarkModeToggle = ref(settingsStore.state.settings.darkMode);
 
-// 监听props.settings变化，更新本地副本
-watch(() => props.settings, (newSettings) => {
+// 监听store.settings变化，更新本地副本
+watch(() => settingsStore.state.settings, (newSettings) => {
   localSettings.value = { ...newSettings };
 }, { deep: true });
 
-// 监听props.isDarkMode变化，更新本地副本
-watch(() => props.isDarkMode, (newIsDarkMode) => {
+// 监听store.settings.darkMode变化，更新本地副本
+watch(() => settingsStore.state.settings.darkMode, (newIsDarkMode) => {
   isDarkModeToggle.value = newIsDarkMode;
 });
 
-// 监听本地设置变化，通知父组件
+// 监听本地设置变化，更新store
 watch(localSettings, (newSettings) => {
-  emit('update:settings', { ...newSettings });
+  settingsStore.updateSettings({ ...newSettings });
 }, { deep: true });
+
+// 组件内部方法
+const handleSaveSettings = () => {
+  settingsStore.saveSettings();
+  uiStore.showToast("设置已保存", "success");
+};
+
+const handleClearData = () => {
+  if (confirm("确定要清除所有数据吗？此操作不可恢复。")) {
+    settingsStore.clearData();
+    uiStore.showToast("数据已清除", "success");
+  }
+};
+
+const handleToggleDarkMode = () => {
+  // 切换darkMode设置
+  const newDarkMode = !settingsStore.state.settings.darkMode;
+  settingsStore.updateSettings({ darkMode: newDarkMode });
+  uiStore.showToast("已切换" + (newDarkMode ? "暗色" : "亮色") + "模式", "success");
+};
 </script>
 
 <style scoped>

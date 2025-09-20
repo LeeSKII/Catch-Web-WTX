@@ -109,42 +109,50 @@ import Confirm from "./Confirm.vue";
 import MessageItem from "./MessageItem.vue";
 import ReferenceList from "./ReferenceList.vue";
 import ReferenceDetail from "./ReferenceDetail.vue";
+import { useChat } from "../composables/useChat";
+import { useStores } from "../stores";
+import { createLogger } from "../utils/logger";
+import type { ExtractedData } from "../types";
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: Date;
-  isStreaming?: boolean; // 标记消息是否正在流式传输中
-}
+// 创建日志器
+const logger = createLogger("ChatPanel");
 
-const props = defineProps<{
-  isChatLoading: boolean;
-  messages: ChatMessage[];
-  referenceInfo: any;
-  referenceList: any[];
-  referenceText: string;
-  systemPrompt: string;
-  showReferenceModal: boolean;
-  showReferenceListModal: boolean;
-  selectedReferenceIndex: number;
-  getReferencePreview: string;
-  streamingContent: string;
-  isStreaming: boolean;
-}>();
+// 使用全局状态管理
+const { dataStore, uiStore, settingsStore } = useStores();
 
-const emit = defineEmits<{
-  "send-message": [message: string];
-  "clear-chat": [];
-  "save-chat": [];
-  "add-reference": [];
-  "show-reference-list": [];
-  "hide-reference-list": [];
-  "show-reference-detail": [index: number];
-  "hide-reference-detail": [];
-  "remove-reference": [index: number];
-  "abort-current-request": [];
-}>();
+// 使用聊天composable
+const {
+  messages,
+  isChatLoading,
+  referenceInfo,
+  referenceList,
+  referenceText,
+  systemPrompt,
+  systemMessage,
+  showReferenceModal,
+  showReferenceListModal,
+  selectedReferenceIndex,
+  getReferencePreview,
+  streamingContent,
+  isStreaming,
+  sendMessage: sendChatMessage,
+  clearChat: clearChatMessages,
+  saveChat: saveChatMessages,
+  createNewChat,
+  loadChat,
+  deleteChat,
+  updateChatTitle,
+  exportChat,
+  abortCurrentRequest,
+  addReferenceToChat,
+  showReferenceList,
+  hideReferenceList,
+  showReferenceDetail,
+  hideReferenceDetail,
+  removeReference
+} = useChat();
 
+// 组件内部状态
 const userInput = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
@@ -170,6 +178,14 @@ const showConfirmDialog = ref(false);
 const confirmDialogTitle = ref("确认");
 const confirmDialogMessage = ref("确定要执行此操作吗？");
 const pendingReferenceIndex = ref<number | null>(null);
+
+// 从store获取数据
+const extractedData = computed(() => dataStore.state.extractedData);
+
+// 定义emit事件
+const emit = defineEmits<{
+  "add-reference": [];
+}>();
 
 // 设置标签页监听器
 const setupTabListeners = () => {
@@ -310,9 +326,9 @@ const removeTabListeners = () => {
 
 // 检查URL是否匹配引用列表中的URL
 const isUrlInReferenceList = (url: string): boolean => {
-  if (!url || !props.referenceList.length) return false;
+  if (!url || !referenceList.value.length) return false;
 
-  return props.referenceList.some((item) => {
+  return referenceList.value.some((item) => {
     if (!item.url) return false;
 
     // 只进行精确匹配，确保URL完全相同
@@ -326,7 +342,7 @@ const updateReferencedUrlsMap = () => {
   referencedUrlsMap.value = {};
 
   // 根据当前引用列表更新映射
-  props.referenceList.forEach((item) => {
+  referenceList.value.forEach((item) => {
     if (item.url) {
       referencedUrlsMap.value[item.url] = true;
     }
@@ -480,9 +496,9 @@ const adjustTextareaHeight = () => {
 };
 
 const sendMessage = () => {
-  if (!userInput.value.trim() || props.isChatLoading) return;
+  if (!userInput.value.trim() || isChatLoading.value) return;
 
-  emit("send-message", userInput.value.trim());
+  sendChatMessage(userInput.value.trim());
   userInput.value = "";
   // 重置行高为1行
   textareaRows.value = 1;
@@ -503,36 +519,24 @@ const clearChat = () => {
 };
 
 const saveChat = () => {
-  emit("save-chat");
+  saveChatMessages();
 };
 
 const addReference = () => {
-  emit("add-reference");
-};
-
-const showReferenceList = () => {
-  emit("show-reference-list");
-};
-
-const hideReferenceList = () => {
-  emit("hide-reference-list");
-};
-
-const showReferenceDetail = (index: number) => {
-  emit("show-reference-detail", index);
-};
-
-const hideReferenceDetail = () => {
-  emit("hide-reference-detail");
+  if (extractedData.value.text) {
+    addReferenceToChat(extractedData.value.text, extractedData.value);
+  } else {
+    uiStore.showToast("没有可引用的文本内容，请先提取数据", "warning");
+  }
 };
 
 // 停止流式输出
 const stopStreaming = () => {
-  emit("abort-current-request");
+  abortCurrentRequest();
 };
 
 // 删除引用
-const removeReference = (index: number) => {
+const deleteReference = (index: number) => {
   pendingReferenceIndex.value = index;
   confirmDialogTitle.value = "删除引用";
   confirmDialogMessage.value = "确定要删除这个引用吗？";
@@ -543,10 +547,12 @@ const removeReference = (index: number) => {
 const handleConfirm = () => {
   if (pendingReferenceIndex.value === -1) {
     // 清空对话操作
-    emit("clear-chat");
+    clearChatMessages();
+    uiStore.showToast("对话已清空", "success");
   } else if (pendingReferenceIndex.value !== null) {
     // 删除引用操作
-    emit("remove-reference", pendingReferenceIndex.value);
+    removeReference(pendingReferenceIndex.value);
+    uiStore.showToast("引用已删除", "success");
   }
   pendingReferenceIndex.value = null;
 };
@@ -558,10 +564,10 @@ const handleCancel = () => {
 
 // 过滤掉系统消息，只显示用户和AI的消息
 const filteredMessages = computed(() => {
-  const filtered = props.messages.filter(
+  const filtered = messages.value.filter(
     (message) => message.role !== "system"
   );
-  console.log("ChatPanel: 过滤后的消息数量:", filtered.length);
+  logger.debug("ChatPanel: 过滤后的消息数量:", filtered.length);
   return filtered;
 });
 
@@ -639,10 +645,10 @@ const resetUserScrolling = () => {
 
 // 监听消息变化，自动滚动到底部
 watch(
-  () => props.messages,
+  () => messages.value,
   () => {
     // 如果是新的用户消息，重置用户滚动状态
-    const lastMessage = props.messages[props.messages.length - 1];
+    const lastMessage = messages.value[messages.value.length - 1];
     if (lastMessage && lastMessage.role === "user") {
       resetUserScrolling();
     }
@@ -653,7 +659,7 @@ watch(
 
 // 监听加载状态变化，自动滚动到底部
 watch(
-  () => props.isChatLoading,
+  () => isChatLoading.value,
   (newVal, oldVal) => {
     // 当开始加载时（开始流式传输），重置用户滚动状态
     if (oldVal === false && newVal === true) {
@@ -675,9 +681,9 @@ watch(
 
 // 监听引用列表变化
 watch(
-  () => props.referenceList,
+  () => referenceList.value,
   (newVal, oldVal) => {
-    console.log(
+    logger.debug(
       "ChatPanel: 引用列表发生变化，新数量:",
       newVal.length,
       "旧数量:",
@@ -704,10 +710,10 @@ onMounted(async () => {
   scrollToBottom();
 
   // 添加调试日志
-  console.log("ChatPanel onMounted: 引用列表数量:", props.referenceList.length);
+  logger.debug("ChatPanel onMounted: 引用列表数量:", referenceList.value.length);
 
   // 初始化引用状态和标题
-  hasReferences.value = props.referenceList.length > 0;
+  hasReferences.value = referenceList.value.length > 0;
 
   // 初始化引用URL状态映射
   updateReferencedUrlsMap();
@@ -727,7 +733,7 @@ onMounted(async () => {
         }
       }
 
-      console.log(
+      logger.debug(
         "ChatPanel onMounted: 已保存所有标签页原始标题，数量:",
         Object.keys(originalTitlesMap.value).length
       );

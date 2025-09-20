@@ -3,6 +3,7 @@ import { ExtractedData } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
 import { useAbortController } from './useAbortController';
+import { useStores } from '../stores';
 
 // 创建日志器
 const logger = createLogger('DataExtractor');
@@ -11,6 +12,7 @@ export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
   const isLoading: Ref<boolean> = ref(false);
   const { createAbortController, cleanupAbortController } = useAbortController();
+  const { dataStore, uiStore } = useStores();
 
   const extractData = async (options: {
     html: boolean;
@@ -24,6 +26,7 @@ export function useDataExtractor() {
   }) => {
     // 如果没有选中任何选项，提示用户
     if (!Object.values(options).some(opt => opt)) {
+      uiStore.showToast('请至少选择一个提取选项！', 'warning');
       return { success: false, message: '请至少选择一个提取选项！' };
     }
 
@@ -45,6 +48,7 @@ export function useDataExtractor() {
       // 检查tab是否存在且URL是否有效
       if (!tabs[0] || !tabs[0].url) {
         isLoading.value = false;
+        uiStore.showToast('无法获取当前页面URL', 'error');
         return { success: false, message: '无法获取当前页面URL' };
       }
 
@@ -54,6 +58,7 @@ export function useDataExtractor() {
       const urlProtocol = currentUrl.split(':')[0].toLowerCase();
       if (urlProtocol !== 'http' && urlProtocol !== 'https') {
         isLoading.value = false;
+        uiStore.showToast('非http/https页面，无法提取数据', 'warning');
         return { success: false, message: '非http/https页面，无法提取数据' };
       }
 
@@ -103,10 +108,14 @@ export function useDataExtractor() {
 
           if (results && results[0] && results[0].result) {
             extractedData.value = results[0].result as ExtractedData;
+            // 更新全局状态
+            dataStore.updateExtractedData(extractedData.value);
             isLoading.value = false;
+            uiStore.showToast('数据提取成功', 'success');
             return { success: true, data: extractedData.value };
           } else {
             isLoading.value = false;
+            uiStore.showToast('提取数据失败', 'error');
             return { success: false, message: '提取数据失败' };
           }
         } finally {
@@ -117,16 +126,19 @@ export function useDataExtractor() {
         }
       } else {
         isLoading.value = false;
+        uiStore.showToast('无法获取标签页ID', 'error');
         return { success: false, message: '无法获取标签页ID' };
       }
     } catch (error) {
       // 检查是否是中止错误
       if (abortController.signal.aborted || (error instanceof Error && error.message === '数据提取被中止')) {
         logger.debug("数据提取被中止");
+        isLoading.value = false;
         return { success: false, message: '数据提取被中止' };
       }
       logger.error('提取错误', error);
       isLoading.value = false;
+      uiStore.showToast('提取数据时发生错误', 'error');
       return { success: false, message: '提取数据时发生错误' };
     } finally {
       cleanupAbortController('dataExtraction');

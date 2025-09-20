@@ -1,27 +1,16 @@
 <script lang="ts" setup>
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
-import { useToast } from "./composables/useToast";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useTheme } from "./composables/useTheme";
-import { useSettings } from "./composables/useSettings";
 import { useDataExtractor } from "./composables/useDataExtractor";
-import { useBookmark } from "./composables/useBookmark";
-import { useAISummary } from "./composables/useAISummary";
-import { useAbortController } from "./composables/useAbortController";
-import { useChat } from "./composables/useChat";
 import { useTabListeners } from "./composables/useTabListeners";
 import { browser } from "wxt/browser";
-import { debounce } from "./utils/debounce";
 import { createLogger } from "./utils/logger";
-import { UI_CONFIG, PERFORMANCE_CONFIG } from "./constants";
-import { getSupabaseClient } from "./composables/useSupabase";
+import { PERFORMANCE_CONFIG } from "./constants";
+import { useStores } from "./stores";
 
 // 导入组件
 import TabNavigation from "./components/TabNavigation.vue";
-import StatsDisplay from "./components/StatsDisplay.vue";
 import WebInfoSection from "./components/WebInfoSection.vue";
-import type { ExtractedData } from "./types";
-import ImageGrid from "./components/ImageGrid.vue";
-import LinkList from "./components/LinkList.vue";
 import AISummaryPanel from "./components/AISummaryPanel.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 import ChatPanel from "./components/ChatPanel.vue";
@@ -29,186 +18,88 @@ import ChatPanel from "./components/ChatPanel.vue";
 // 创建日志器
 const logger = createLogger("App");
 
-// 获取Supabase客户端单例实例
-const client = getSupabaseClient();
+// 使用全局状态管理
+const { dataStore, uiStore, settingsStore } = useStores();
 
 // 使用 Composables
-const { success, error, warning, info } = useToast();
 const { isDarkMode, toggle, initialize: initializeTheme } = useTheme();
-const {
-  settings,
-  loadSettings,
-  saveSettings,
-  updateSetting,
-  cleanExpiredData,
-} = useSettings();
-const {
-  extractedData,
-  isLoading: isExtracting,
-  extractData,
-  saveExtractedData,
-  clearExtractedData,
-} = useDataExtractor();
-const { checkBookmarkStatus, isCheckingBookmark } = useBookmark();
-// App.vue 中保留收藏功能相关的 useAISummary 功能
-const {
-  getNews,
-  preloadDataToStorage,
-  switchSummaryType,
-  loadAISummary,
-  generateAISummary,
-  aiSummaryContent,
-  aiSummaryType,
-} = useAISummary();
-
-// 使用 AbortController
-const { abortAllRequests } = useAbortController();
-
-// 使用 Chat
-const {
-  messages,
-  isChatLoading,
-  referenceInfo,
-  referenceList,
-  referenceText,
-  systemPrompt,
-  systemMessage,
-  showReferenceModal,
-  showReferenceListModal,
-  selectedReferenceIndex,
-  getReferencePreview,
-  streamingContent,
-  isStreaming,
-  sendMessage: sendChatMessage,
-  clearChat: clearChatMessages,
-  saveChat: saveChatMessages,
-  createNewChat,
-  loadChat,
-  deleteChat,
-  updateChatTitle,
-  exportChat,
-  abortCurrentRequest,
-  addReferenceToChat,
-  showReferenceList,
-  hideReferenceList,
-  showReferenceDetail,
-  hideReferenceDetail,
-  removeReference
-} = useChat();
+const { extractData } = useDataExtractor();
 
 // 响应式数据
-const currentTab = ref("results");
-const imageFilter = ref("");
-const linkFilter = ref("");
-const isDarkModeToggle = ref(false);
-const isPageLoading = ref(false); // 新增：页面加载状态
 const webInfoSectionRef = ref<InstanceType<typeof WebInfoSection> | null>(null);
-
-// 计算属性
-const stats = computed(() => ({
-  imagesCount: extractedData.value.images?.length || 0,
-  linksCount: extractedData.value.links?.length || 0,
-  wordsCount: extractedData.value.wordCount || 0,
-}));
 
 // 方法
 const switchTab = (tabName: string) => {
-  currentTab.value = tabName;
+  uiStore.switchTab(tabName);
 };
 
 const handleExtractData = async () => {
   try {
+    dataStore.setLoading(true);
+    
     const options = {
-      html: settings.extractHtml,
-      text: settings.extractText,
-      images: settings.extractImages,
-      links: settings.extractLinks,
-      meta: settings.extractMeta,
-      styles: settings.extractStyles,
-      scripts: settings.extractScripts,
-      article: settings.extractArticle,
+      html: settingsStore.state.settings.extractHtml,
+      text: settingsStore.state.settings.extractText,
+      images: settingsStore.state.settings.extractImages,
+      links: settingsStore.state.settings.extractLinks,
+      meta: settingsStore.state.settings.extractMeta,
+      styles: settingsStore.state.settings.extractStyles,
+      scripts: settingsStore.state.settings.extractScripts,
+      article: settingsStore.state.settings.extractArticle,
     };
 
-    // 获取当前tab信息
-    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    
-    if (!tabs || !tabs[0] || !tabs[0].url) {
-      error("无法获取当前页面URL");
-      return;
-    }
-
-    const url = tabs[0].url;
-
-    // 优先执行页面数据提取
     const extractResult = await extractData(options);
 
     if (extractResult.success && extractResult.data) {
-      success("数据提取成功！");
-      saveExtractedData(extractResult.data);
-
-      // 异步检查收藏状态，不阻塞页面显示
-      checkBookmarkStatus(url).then((isBookmarked) => {
-        extractedData.value.isBookmarked = isBookmarked;
-        logger.debug("异步检查收藏状态完成", { url, isBookmarked });
-        
-        // 如果是收藏数据，预加载数据库中的summarizer和ai_key_info到storage
-        if (isBookmarked) {
-          preloadDataToStorage(url).then(() => {
-            logger.debug("预加载数据库数据到storage完成", { url });
-          }).catch((error: unknown) => {
-            logger.error("预加载数据库数据失败", error);
-          });
-        }
-      }).catch((error) => {
-        logger.error("异步检查收藏状态失败", error);
-      });
-      
+      dataStore.updateExtractedData(extractResult.data);
+      uiStore.showToast("数据提取成功！", "success");
     } else {
-      error(extractResult.message || "数据提取失败");
+      dataStore.setError(extractResult.message || "数据提取失败");
+      uiStore.showToast(extractResult.message || "数据提取失败", "error");
     }
   } catch (err) {
     logger.error("数据提取过程中出错", err);
-    error("数据提取失败，请重试");
+    dataStore.setError("数据提取失败，请重试");
+    uiStore.showToast("数据提取失败，请重试", "error");
   } finally {
+    dataStore.setLoading(false);
+    dataStore.setPageLoading(false);
+    
     // 重置刷新按钮状态
     if (webInfoSectionRef.value) {
       webInfoSectionRef.value.resetButtonStates();
     }
-    
-    // 确保在数据提取完成后，将页面加载状态设置为 false
-    isPageLoading.value = false;
   }
 };
 
-
 const handleCopyAllData = () => {
-  const text = JSON.stringify(extractedData.value, null, 2);
+  const text = JSON.stringify(dataStore.state.extractedData, null, 2);
 
   navigator.clipboard
     .writeText(text)
     .then(() => {
-      success("数据已复制到剪贴板！");
+      uiStore.showToast("数据已复制到剪贴板！", "success");
     })
     .catch((err) => {
       logger.error("复制失败", err);
-      error("复制失败，请重试");
+      uiStore.showToast("复制失败，请重试", "error");
     });
 };
 
 const handleExportData = () => {
-  if (Object.keys(extractedData.value).length === 0) {
-    warning("没有数据可导出");
+  if (Object.keys(dataStore.state.extractedData).length === 0) {
+    uiStore.showToast("没有数据可导出", "warning");
     return;
   }
 
-  const blob = new Blob([JSON.stringify(extractedData.value, null, 2)], {
+  const blob = new Blob([JSON.stringify(dataStore.state.extractedData, null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
 
   // 获取标题和URL来构建文件名
-  let title = extractedData.value.title || "untitled";
-  let urlPart = extractedData.value.url || "no-url";
+  let title = dataStore.state.extractedData.title || "untitled";
+  let urlPart = dataStore.state.extractedData.url || "no-url";
 
   // 清理标题，移除不适合文件名的字符
   title = title.replace(/[\\/:*?"<>|]/g, "-").substring(0, 50);
@@ -233,20 +124,20 @@ const handleExportData = () => {
 
 const handleClearData = () => {
   if (confirm("确定要清除所有提取的数据吗？")) {
-    clearExtractedData();
-    success("数据已清除");
+    dataStore.clearData();
+    uiStore.showToast("数据已清除", "success");
   }
 };
 
 const handleDownloadAllImages = () => {
-  if (!extractedData.value.images || extractedData.value.images.length === 0) {
-    warning("没有可下载的图片");
+  if (!dataStore.state.extractedData.images || dataStore.state.extractedData.images.length === 0) {
+    uiStore.showToast("没有可下载的图片", "warning");
     return;
   }
 
-  success(`开始下载 ${extractedData.value.images.length} 张图片`);
+  uiStore.showToast(`开始下载 ${dataStore.state.extractedData.images.length} 张图片`, "success");
 
-  extractedData.value.images?.forEach((img, index) => {
+  dataStore.state.extractedData.images?.forEach((img, index) => {
     if (img && img.src) {
       browser.downloads.download({
         url: img.src,
@@ -259,209 +150,35 @@ const handleDownloadAllImages = () => {
   });
 };
 
-
 const handleToggleDarkMode = () => {
   toggle();
-  isDarkModeToggle.value = !isDarkModeToggle.value;
+  uiStore.toggleDarkMode();
 };
 
 const handleSaveSettings = () => {
-  saveSettings();
-  // 确保设置保存后，重新加载设置以更新所有组件的状态
-  loadSettings();
-  success("设置已保存！设置将立即生效。");
+  settingsStore.saveSettings();
+  uiStore.showToast("设置已保存！设置将立即生效。", "success");
 };
 
 const handleBookmarkAction = async (isBookmarked: boolean) => {
-  try {
-    if (!extractedData.value.url) {
-      error("无法获取URL，请先提取数据");
-      return;
-    }
-
-    // 获取AI关键信息总结
-    let aiKeyInfo = null;
-    if (aiSummaryType.value === "keyinfo" && aiSummaryContent.value) {
-      aiKeyInfo = aiSummaryContent.value;
-    } else if (aiSummaryContent.value) {
-      // 如果当前不是keyinfo类型，但有AI总结内容，尝试获取keyinfo类型的总结
-      const originalType = aiSummaryType.value;
-      aiSummaryType.value = "keyinfo";
-      
-      try {
-        // 生成关键信息总结
-        const result = await generateAISummary(
-          extractedData.value.text || "",
-          extractedData.value
-        );
-        
-        if (result && result.success) {
-          aiKeyInfo = aiSummaryContent.value;
-        }
-      } catch (summaryError) {
-        logger.error("生成关键信息总结失败", summaryError);
-        // 继续执行，不阻止收藏/更新操作
-      } finally {
-        // 恢复原始类型
-        aiSummaryType.value = originalType;
-      }
-    }
-
-    // 获取AI全文总结
-    let summarizer = null;
-    
-    // 首先尝试从缓存中获取全文总结
-    const fullSummaryFromCache = loadAISummary(extractedData.value.url || "", "full");
-    if (fullSummaryFromCache && fullSummaryFromCache.content) {
-      summarizer = fullSummaryFromCache.content;
-      logger.debug("从缓存中获取到全文总结");
-    } else {
-      // 如果缓存中没有，尝试从数据库获取
-      try {
-        const newsData = await getNews(extractedData.value.url || "");
-        if (newsData && newsData.length > 0 && newsData[0].summarizer) {
-          summarizer = newsData[0].summarizer;
-          logger.debug("从数据库中获取到全文总结");
-        } else if (aiSummaryType.value === "full" && aiSummaryContent.value) {
-          // 如果数据库中没有，但当前显示的是全文总结，则使用当前内容
-          summarizer = aiSummaryContent.value;
-          logger.debug("使用当前显示的全文总结");
-        } else if (extractedData.value.text) {
-          // 如果以上都没有，但文本内容存在，尝试生成全文总结
-          const originalType = aiSummaryType.value;
-          aiSummaryType.value = "full";
-          
-          try {
-            // 生成全文总结
-            const result = await generateAISummary(
-              extractedData.value.text,
-              extractedData.value
-            );
-            
-            if (result && result.success) {
-              summarizer = aiSummaryContent.value;
-              logger.debug("成功生成新的全文总结");
-            }
-          } catch (summaryError) {
-            logger.error("生成全文总结失败", summaryError);
-            // 继续执行，不阻止收藏/更新操作
-          } finally {
-            // 恢复原始类型
-            aiSummaryType.value = originalType;
-          }
-        }
-      } catch (error) {
-        logger.error("获取全文总结时出错", error);
-        // 继续执行，不阻止收藏/更新操作
-      }
-    }
-
-    if (isBookmarked) {
-      // 更新功能
-      const { data, error: updateError } = await client
-        .from("News")
-        .update({
-          text: extractedData.value.text,
-          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
-          html: extractedData.value.html,
-          images: extractedData.value.images,
-          links: extractedData.value.links,
-          title: extractedData.value.title,
-          url: extractedData.value.url,
-          article: extractedData.value.article,
-          host: extractedData.value.host,
-          word_count: extractedData.value.wordCount,
-          ai_key_info: aiKeyInfo,
-          summarizer: summarizer,
-        })
-        .eq("url", extractedData.value.url)
-        .select();
-
-      if (updateError) {
-        logger.error("更新数据失败", updateError);
-        error("更新数据失败");
-      } else {
-        success("数据更新成功！");
-      }
-    } else {
-      // 收藏功能
-      const { data, error: insertError } = await client
-        .from("News")
-        .insert({
-          text: extractedData.value.text,
-          metadata: extractedData.value.meta ? JSON.stringify(extractedData.value.meta) : null,
-          html: extractedData.value.html,
-          images: extractedData.value.images,
-          links: extractedData.value.links,
-          title: extractedData.value.title,
-          url: extractedData.value.url,
-          article: extractedData.value.article,
-          host: extractedData.value.host,
-          word_count: extractedData.value.wordCount,
-          ai_key_info: aiKeyInfo,
-          summarizer: summarizer,
-        })
-        .select();
-
-      if (insertError) {
-        logger.error("收藏失败", insertError);
-        error("收藏失败");
-      } else {
-        success("收藏成功！");
-        // 更新本地状态
-        extractedData.value.isBookmarked = true;
-        
-        // 收藏成功后，将summarizer和ai_key_info数据保存到storage中
-        if (extractedData.value.url) {
-          logger.debug("收藏成功后，预加载summarizer和ai_key_info到storage");
-          await preloadDataToStorage(extractedData.value.url);
-        }
-      }
-    }
-  } catch (err) {
-    logger.error("收藏/更新操作出错", err);
-    error("操作失败，请重试");
-  } finally {
-    // 重置收藏/更新按钮状态
-    if (webInfoSectionRef.value) {
-      webInfoSectionRef.value.resetButtonStates();
-    }
-  }
+  // 收藏功能逻辑移至 WebInfoSection 组件内部
+  // 这里只提供事件转发
+  logger.debug("收藏操作事件转发", { isBookmarked });
 };
 
 const handleAddReference = async () => {
-  console.log("handleAddReference 被调用");
-  if (!extractedData.value.text) {
-    console.log("没有可引用的文本内容");
-    warning("没有可引用的文本内容，请先提取数据");
+  if (!dataStore.state.extractedData.text) {
+    uiStore.showToast("没有可引用的文本内容，请先提取数据", "warning");
     return;
   }
   
-  console.log("准备添加引用，extractedData:", extractedData.value);
-  
-  // 调用 useChat 中的添加引用方法，同时传递提取的数据
-  // addReferenceToChat 函数内部会检查重复引用并显示相应的提示信息
-  // 如果是重复引用，函数会提前返回，不会继续执行后续代码
-  const wasAdded = await addReferenceToChat(extractedData.value.text, extractedData.value);
-  
-  console.log("添加引用结果:", wasAdded);
-  
-  // 只有在成功添加引用后才显示成功消息
-  // 如果是重复引用，addReferenceToChat 内部已经显示了警告消息
-  if (wasAdded !== false) {
-    success("已添加网页内容到对话上下文");
-  }
+  // 引用添加逻辑移至 ChatPanel 组件内部
+  // 这里只提供事件转发
+  logger.debug("添加引用操作事件转发");
 };
 
-// 防抖函数已移至 utils/debounce.ts，这里直接导入使用
-
-// 记录上一次处理的URL，避免重复处理
-let lastProcessedUrl = "";
-let isProcessing = false;
-
 const clearPanelData = () => {
-  // 清空提取的数据
-  clearExtractedData();
+  dataStore.clearData();
 };
 
 const refreshDataForNewTab = async () => {
@@ -493,12 +210,11 @@ const refreshDataForNewTab = async () => {
   } else {
     logger.debug("页面已加载完成，立即提取数据");
     // 页面已加载完成，直接提取数据
-    // extractData函数内部会等待DOM完全加载
     await handleExtractData();
   }
   
   // 确保在数据提取完成后，将页面加载状态设置为 false
-  isPageLoading.value = false;
+  dataStore.setPageLoading(false);
 };
 
 // 等待标签页加载完成的函数
@@ -530,7 +246,7 @@ const waitForTabToLoad = (tabId: number) => {
 const { setupTabListeners, removeTabListeners } = useTabListeners(
   refreshDataForNewTab,
   async (url: string, source?: string) => {
-    // 这里提供一个空函数作为占位符
+    // AI总结的加载现在在 AISummaryPanel 组件内部处理
     return Promise.resolve();
   },
   clearPanelData
@@ -539,22 +255,16 @@ const { setupTabListeners, removeTabListeners } = useTabListeners(
 // 生命周期钩子
 onMounted(async () => {
   console.log("[DEBUG MODE:browser]", browser);
+  
   // 初始化主题
   initializeTheme();
 
   // 加载设置
-  loadSettings();
-
-
-  // 同步暗色模式按钮状态与当前主题
-  isDarkModeToggle.value = isDarkMode.value;
-
-  // 清理过期数据
-  cleanExpiredData();
+  settingsStore.loadSettings();
 
   // 设置标签页监听器，传递 DOM loading 状态变化的回调函数
   setupTabListeners((isLoading: boolean) => {
-    isPageLoading.value = isLoading;
+    dataStore.setPageLoading(isLoading);
     if (isLoading) {
       clearPanelData();
     }
@@ -562,16 +272,9 @@ onMounted(async () => {
 
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();
-
   
   // 确保在初始数据加载完成后，将页面加载状态设置为 false
-  isPageLoading.value = false;
-  
-  // 确保引用列表被加载
-  logger.debug("App.vue onMounted: 确保引用列表被加载");
-  // 由于 useChat 的 onMounted 已经调用了 loadReferenceList，这里不需要重复调用
-  // 但是我们可以添加一些调试日志来确认引用列表已经加载
-  logger.debug("当前引用列表数量:", referenceList.value.length);
+  dataStore.setPageLoading(false);
 });
 
 onUnmounted(() => {
@@ -580,40 +283,34 @@ onUnmounted(() => {
 });
 
 // 监听器
-
-// 监听标签页切换
-watch(currentTab, async (newTab, oldTab) => {
+watch(() => uiStore.state.currentTab, async (newTab, oldTab) => {
   logger.debug('标签页切换', { from: oldTab, to: newTab });
 
   // 当切换到聊天标签时，重新加载设置以确保获取最新的API密钥
   if (newTab === 'chat') {
-    loadSettings();
+    settingsStore.loadSettings();
     logger.debug('切换到聊天标签页，已重新加载设置');
   }
-
 });
 
 watch(isDarkMode, (newValue) => {
-  isDarkModeToggle.value = newValue;
+  uiStore.state.isDarkMode = newValue;
 });
 </script>
 
 <template>
   <div class="container">
     <!-- 标签页导航 -->
-    <TabNavigation :current-tab="currentTab" @tab-change="switchTab" />
+    <TabNavigation :current-tab="uiStore.state.currentTab" @tab-change="switchTab" />
 
     <!-- 网页标签页内容 -->
     <div
-      v-show="currentTab === 'results'"
+      v-show="uiStore.state.currentTab === 'results'"
       class="tab-content active"
     >
       <!-- 网页信息 -->
       <WebInfoSection
         ref="webInfoSectionRef"
-        :extracted-data="extractedData"
-        :is-checking-bookmark="isCheckingBookmark"
-        :is-page-loading="isPageLoading"
         @copy-all-data="handleCopyAllData"
         @refresh-data="handleExtractData"
         @export-data="handleExportData"
@@ -624,61 +321,41 @@ watch(isDarkMode, (newValue) => {
 
     <!-- AI标签页内容 -->
     <div
-      v-show="currentTab === 'ai'"
+      v-show="uiStore.state.currentTab === 'ai'"
       class="tab-content active"
     >
-      <AISummaryPanel :extracted-data="extractedData" />
+      <AISummaryPanel :extracted-data="dataStore.state.extractedData" />
     </div>
 
     <!-- 对话标签页内容 -->
     <div
-      v-show="currentTab === 'chat'"
+      v-show="uiStore.state.currentTab === 'chat'"
       class="tab-content active"
     >
       <ChatPanel
-        :is-chat-loading="isChatLoading"
-        :messages="messages"
-        :reference-info="referenceInfo"
-        :reference-list="referenceList"
-        :reference-text="referenceText"
-        :systemPrompt="systemPrompt"
-        :show-reference-modal="showReferenceModal"
-        :show-reference-list-modal="showReferenceListModal"
-        :selected-reference-index="selectedReferenceIndex"
-        :get-reference-preview="getReferencePreview"
-        :streaming-content="streamingContent"
-        :is-streaming="isStreaming"
-        @send-message="sendChatMessage"
-        @clear-chat="clearChatMessages"
-        @save-chat="saveChatMessages"
         @add-reference="handleAddReference"
-        @show-reference-list="showReferenceList"
-        @hide-reference-list="hideReferenceList"
-        @show-reference-detail="showReferenceDetail"
-        @hide-reference-detail="hideReferenceDetail"
-        @remove-reference="removeReference"
-        @abort-current-request="abortCurrentRequest"
       />
     </div>
 
     <!-- 设置标签页内容 -->
     <div
-      v-show="currentTab === 'settings'"
+      v-show="uiStore.state.currentTab === 'settings'"
       class="tab-content active"
     >
       <SettingsPanel
-        :settings="settings"
-        :is-dark-mode="isDarkModeToggle"
         @save-settings="handleSaveSettings"
         @clear-data="handleClearData"
         @toggle-dark-mode="handleToggleDarkMode"
-        @update:settings="(value) => Object.assign(settings, value)"
       />
     </div>
   </div>
 
   <!-- Toast通知容器 -->
-  <div id="toast-container" class="toast-container"></div>
+  <div v-if="uiStore.state.showToast" id="toast-container" class="toast-container">
+    <div class="toast" :class="`toast-${uiStore.state.toastType}`">
+      {{ uiStore.state.toastMessage }}
+    </div>
+  </div>
 
 </template>
 
