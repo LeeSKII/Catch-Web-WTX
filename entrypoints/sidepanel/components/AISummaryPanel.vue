@@ -27,8 +27,8 @@
           class="btn"
           :class="isGeneratingAISummary ? 'btn-warning' : 'btn-primary'"
           style="flex: 1"
-          @click="isGeneratingAISummary ? $emit('pause-ai-summary') : $emit('generate-ai-summary')"
-          :disabled="isLoadingAISummary && !isGeneratingAISummary || isExtracting"
+          @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
+          :disabled="isLoadingAISummary && !isGeneratingAISummary"
         >
           <span v-if="isGeneratingAISummary">暂停</span>
           <span v-else-if="isLoadingAISummary">生成中...</span>
@@ -41,10 +41,10 @@
       <div class="section-title">
         <span>AI总结结果</span>
         <div>
-          <button class="btn btn-secondary" @click="$emit('copy-summary')">
+          <button class="btn btn-secondary" @click="handleCopySummary">
             复制
           </button>
-          <button class="btn btn-warning" @click="$emit('clear-cache')">
+          <button class="btn btn-warning" @click="handleClearCache">
             清除缓存
           </button>
         </div>
@@ -100,7 +100,7 @@
       v-model:visible="showPromptModal"
       :current-prompt-type="aiSummaryType"
       :custom-prompts="customPrompts"
-      :default-prompts="defaultPrompts"
+      :default-prompts="getDefaultPrompts()"
       @save-prompts="handleSavePrompts"
     />
 
@@ -108,53 +108,125 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { marked } from 'marked';
+import { useAISummary } from '../composables/useAISummary';
+import { useToast } from '../composables/useToast';
+import { browser } from 'wxt/browser';
 import PromptEditModal from './PromptEditModal.vue';
+import type { ExtractedData } from '../types';
 
+// 定义 props
 const props = defineProps<{
-  aiSummaryContent: string;
-  aiSummaryStatus: string;
-  aiSummaryType: string;
-  isLoadingAISummary: boolean;
-  isExtracting: boolean;
-  isPageLoading: boolean;
-  isQueryingDatabase: boolean;
-  isGeneratingAISummary: boolean;
-  customPrompts: {
-    full: string;
-    keyinfo: string;
-  };
-  defaultPrompts: {
-    full: string;
-    keyinfo: string;
-  };
+  extractedData: ExtractedData;
 }>();
 
-const emit = defineEmits<{
-  'generate-ai-summary': [];
-  'pause-ai-summary': [];
-  'copy-summary': [];
-  'clear-cache': [];
-  'update:aiSummaryType': [value: string];
-  'save-prompts': [prompts: { full: string; keyinfo: string }];
-}>();
+// 使用 composables
+const {
+  isLoadingAISummary,
+  isQueryingDatabase,
+  aiSummaryContent,
+  aiSummaryStatus,
+  aiSummaryType,
+  customPrompts,
+  isGeneratingAISummary,
+  generateAISummary,
+  pauseAISummary,
+  clearAISummaryCache,
+  saveCustomPrompts,
+  getDefaultPrompts,
+  loadCustomPrompts,
+  loadAndDisplayAISummary
+} = useAISummary();
+
+const { success, error } = useToast();
 
 // 模态框显示状态
 const showPromptModal = ref(false);
 
-// 处理保存 prompts
-const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
-  emit('save-prompts', prompts);
+// 处理生成 AI 总结
+const handleGenerateAISummary = async () => {
+  const result = await generateAISummary(
+    props.extractedData.text || "",
+    props.extractedData
+  );
+
+  if (result) {
+    if (result.success) {
+      success("AI总结生成成功！");
+    } else {
+      error(result.message || "AI总结生成失败");
+    }
+  }
 };
 
-const aiSummaryType = computed({
-  get: () => props.aiSummaryType,
-  set: (value) => emit('update:aiSummaryType', value),
+// 处理暂停 AI 总结
+const handlePauseAISummary = async () => {
+  const result = await pauseAISummary();
+  
+  if (result) {
+    if (result.success) {
+      success("AI总结已暂停并保存");
+    } else {
+      error(result.message || "暂停AI总结失败");
+    }
+  }
+};
+
+// 处理复制总结
+const handleCopySummary = () => {
+  if (!aiSummaryContent.value) {
+    error("没有可复制的总结内容");
+    return;
+  }
+
+  navigator.clipboard
+    .writeText(aiSummaryContent.value)
+    .then(() => {
+      success("AI总结已复制到剪贴板！");
+    })
+    .catch((err) => {
+      console.error("复制失败", err);
+      error("复制失败，请重试");
+    });
+};
+
+// 处理清除缓存
+const handleClearCache = async () => {
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  if (tabs && tabs[0] && tabs[0].url) {
+    clearAISummaryCache(tabs[0].url, aiSummaryType.value);
+    success("缓存已清除");
+  }
+};
+
+// 处理保存 prompts
+const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
+  saveCustomPrompts(prompts);
+  success("Prompt 已保存！");
+};
+
+// 计算属性
+const parsedMarkdown = computed(() => {
+  return aiSummaryContent.value ? marked.parse(aiSummaryContent.value) : '';
 });
 
-const parsedMarkdown = computed(() => {
-  return props.aiSummaryContent ? marked.parse(props.aiSummaryContent) : '';
+// 生命周期钩子
+onMounted(() => {
+  // 加载自定义 prompts
+  loadCustomPrompts();
+  
+  // 初始加载当前页面的 AI 总结
+  const loadInitialSummary = async () => {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs && tabs[0] && tabs[0].url) {
+      loadAndDisplayAISummary(tabs[0].url, "组件初始化").catch((error) => {
+        console.error("初始加载AI总结失败", error);
+      });
+    }
+  };
+  
+  loadInitialSummary();
 });
 </script>
 

@@ -85,10 +85,7 @@ export function useTabListeners(
                 // 刷新数据
                 await refreshDataForNewTab();
                 
-                // 使用tab的实际URL来加载AI总结，而不是details.url
-                loadAndDisplayAISummary(tabs[0].url, 'webNavigation完成').catch((error) => {
-                  logger.error('webNavigation完成时加载AI总结失败', error);
-                });
+                // AI总结的加载现在在 AISummaryPanel 组件内部处理
               } catch (error) {
                 logger.error('webNavigation完成时处理数据出错', error);
               } finally {
@@ -143,10 +140,7 @@ export function useTabListeners(
                 // 刷新数据
                 await refreshDataForNewTab();
                 
-                // 使用tab的实际URL来加载AI总结，而不是details.url
-                loadAndDisplayAISummary(tabs[0].url, 'SPA路由变化').catch((error) => {
-                  logger.error('SPA路由变化时加载AI总结失败', error);
-                });
+                // AI总结的加载现在在 AISummaryPanel 组件内部处理
               } catch (error) {
                 logger.error('SPA路由变化时处理数据出错', error);
               } finally {
@@ -225,10 +219,7 @@ export function useTabListeners(
 
               try {
                 await refreshDataForNewTab();
-                // 异步加载AI总结，不阻塞页面显示
-                loadAndDisplayAISummary(currentTab.url, '新标签页创建').catch((error) => {
-                  logger.error('新标签页创建时加载AI总结失败', error);
-                });
+                // AI总结的加载现在在 AISummaryPanel 组件内部处理
               } catch (error) {
                 logger.error('新标签页创建时处理数据出错', error);
               } finally {
@@ -280,10 +271,7 @@ export function useTabListeners(
           try {
             // 当用户切换到不同的tab时，自动执行数据提取和AI总结加载
             await refreshDataForNewTab();
-            // 异步加载AI总结，不阻塞页面显示
-            loadAndDisplayAISummary(tab.url, 'Tab切换').catch((error) => {
-              logger.error('Tab切换时加载AI总结失败', error);
-            });
+            // AI总结的加载现在在 AISummaryPanel 组件内部处理
           } catch (error) {
             logger.error('Tab切换时处理数据出错', error);
           } finally {
@@ -338,10 +326,7 @@ export function useTabListeners(
             // 刷新数据
             await refreshDataForNewTab();
 
-            // 异步加载AI总结，不阻塞页面显示
-            loadAndDisplayAISummary(tab.url, 'URL更新').catch((error) => {
-              logger.error('URL更新时加载AI总结失败', error);
-            });
+            // AI总结的加载现在在 AISummaryPanel 组件内部处理
           } catch (error) {
             logger.error('URL更新时处理数据出错', error);
           } finally {

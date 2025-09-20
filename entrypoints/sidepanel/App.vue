@@ -50,25 +50,27 @@ const {
   clearExtractedData,
 } = useDataExtractor();
 const { checkBookmarkStatus, isCheckingBookmark } = useBookmark();
+// AISummaryPanel 现在直接在组件内部使用 useAISummary
+// 这里只保留需要在 App.vue 中使用的功能
 const {
-  isLoadingAISummary,
-  isQueryingDatabase,
-  aiSummaryContent,
-  aiSummaryStatus,
-  aiSummaryType,
-  customPrompts,
-  isGeneratingAISummary,
-  generateAISummary,
-  pauseAISummary,
-  loadAISummary,
   getNews,
-  loadAndDisplayAISummary,
-  clearAISummaryCache,
   preloadDataToStorage,
   switchSummaryType,
+  loadAISummary,
+  generateAISummary,
+  pauseAISummary,
+  loadAndDisplayAISummary,
+  clearAISummaryCache,
   saveCustomPrompts,
   loadCustomPrompts,
   getDefaultPrompts,
+  aiSummaryContent,
+  aiSummaryStatus,
+  aiSummaryType,
+  isLoadingAISummary,
+  isQueryingDatabase,
+  isGeneratingAISummary,
+  customPrompts,
 } = useAISummary();
 
 // 使用 AbortController
@@ -173,10 +175,7 @@ const handleExtractData = async () => {
         logger.error("异步检查收藏状态失败", error);
       });
       
-      // 异步加载并显示AI总结，不阻塞页面显示
-      loadAndDisplayAISummary(url, "数据提取").catch((error) => {
-        logger.error("异步加载AI总结失败", error);
-      });
+      // AI总结的加载现在在 AISummaryPanel 组件内部处理
     } else {
       error(extractResult.message || "数据提取失败");
     }
@@ -194,32 +193,6 @@ const handleExtractData = async () => {
   }
 };
 
-const handleGenerateAISummary = async () => {
-  const result = await generateAISummary(
-    extractedData.value.text || "",
-    extractedData.value
-  );
-
-  if (result) {
-    if (result.success) {
-      success("AI总结生成成功！");
-    } else {
-      error(result.message || "AI总结生成失败");
-    }
-  }
-};
-
-const handlePauseAISummary = async () => {
-  const result = await pauseAISummary();
-  
-  if (result) {
-    if (result.success) {
-      success("AI总结已暂停并保存");
-    } else {
-      error(result.message || "暂停AI总结失败");
-    }
-  }
-};
 
 const handleCopyAllData = () => {
   const text = JSON.stringify(extractedData.value, null, 2);
@@ -228,23 +201,6 @@ const handleCopyAllData = () => {
     .writeText(text)
     .then(() => {
       success("数据已复制到剪贴板！");
-    })
-    .catch((err) => {
-      logger.error("复制失败", err);
-      error("复制失败，请重试");
-    });
-};
-
-const handleCopySummary = () => {
-  if (!aiSummaryContent.value) {
-    warning("没有可复制的总结内容");
-    return;
-  }
-
-  navigator.clipboard
-    .writeText(aiSummaryContent.value)
-    .then(() => {
-      success("AI总结已复制到剪贴板！");
     })
     .catch((err) => {
       logger.error("复制失败", err);
@@ -294,22 +250,6 @@ const handleClearData = () => {
     success("数据已清除");
   }
 };
-
-const handleClearCache = async () => {
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  if (tabs && tabs[0] && tabs[0].url) {
-    clearAISummaryCache(tabs[0].url, aiSummaryType.value);
-    aiSummaryContent.value = "";
-    aiSummaryStatus.value = "";
-    success("缓存已清除");
-  }
-};
-
-const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
-  saveCustomPrompts(prompts);
-  success("Prompt 已保存！");
-};
-
 
 const handleDownloadAllImages = () => {
   if (!extractedData.value.images || extractedData.value.images.length === 0) {
@@ -535,10 +475,6 @@ let isProcessing = false;
 const clearPanelData = () => {
   // 清空提取的数据
   clearExtractedData();
-
-  // 清空AI总结区域
-  aiSummaryContent.value = "";
-  aiSummaryStatus.value = "";
 };
 
 const refreshDataForNewTab = async () => {
@@ -619,8 +555,7 @@ onMounted(async () => {
   // 加载设置
   loadSettings();
 
-  // 加载自定义 prompts
-  loadCustomPrompts();
+  // 自定义 prompts 现在在 AISummaryPanel 组件内部加载
 
   // 同步暗色模式按钮状态与当前主题
   isDarkModeToggle.value = isDarkMode.value;
@@ -639,14 +574,7 @@ onMounted(async () => {
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();
 
-  // 加载当前页面的AI总结
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  if (tabs && tabs[0] && tabs[0].url) {
-    // 异步加载AI总结，不阻塞页面显示
-    loadAndDisplayAISummary(tabs[0].url, "初始加载").catch((error) => {
-      logger.error("初始加载AI总结失败", error);
-    });
-  }
+  // AI总结的初始加载现在在 AISummaryPanel 组件内部处理
   
   // 确保在初始数据加载完成后，将页面加载状态设置为 false
   isPageLoading.value = false;
@@ -677,10 +605,7 @@ watch(aiSummaryType, async () => {
       // 如果storage中没有数据，则使用原来的loadAndDisplayAISummary函数（会查询数据库）
       if (!result.success) {
         logger.debug("storage中没有找到数据，尝试从数据库加载");
-        // 异步加载AI总结，不阻塞页面显示
-        loadAndDisplayAISummary(url, "总结类型切换").catch((error) => {
-          logger.error("总结类型切换时加载AI总结失败", error);
-        });
+        // AI总结的加载现在在 AISummaryPanel 组件内部处理
       }
     } else {
       // 如果页面未收藏，直接使用switchSummaryType函数，不查询数据库
@@ -708,11 +633,7 @@ watch(currentTab, async (newTab, oldTab) => {
     if (url) {
       logger.debug('切换到AI标签页，开始加载AI总结', { url });
 
-      // 调用loadAndDisplayAISummary加载AI总结
-      // 异步加载AI总结，不阻塞页面显示
-      loadAndDisplayAISummary(url, '标签切换').catch((error) => {
-        logger.error('标签切换时加载AI总结失败', error);
-      });
+      // AI总结的加载现在在 AISummaryPanel 组件内部处理
     } else {
       // 如果没有已提取的URL，则调用browser.tabs.query获取当前tab的URL
       logger.debug('没有已提取的URL，调用browser.tabs.query获取URL');
@@ -721,11 +642,7 @@ watch(currentTab, async (newTab, oldTab) => {
           const currentUrl = tabs[0].url;
           logger.debug('切换到AI标签页，开始加载AI总结', { url: currentUrl });
 
-          // 调用loadAndDisplayAISummary加载AI总结
-          // 异步加载AI总结，不阻塞页面显示
-          loadAndDisplayAISummary(currentUrl, '标签切换').catch((error) => {
-            logger.error('标签切换时加载AI总结失败', error);
-          });
+          // AI总结的加载现在在 AISummaryPanel 组件内部处理
         }
       }).catch((error) => {
         logger.error('获取当前tab URL时出错', error);
@@ -768,24 +685,7 @@ watch(isDarkMode, (newValue) => {
       v-show="currentTab === 'ai'"
       class="tab-content active"
     >
-      <AISummaryPanel
-        :ai-summary-content="aiSummaryContent"
-        :ai-summary-status="aiSummaryStatus"
-        :ai-summary-type="aiSummaryType"
-        :isLoadingAISummary="isLoadingAISummary"
-        :isExtracting="isExtracting"
-        :isPageLoading="isPageLoading"
-        :isQueryingDatabase="isQueryingDatabase"
-        :isGeneratingAISummary="isGeneratingAISummary"
-        :custom-prompts="customPrompts"
-        :default-prompts="getDefaultPrompts()"
-        @generate-ai-summary="handleGenerateAISummary"
-        @pause-ai-summary="handlePauseAISummary"
-        @copy-summary="handleCopySummary"
-        @clear-cache="handleClearCache"
-        @update:aiSummaryType="(value) => (aiSummaryType = value)"
-        @save-prompts="handleSavePrompts"
-      />
+      <AISummaryPanel :extracted-data="extractedData" />
     </div>
 
     <!-- 对话标签页内容 -->
