@@ -188,13 +188,16 @@ watch(() => settingsStore.state.settings.darkMode, (newIsDarkMode) => {
   isDarkModeToggle.value = newIsDarkMode;
 });
 
-// 监听本地设置变化，更新store
-watch(localSettings, (newSettings) => {
-  settingsStore.updateSettings({ ...newSettings });
-}, { deep: true });
+// 移除自动保存监听器，改为手动保存
+// watch(localSettings, (newSettings) => {
+//   settingsStore.updateSettings({ ...newSettings });
+// }, { deep: true });
 
 // 组件内部方法
 const handleSaveSettings = () => {
+  // 先更新store中的设置
+  settingsStore.updateSettings({ ...localSettings.value });
+  // 然后保存到localStorage
   settingsStore.saveSettings();
   uiStore.showToast("设置已保存", "success");
 };

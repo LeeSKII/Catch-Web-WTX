@@ -21,39 +21,77 @@ export function useSettings() {
   });
 
   const loadSettings = () => {
-    settings.showPreviews = localStorage.getItem('showPreviews') !== 'false';
-    settings.darkMode = localStorage.getItem('darkMode') === 'true';
-    settings.dataRetention = localStorage.getItem('dataRetention') || '7';
-    settings.extractHtml = localStorage.getItem('extractHtml') !== 'false';
-    settings.extractText = localStorage.getItem('extractText') !== 'false';
-    settings.extractImages = localStorage.getItem('extractImages') !== 'false';
-    settings.extractLinks = localStorage.getItem('extractLinks') !== 'false';
-    settings.extractMeta = localStorage.getItem('extractMeta') !== 'false';
-    settings.extractStyles = localStorage.getItem('extractStyles') === 'true';
-    settings.extractScripts = localStorage.getItem('extractScripts') === 'true';
-    settings.extractArticle = localStorage.getItem('extractArticle') !== 'false';
-    settings.openaiApiKey = localStorage.getItem('openaiApiKey') || '';
-    settings.openaiBaseUrl = localStorage.getItem('openaiBaseUrl') || API_CONFIG.DEFAULT_BASE_URL;
-    settings.aiModel = localStorage.getItem('aiModel') || API_CONFIG.DEFAULT_MODEL;
+    // 优先从appSettings加载
+    const savedSettings = localStorage.getItem('appSettings');
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings) as Partial<Settings>;
+        // 更新所有设置
+        if (parsed.showPreviews !== undefined) settings.showPreviews = parsed.showPreviews;
+        if (parsed.darkMode !== undefined) settings.darkMode = parsed.darkMode;
+        if (parsed.dataRetention !== undefined) settings.dataRetention = parsed.dataRetention;
+        if (parsed.extractHtml !== undefined) settings.extractHtml = parsed.extractHtml;
+        if (parsed.extractText !== undefined) settings.extractText = parsed.extractText;
+        if (parsed.extractImages !== undefined) settings.extractImages = parsed.extractImages;
+        if (parsed.extractLinks !== undefined) settings.extractLinks = parsed.extractLinks;
+        if (parsed.extractMeta !== undefined) settings.extractMeta = parsed.extractMeta;
+        if (parsed.extractStyles !== undefined) settings.extractStyles = parsed.extractStyles;
+        if (parsed.extractScripts !== undefined) settings.extractScripts = parsed.extractScripts;
+        if (parsed.extractArticle !== undefined) settings.extractArticle = parsed.extractArticle;
+        if (parsed.openaiApiKey !== undefined) settings.openaiApiKey = parsed.openaiApiKey;
+        if (parsed.openaiBaseUrl !== undefined) settings.openaiBaseUrl = parsed.openaiBaseUrl;
+        if (parsed.aiModel !== undefined) settings.aiModel = parsed.aiModel;
+      } catch (error) {
+        console.error('解析设置失败，使用默认设置:', error);
+      }
+    }
+    
+    // 特别处理API相关设置，确保从单独的localStorage项中读取（如果存在）
+    const separateApiKey = localStorage.getItem('openaiApiKey');
+    if (separateApiKey !== null) {
+      settings.openaiApiKey = separateApiKey;
+    }
+    
+    const separateBaseUrl = localStorage.getItem('openaiBaseUrl');
+    if (separateBaseUrl !== null) {
+      settings.openaiBaseUrl = separateBaseUrl;
+    } else if (!settings.openaiBaseUrl) {
+      settings.openaiBaseUrl = API_CONFIG.DEFAULT_BASE_URL;
+    }
+    
+    const separateModel = localStorage.getItem('aiModel');
+    if (separateModel !== null) {
+      settings.aiModel = separateModel;
+    } else if (!settings.aiModel) {
+      settings.aiModel = API_CONFIG.DEFAULT_MODEL;
+    }
   };
 
   const saveSettings = () => {
-    localStorage.setItem('showPreviews', settings.showPreviews.toString());
-    localStorage.setItem('darkMode', settings.darkMode.toString());
-    localStorage.setItem('dataRetention', settings.dataRetention);
-    localStorage.setItem('extractHtml', settings.extractHtml.toString());
-    localStorage.setItem('extractText', settings.extractText.toString());
-    localStorage.setItem('extractImages', settings.extractImages.toString());
-    localStorage.setItem('extractLinks', settings.extractLinks.toString());
-    localStorage.setItem('extractMeta', settings.extractMeta.toString());
-    localStorage.setItem('extractStyles', settings.extractStyles.toString());
-    localStorage.setItem('extractScripts', settings.extractScripts.toString());
-    localStorage.setItem('extractArticle', settings.extractArticle.toString());
+    // 保存所有设置到appSettings对象中
+    const settingsToSave = {
+      showPreviews: settings.showPreviews,
+      darkMode: settings.darkMode,
+      dataRetention: settings.dataRetention,
+      extractHtml: settings.extractHtml,
+      extractText: settings.extractText,
+      extractImages: settings.extractImages,
+      extractLinks: settings.extractLinks,
+      extractMeta: settings.extractMeta,
+      extractStyles: settings.extractStyles,
+      extractScripts: settings.extractScripts,
+      extractArticle: settings.extractArticle,
+      openaiApiKey: String(settings.openaiApiKey || '').trim(),
+      openaiBaseUrl: String(settings.openaiBaseUrl || '').trim(),
+      aiModel: String(settings.aiModel || '').trim()
+    };
     
-    // 对于API密钥，即使为空也要保存，以确保能正确清除旧值
-    localStorage.setItem('openaiApiKey', settings.openaiApiKey.trim());
-    localStorage.setItem('openaiBaseUrl', settings.openaiBaseUrl.trim());
-    localStorage.setItem('aiModel', settings.aiModel.trim());
+    localStorage.setItem('appSettings', JSON.stringify(settingsToSave));
+    
+    // 同时为了兼容性，也单独保存关键设置
+    localStorage.setItem('openaiApiKey', settingsToSave.openaiApiKey);
+    localStorage.setItem('openaiBaseUrl', settingsToSave.openaiBaseUrl);
+    localStorage.setItem('aiModel', settingsToSave.aiModel);
   };
 
   const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
@@ -77,11 +115,20 @@ export function useSettings() {
     settings.openaiBaseUrl = API_CONFIG.DEFAULT_BASE_URL;
     settings.aiModel = API_CONFIG.DEFAULT_MODEL;
     
+    // 清除单独存储的API密钥
+    localStorage.removeItem('openaiApiKey');
+    localStorage.removeItem('openaiBaseUrl');
+    localStorage.removeItem('aiModel');
+    
     saveSettings();
   };
 
   const clearData = () => {
     localStorage.removeItem('extractedData');
+    localStorage.removeItem('appSettings');
+    localStorage.removeItem('openaiApiKey');
+    localStorage.removeItem('openaiBaseUrl');
+    localStorage.removeItem('aiModel');
     
     // 清理AI总结数据
     const keysToRemove: string[] = [];
