@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { marked } from 'marked';
 import { useAISummary } from '../composables/useAISummary';
 import { useToast } from '../composables/useToast';
@@ -136,7 +136,8 @@ const {
   saveCustomPrompts,
   getDefaultPrompts,
   loadCustomPrompts,
-  loadAndDisplayAISummary
+  loadAndDisplayAISummary,
+  switchSummaryType
 } = useAISummary();
 
 const { success, error } = useToast();
@@ -209,6 +210,18 @@ const handleSavePrompts = (prompts: { full: string; keyinfo: string }) => {
 // 计算属性
 const parsedMarkdown = computed(() => {
   return aiSummaryContent.value ? marked.parse(aiSummaryContent.value) : '';
+});
+
+// 监听 aiSummaryType 的变化
+watch(aiSummaryType, async (newType, oldType) => {
+  if (newType !== oldType) {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs && tabs[0] && tabs[0].url) {
+      switchSummaryType(tabs[0].url, newType).catch((error) => {
+        console.error("切换总结类型失败", error);
+      });
+    }
+  }
 });
 
 // 生命周期钩子
