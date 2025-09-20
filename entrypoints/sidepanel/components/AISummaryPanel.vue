@@ -202,7 +202,11 @@ const handleCopySummary = () => {
 const handleClearCache = async () => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   if (tabs && tabs[0] && tabs[0].url) {
+    // 清除缓存
     clearAISummaryCache(tabs[0].url, aiSummaryType.value);
+    // 立即清空显示内容
+    aiSummaryContent.value = "";
+    aiSummaryStatus.value = "";
     uiStore.showToast("缓存已清除", "success");
   }
 };
