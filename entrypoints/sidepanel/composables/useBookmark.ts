@@ -1,5 +1,7 @@
 import { ref } from 'vue';
+import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
+import { getSupabaseClient } from './useSupabase';
 
 // 创建日志器
 const logger = createLogger('Bookmark');
@@ -8,22 +10,38 @@ export function useBookmark() {
   // bookmark 请求状态
   const isCheckingBookmark = ref(false);
 
-  // 查询URL是否在storage中有缓存的AI总结数据
+  // 查询URL是否在数据库中有记录
   const checkBookmarkStatus = async (url: string): Promise<boolean> => {
     isCheckingBookmark.value = true;
 
     try {
-      // 检查storage中是否有该URL的AI总结数据
-      const fullSummary = localStorage.getItem(`aiSummary_${url}_full`);
-      const keyInfoSummary = localStorage.getItem(`aiSummary_${url}_keyinfo`);
+      // 获取Supabase客户端
+      const client = getSupabaseClient();
+      
+      // 从数据库中查询该URL是否存在
+      const { data, error } = await client
+        .from('News')
+        .select('url')
+        .eq('url', url)
+        .single();
 
-      // 如果有任何一种类型的总结数据，则认为已收藏
-      if (fullSummary || keyInfoSummary) {
-        logger.debug("在storage中找到缓存的AI总结数据", { url });
+      if (error) {
+        // 如果查询出错且错误类型是'PGRST116'（表示未找到记录），则返回false
+        if (error.code === 'PGRST116') {
+          logger.debug("数据库中未找到该URL记录", { url });
+          return false;
+        }
+        // 其他错误则抛出异常
+        throw error;
+      }
+
+      // 如果查询到数据，说明已收藏
+      if (data) {
+        logger.debug("数据库中找到该URL记录", { url });
         return true;
       }
 
-      logger.debug("在storage中未找到缓存的AI总结数据", { url });
+      logger.debug("数据库中未找到该URL记录", { url });
       return false;
     } catch (error) {
       logger.error("checkBookmarkStatus() 异常", error);
