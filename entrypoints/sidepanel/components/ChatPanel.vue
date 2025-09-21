@@ -149,7 +149,7 @@ const {
   hideReferenceList,
   showReferenceDetail,
   hideReferenceDetail,
-  removeReference
+  removeReference,
 } = useChat();
 
 // 组件内部状态
@@ -684,10 +684,10 @@ watch(
   () => referenceList.value,
   (newVal, oldVal) => {
     logger.debug(
-      "ChatPanel: 引用列表发生变化，新数量:",
-      newVal.length,
-      "旧数量:",
-      oldVal?.length
+      "ChatPanel: 引用列表发生变化，新数量:" +
+        newVal.length +
+        ", 旧数量:" +
+        (oldVal?.length || 0)
     );
 
     // 更新引用状态
@@ -710,7 +710,10 @@ onMounted(async () => {
   scrollToBottom();
 
   // 添加调试日志
-  logger.debug("ChatPanel onMounted: 引用列表数量:", referenceList.value.length);
+  logger.debug(
+    "ChatPanel onMounted: 引用列表数量:",
+    referenceList.value.length
+  );
 
   // 初始化引用状态和标题
   hasReferences.value = referenceList.value.length > 0;
@@ -774,16 +777,19 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-color);
   background: var(--section-content-bg);
   flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .chat-header h3 {
   margin: 0;
   color: var(--section-title-color);
   font-size: 16px;
+  font-weight: 600;
 }
 
 .chat-actions {
   display: flex;
+  flex-direction: row;
   gap: 8px;
 }
 
@@ -795,6 +801,30 @@ onUnmounted(() => {
   background: var(--section-content-bg);
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--scrollbar-track);
+}
+
+/* Webkit 浏览器滚动条样式 */
+.chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color-hover);
 }
 
 .empty-chat {
@@ -804,15 +834,43 @@ onUnmounted(() => {
   justify-content: center;
   height: 200px;
   color: var(--markdown-text-light);
+  background: var(--section-bg);
+  border-radius: var(--border-radius);
+  margin: 20px 0;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.empty-chat:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .empty-chat-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  animation: pulse 2s infinite;
 }
 
 .empty-chat-text {
   font-size: 16px;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
 }
 
 .chat-input {
@@ -823,6 +881,7 @@ onUnmounted(() => {
   position: sticky;
   bottom: 0;
   z-index: 10;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .input-container {
@@ -832,7 +891,7 @@ onUnmounted(() => {
 
 textarea {
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   resize: none;
@@ -845,6 +904,8 @@ textarea {
   line-height: 1.5;
   height: auto;
   overflow-y: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* 当内容超过最大高度时显示滚动条 */
@@ -855,6 +916,26 @@ textarea.overflowing {
 textarea:focus {
   outline: none;
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* 自定义 textarea 滚动条样式 */
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color-hover);
 }
 
 /* 确保按钮样式正确应用 */
@@ -868,6 +949,8 @@ textarea:focus {
   align-items: center;
   gap: 5px;
   margin: 2px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .chat-actions .btn-primary {
@@ -883,6 +966,7 @@ textarea:focus {
 .chat-actions .btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .chat-actions .btn:disabled,
@@ -891,12 +975,14 @@ textarea:focus {
   color: #666666;
   cursor: not-allowed;
   opacity: 0.6;
+  box-shadow: none;
 }
 
 .chat-actions .btn:disabled:hover,
 .chat-actions .btn-disabled:hover {
   opacity: 0.6;
   transform: none;
+  box-shadow: none;
 }
 
 /* 发送按钮使用全局 btn 样式，这里只需要添加特定布局调整 */
@@ -910,12 +996,10 @@ textarea:focus {
   font-size: 12px;
   color: var(--markdown-text-light);
   text-align: right;
+  transition: color 0.3s ease;
 }
 
-/* 响应式设计 */
-@media (max-width: 600px) {
-  .chat-panel {
-    height: 100%;
-  }
+.input-info:hover {
+  color: var(--primary-color);
 }
 </style>
