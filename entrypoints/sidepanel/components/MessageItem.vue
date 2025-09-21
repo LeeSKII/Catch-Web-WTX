@@ -173,8 +173,8 @@ const adjustTextareaHeight = () => {
 
 // 处理键盘事件
 const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === "Enter" && event.ctrlKey) {
-    // Ctrl+Enter 保存
+  if (event.key === "Enter" && !event.shiftKey) {
+    // Enter 保存并发送消息
     event.preventDefault();
     saveEdit();
   } else if (event.key === "Escape") {
@@ -471,9 +471,9 @@ const formatTime = (timestamp: Date): string => {
   position: absolute;
   bottom: -5px;
   right: -5px;
-  background: var(--primary-color);
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
   color: white;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -481,11 +481,11 @@ const formatTime = (timestamp: Date): string => {
   cursor: pointer;
   opacity: 0;
   transform: scale(0.8);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
   z-index: 10;
 }
 
@@ -495,13 +495,37 @@ const formatTime = (timestamp: Date): string => {
 }
 
 .edit-btn:hover {
-  background: var(--primary-color-hover);
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #ff5252, #ff3838);
+  transform: scale(1.15) rotate(90deg);
+  box-shadow: 0 6px 16px rgba(255, 71, 87, 0.6);
+  border-color: rgba(255, 255, 255, 1);
 }
 
 .edit-btn:active {
-  transform: scale(0.95);
+  transform: scale(1.05) rotate(90deg);
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+/* 编辑按钮发光效果 */
+.edit-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
+  opacity: 0;
+  z-index: -1;
+  transition: all 0.3s ease;
+  transform: scale(1);
+}
+
+.edit-btn:hover::before {
+  opacity: 0.3;
+  transform: scale(1.3);
+  filter: blur(4px);
 }
 
 /* 编辑模式容器 */
