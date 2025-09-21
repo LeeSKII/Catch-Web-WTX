@@ -51,11 +51,21 @@
       
       <!-- 正常显示模式 -->
       <template v-else>
-        <div
-          class="message-text"
-          v-if="message.role === 'user'"
-          v-html="formatMessage(message.content)"
-        ></div>
+        <div class="message-text-wrapper" v-if="message.role === 'user'">
+          <div
+            class="message-text"
+            v-html="formatMessage(message.content)"
+          ></div>
+          <!-- 编辑按钮 - 仅在用户消息且hover时显示 -->
+          <button
+            v-if="isHovered && !isStreaming"
+            class="edit-btn"
+            @click="startEdit"
+            title="编辑消息"
+          >
+            ✏️
+          </button>
+        </div>
         <div
           v-else-if="message.role === 'assistant'"
           class="message-text"
@@ -71,15 +81,6 @@
         </div>
         <div class="message-time">{{ formatTime(message.timestamp) }}</div>
         
-        <!-- 编辑按钮 - 仅在用户消息且hover时显示 -->
-        <button
-          v-if="message.role === 'user' && isHovered && !isStreaming"
-          class="edit-btn"
-          @click="startEdit"
-          title="编辑消息"
-        >
-          ✏️
-        </button>
       </template>
     </div>
   </div>
@@ -284,6 +285,11 @@ const formatTime = (timestamp: Date): string => {
   border: 1px solid #718096;
 }
 
+.message.user .message-text-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .message.user .message-text {
   border-radius: 4px 16px 16px 16px;
   text-align: left;
@@ -464,8 +470,8 @@ const formatTime = (timestamp: Date): string => {
 /* 编辑按钮样式 */
 .edit-btn {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
+  bottom: -5px;
+  right: -5px;
   background: var(--primary-color);
   color: white;
   border: none;
@@ -581,8 +587,4 @@ const formatTime = (timestamp: Date): string => {
   box-shadow: none;
 }
 
-/* 用户消息内容区域相对定位，用于编辑按钮的绝对定位 */
-.message.user .message-content {
-  position: relative;
-}
 </style>
