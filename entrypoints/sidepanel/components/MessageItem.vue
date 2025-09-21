@@ -22,36 +22,36 @@
     </div>
     <div class="message-content">
       <!-- 编辑模式 -->
-      <div v-if="isEditing" class="message-editor-container">
-        <textarea
-          v-model="editContent"
-          class="message-edit-textarea"
-          :rows="textareaRows"
-          @input="adjustTextareaHeight"
-          @keydown="handleKeyDown"
-          ref="editTextarea"
-          placeholder="编辑消息..."
-        ></textarea>
-        <div class="edit-actions">
-          <button
-            class="btn btn-save"
-            @click="saveEdit"
-            :disabled="!editContent.trim()"
-          >
-            保存
-          </button>
-          <button
-            class="btn btn-cancel"
-            @click="cancelEdit"
-          >
-            取消
-          </button>
+      <transition name="fade-slide" mode="out-in">
+        <div v-if="isEditing" key="edit" class="message-editor-container">
+          <textarea
+            v-model="editContent"
+            class="message-edit-textarea"
+            :rows="textareaRows"
+            @input="adjustTextareaHeight"
+            @keydown="handleKeyDown"
+            ref="editTextarea"
+            placeholder="编辑消息..."
+          ></textarea>
+          <div class="edit-actions">
+            <button
+              class="btn btn-save"
+              @click="saveEdit"
+              :disabled="!editContent.trim()"
+            >
+              保存
+            </button>
+            <button
+              class="btn btn-cancel"
+              @click="cancelEdit"
+            >
+              取消
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <!-- 正常显示模式 -->
-      <template v-else>
-        <div class="message-text-wrapper" v-if="message.role === 'user'">
+        
+        <!-- 正常显示模式 -->
+        <div v-else-if="message.role === 'user'" key="display" class="message-text-wrapper">
           <div
             class="message-text"
             v-html="formatMessage(message.content)"
@@ -66,8 +66,9 @@
             ✏️
           </button>
         </div>
+      </transition>
         <div
-          v-else-if="message.role === 'assistant'"
+          v-if="message.role === 'assistant'"
           class="message-text"
           v-html="parseMarkdown(message.content)"
         ></div>
@@ -80,8 +81,6 @@
           <span></span>
         </div>
         <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-        
-      </template>
     </div>
   </div>
 </template>
@@ -587,4 +586,22 @@ const formatTime = (timestamp: Date): string => {
   box-shadow: none;
 }
 
+/* Vue过渡动画 - 原地淡入淡出 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+}
+
+.fade-slide-enter-to,
+.fade-slide-leave-from {
+  opacity: 1;
+}
 </style>
