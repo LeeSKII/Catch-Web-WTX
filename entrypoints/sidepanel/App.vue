@@ -75,22 +75,6 @@ const handleExtractData = async () => {
 
 
 
-const handleBookmarkAction = async (isBookmarked: boolean) => {
-  // 收藏功能逻辑移至 WebInfoSection 组件内部
-  // 这里只提供事件转发
-  logger.debug("收藏操作事件转发", { isBookmarked });
-};
-
-const handleAddReference = async () => {
-  if (!dataStore.state.extractedData.text) {
-    uiStore.showToast("没有可引用的文本内容，请先提取数据", "warning");
-    return;
-  }
-  
-  // 引用添加逻辑移至 ChatPanel 组件内部
-  // 这里只提供事件转发
-  logger.debug("添加引用操作事件转发");
-};
 
 const clearPanelData = () => {
   dataStore.clearData();
@@ -227,7 +211,6 @@ watch(isDarkMode, (newValue) => {
       <WebInfoSection
         ref="webInfoSectionRef"
         @refresh-data="handleExtractData"
-        @bookmark-action="handleBookmarkAction"
       />
     </div>
 
@@ -244,9 +227,7 @@ watch(isDarkMode, (newValue) => {
       v-show="uiStore.state.currentTab === 'chat'"
       class="tab-content active"
     >
-      <ChatPanel
-        @add-reference="handleAddReference"
-      />
+      <ChatPanel />
     </div>
 
     <!-- 设置标签页内容 -->
