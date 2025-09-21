@@ -69,7 +69,7 @@
           <input
             type="checkbox"
             v-model="isDarkModeToggle"
-            @change="$emit('toggle-dark-mode')"
+            @change="handleToggleDarkMode"
           />
           <span class="slider"></span>
         </label>
@@ -166,6 +166,7 @@ import { ref, watch, computed } from 'vue';
 import type { Settings } from '../types';
 import { API_CONFIG } from '../constants';
 import { useStores } from '../stores';
+import { useTheme } from '../composables/useTheme';
 import { createLogger } from '../utils/logger';
 
 // 创建日志器
@@ -173,6 +174,9 @@ const logger = createLogger("SettingsPanel");
 
 // 使用全局状态管理
 const { settingsStore, uiStore, dataStore } = useStores();
+
+// 使用主题 composable
+const { toggle, isDarkMode } = useTheme();
 
 // 本地设置副本，避免直接修改store
 const localSettings = ref<Settings>({ ...settingsStore.state.settings });
@@ -186,6 +190,12 @@ watch(() => settingsStore.state.settings, (newSettings) => {
 // 监听store.settings.darkMode变化，更新本地副本
 watch(() => settingsStore.state.settings.darkMode, (newIsDarkMode) => {
   isDarkModeToggle.value = newIsDarkMode;
+});
+
+// 监听 useTheme 的 isDarkMode 变化，同步到本地状态
+watch(isDarkMode, (newIsDarkMode) => {
+  isDarkModeToggle.value = newIsDarkMode;
+  settingsStore.updateSettings({ darkMode: newIsDarkMode });
 });
 
 // 移除自动保存监听器，改为手动保存
@@ -210,9 +220,12 @@ const handleClearData = () => {
 };
 
 const handleToggleDarkMode = () => {
-  // 切换darkMode设置
+  // 调用 useTheme 的 toggle 方法来实际切换主题
+  toggle();
+  // 更新 UI Store 中的状态
+  uiStore.toggleDarkMode();
+  // 显示提示信息
   const newDarkMode = !settingsStore.state.settings.darkMode;
-  settingsStore.updateSettings({ darkMode: newDarkMode });
   uiStore.showToast("已切换" + (newDarkMode ? "暗色" : "亮色") + "模式", "success");
 };
 </script>

@@ -22,7 +22,7 @@ const logger = createLogger("App");
 const { dataStore, uiStore, settingsStore } = useStores();
 
 // 使用 Composables
-const { isDarkMode, toggle, initialize: initializeTheme } = useTheme();
+const { isDarkMode, initialize: initializeTheme } = useTheme();
 const { extractData } = useDataExtractor();
 
 // 响应式数据
@@ -73,10 +73,6 @@ const handleExtractData = async () => {
 };
 
 
-const handleToggleDarkMode = () => {
-  toggle();
-  uiStore.toggleDarkMode();
-};
 
 const handleSaveSettings = () => {
   settingsStore.saveSettings();
@@ -264,7 +260,6 @@ watch(isDarkMode, (newValue) => {
     >
       <SettingsPanel
         @save-settings="handleSaveSettings"
-        @toggle-dark-mode="handleToggleDarkMode"
       />
     </div>
   </div>
