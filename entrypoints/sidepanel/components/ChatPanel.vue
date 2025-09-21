@@ -5,14 +5,14 @@
         <button
           class="btn btn-primary"
           @click="addReference"
-          :disabled="isChatLoading"
+          :disabled="isChatLoading || isEditing"
         >
           添加引用
         </button>
         <button
           class="btn btn-secondary"
           @click="showReferenceList"
-          :disabled="isChatLoading || referenceList.length === 0"
+          :disabled="isChatLoading || isEditing || referenceList.length === 0"
         >
           查看引用
         </button>
@@ -20,7 +20,7 @@
           class="btn btn-secondary"
           :class="{ 'btn-disabled': filteredMessages.length === 0 }"
           @click="clearChat"
-          :disabled="isChatLoading || filteredMessages.length === 0"
+          :disabled="isChatLoading || isEditing || filteredMessages.length === 0"
         >
           清空对话
         </button>
@@ -28,7 +28,7 @@
           class="btn btn-primary"
           :class="{ 'btn-disabled': filteredMessages.length === 0 }"
           @click="saveChat"
-          :disabled="isChatLoading || filteredMessages.length === 0"
+          :disabled="isChatLoading || isEditing || filteredMessages.length === 0"
         >
           保存对话
         </button>
@@ -44,10 +44,11 @@
     >
       <MessageItem
         v-for="(message, index) in filteredMessages"
-        :key="index"
+        :key="message.id || index"
         :message="message"
         :is-streaming="message.isStreaming"
         @stop-streaming="stopStreaming"
+        @edit-message="handleEditMessage"
       />
 
       <div v-if="messages.length === 0 && !isChatLoading" class="empty-chat">
@@ -60,16 +61,16 @@
       <div class="input-container">
         <textarea
           v-model="userInput"
-          placeholder="输入您的问题..."
+          :placeholder="isEditing ? '正在编辑消息，请稍候...' : '输入您的问题...'"
           @keydown="handleKeyDown"
           @input="adjustTextareaHeight"
-          :disabled="isChatLoading"
+          :disabled="isChatLoading || isEditing"
           :rows="textareaRows"
           ref="inputTextarea"
         ></textarea>
       </div>
       <div class="input-info">
-        <span>按 Enter 发送，Shift + Enter 换行</span>
+        <span>{{ isEditing ? '正在编辑消息...' : '按 Enter 发送，Shift + Enter 换行' }}</span>
       </div>
     </div>
   </div>
@@ -150,6 +151,7 @@ const {
   showReferenceDetail,
   hideReferenceDetail,
   removeReference,
+  editAndResendMessage,
 } = useChat();
 
 // 组件内部状态
@@ -157,6 +159,10 @@ const userInput = ref("");
 const messagesContainer = ref<HTMLElement | null>(null);
 const inputTextarea = ref<HTMLTextAreaElement | null>(null);
 const textareaRows = ref(1);
+
+// 编辑状态管理
+const editingMessageId = ref<string | null>(null);
+const isEditing = ref(false);
 
 // 跟踪用户是否正在滚动，用于控制自动滚动行为
 const isUserScrolling = ref(false);
@@ -533,6 +539,31 @@ const addReference = () => {
 // 停止流式输出
 const stopStreaming = () => {
   abortCurrentRequest();
+};
+
+// 处理消息编辑事件
+const handleEditMessage = async (messageId: string, newContent: string) => {
+  try {
+    // 设置编辑状态
+    editingMessageId.value = messageId;
+    isEditing.value = true;
+    
+    // 显示编辑中的提示
+    uiStore.showToast("正在编辑消息...", "info");
+    
+    // 调用编辑并重新发送消息的方法
+    await editAndResendMessage(messageId, newContent);
+    
+    // 显示成功提示
+    uiStore.showToast("消息已编辑并重新发送", "success");
+  } catch (error) {
+    console.error("编辑消息失败:", error);
+    uiStore.showToast("编辑消息失败，请重试", "error");
+  } finally {
+    // 重置编辑状态
+    editingMessageId.value = null;
+    isEditing.value = false;
+  }
 };
 
 // 删除引用

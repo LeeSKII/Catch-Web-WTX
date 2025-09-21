@@ -1,5 +1,9 @@
 <template>
-  <div :class="['message', message.role, { 'streaming': isStreaming }]">
+  <div
+    :class="['message', message.role, { 'streaming': isStreaming }]"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
+  >
     <div class="message-header">
       <div class="message-avatar">
         {{ message.role === "user" ? "👤" : "🤖" }}
@@ -17,30 +21,72 @@
       </div>
     </div>
     <div class="message-content">
-      <div
-        class="message-text"
-        v-if="message.role === 'user'"
-        v-html="formatMessage(message.content)"
-      ></div>
-      <div
-        v-else-if="message.role === 'assistant'"
-        class="message-text"
-        v-html="parseMarkdown(message.content)"
-      ></div>
-      <div
-        v-else-if="isStreaming && !message.content"
-        class="message-text typing-indicator"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
+      <!-- 编辑模式 -->
+      <div v-if="isEditing" class="message-editor-container">
+        <textarea
+          v-model="editContent"
+          class="message-edit-textarea"
+          :rows="textareaRows"
+          @input="adjustTextareaHeight"
+          @keydown="handleKeyDown"
+          ref="editTextarea"
+          placeholder="编辑消息..."
+        ></textarea>
+        <div class="edit-actions">
+          <button
+            class="btn btn-save"
+            @click="saveEdit"
+            :disabled="!editContent.trim()"
+          >
+            保存
+          </button>
+          <button
+            class="btn btn-cancel"
+            @click="cancelEdit"
+          >
+            取消
+          </button>
+        </div>
       </div>
-      <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+      
+      <!-- 正常显示模式 -->
+      <template v-else>
+        <div
+          class="message-text"
+          v-if="message.role === 'user'"
+          v-html="formatMessage(message.content)"
+        ></div>
+        <div
+          v-else-if="message.role === 'assistant'"
+          class="message-text"
+          v-html="parseMarkdown(message.content)"
+        ></div>
+        <div
+          v-else-if="isStreaming && !message.content"
+          class="message-text typing-indicator"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+        
+        <!-- 编辑按钮 - 仅在用户消息且hover时显示 -->
+        <button
+          v-if="message.role === 'user' && isHovered && !isStreaming"
+          class="edit-btn"
+          @click="startEdit"
+          title="编辑消息"
+        >
+          ✏️
+        </button>
+      </template>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { marked } from "marked";
 
 interface ChatMessage {
@@ -48,6 +94,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   isStreaming?: boolean; // 标记消息是否正在流式传输中
+  id?: string; // 消息唯一标识
 }
 
 const props = defineProps<{
@@ -57,7 +104,103 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "stop-streaming": [];
+  "edit-message": [messageId: string, newContent: string];
 }>();
+
+// 编辑相关状态
+const isHovered = ref(false);
+const isEditing = ref(false);
+const editContent = ref("");
+const textareaRows = ref(1);
+const editTextarea = ref<HTMLTextAreaElement | null>(null);
+
+// 开始编辑
+const startEdit = () => {
+  isEditing.value = true;
+  editContent.value = props.message.content;
+  textareaRows.value = Math.max(1, props.message.content.split('\n').length);
+  
+  // 下一个tick聚焦到textarea
+  nextTick(() => {
+    if (editTextarea.value) {
+      editTextarea.value.focus();
+      // 将光标移动到末尾
+      editTextarea.value.selectionStart = editTextarea.value.selectionEnd = editContent.value.length;
+    }
+  });
+};
+
+// 保存编辑
+const saveEdit = () => {
+  if (!editContent.value.trim()) return;
+  
+  // 发送编辑事件
+  emit("edit-message", props.message.id || Date.now().toString(), editContent.value.trim());
+  
+  // 退出编辑模式
+  isEditing.value = false;
+  editContent.value = "";
+};
+
+// 取消编辑
+const cancelEdit = () => {
+  isEditing.value = false;
+  editContent.value = "";
+};
+
+// 调整文本域高度
+const adjustTextareaHeight = () => {
+  if (editTextarea.value) {
+    // 计算行数：基于换行符数量 + 1
+    const lineCount = editContent.value.split("\n").length;
+    // 限制在1-10行之间
+    textareaRows.value = Math.min(Math.max(lineCount, 1), 10);
+
+    // 强制重新渲染textarea
+    nextTick(() => {
+      if (editTextarea.value) {
+        // 重置高度为auto，然后设置新的行高
+        editTextarea.value.style.height = "auto";
+        // 计算最大高度（10行 * 每行1.5em）
+        const maxHeight = 1.5 * 10 * parseFloat(getComputedStyle(editTextarea.value).fontSize);
+        // 让浏览器自然计算高度，但不超过最大高度
+        const newHeight = Math.min(editTextarea.value.scrollHeight, maxHeight);
+        editTextarea.value.style.height = newHeight + "px";
+      }
+    });
+  }
+};
+
+// 处理键盘事件
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === "Enter" && event.ctrlKey) {
+    // Ctrl+Enter 保存
+    event.preventDefault();
+    saveEdit();
+  } else if (event.key === "Escape") {
+    // Esc 取消
+    event.preventDefault();
+    cancelEdit();
+  }
+};
+
+// 点击外部取消编辑
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as Node;
+  const messageElement = (event.currentTarget as HTMLElement)?.closest('.message');
+  
+  if (isEditing.value && messageElement && !messageElement.contains(target)) {
+    cancelEdit();
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 // 简单的Markdown格式化
 const formatMessage = (content: string): string => {
@@ -316,5 +459,130 @@ const formatTime = (timestamp: Date): string => {
   height: 8px;
   border-radius: 50%;
   background: var(--markdown-text-light);
+}
+
+/* 编辑按钮样式 */
+.edit-btn {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.message:hover .edit-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.edit-btn:hover {
+  background: var(--primary-color-hover);
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.edit-btn:active {
+  transform: scale(0.95);
+}
+
+/* 编辑模式容器 */
+.message-editor-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 编辑文本框样式 */
+.message-edit-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--section-bg);
+  color: var(--text-color);
+  min-height: auto;
+  max-height: calc(1.5em * 10); /* 10行高度，每行1.5em */
+  line-height: 1.5;
+  height: auto;
+  overflow-y: hidden;
+  resize: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.message-edit-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* 编辑操作按钮容器 */
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.edit-actions .btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-actions .btn-save {
+  background: var(--primary-color);
+  color: white;
+}
+
+.edit-actions .btn-save:hover:not(:disabled) {
+  background: var(--primary-color-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-actions .btn-cancel {
+  background: var(--accent-color);
+  color: white;
+}
+
+.edit-actions .btn-cancel:hover {
+  background: var(--accent-color-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-actions .btn:disabled {
+  background: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+/* 用户消息内容区域相对定位，用于编辑按钮的绝对定位 */
+.message.user .message-content {
+  position: relative;
 }
 </style>

@@ -24,6 +24,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   isStreaming?: boolean; // 标记消息是否正在流式传输中
+  id?: string; // 消息唯一标识
 }
 
 interface ChatHistory {
@@ -354,6 +355,7 @@ export function useChat() {
       role: "user",
       content: content.trim(),
       timestamp: new Date(),
+      id: Date.now().toString(), // 为消息添加唯一ID
     };
 
     messages.value.push(userMessage);
@@ -385,6 +387,7 @@ export function useChat() {
       content: "",
       timestamp: new Date(),
       isStreaming: true, // 标记为流式传输中
+      id: Date.now().toString(), // 为消息添加唯一ID
     };
 
     // 将临时消息添加到消息列表
@@ -802,6 +805,127 @@ export function useChat() {
     }
   };
 
+  /**
+   * 编辑消息
+   */
+  const editMessage = (messageId: string, newContent: string) => {
+    // 找到要编辑的消息索引
+    const messageIndex = messages.value.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) {
+      logger.error("未找到要编辑的消息", { messageId });
+      return;
+    }
+
+    // 确保是用户消息
+    const message = messages.value[messageIndex];
+    if (message.role !== "user") {
+      logger.error("只能编辑用户消息", { messageId, role: message.role });
+      return;
+    }
+
+    // 更新消息内容
+    messages.value[messageIndex].content = newContent;
+
+    // 更新聊天历史
+    const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
+    if (chat) {
+      chat.messages = [...messages.value];
+      chat.updatedAt = new Date();
+      saveChatHistory();
+    }
+
+    logger.debug("消息已编辑", { messageId, newContent });
+  };
+
+  /**
+   * 截断指定索引后的所有消息
+   */
+  const truncateMessagesAfter = (messageIndex: number) => {
+    if (messageIndex < 0 || messageIndex >= messages.value.length) {
+      logger.error("无效的消息索引", { messageIndex, totalMessages: messages.value.length });
+      return;
+    }
+
+    // 直接在原始消息数组中截断，保留系统消息和指定索引之前的消息
+    const systemMessages = messages.value.filter(msg => msg.role === "system");
+    const nonSystemMessages = messages.value.filter(msg => msg.role !== "system");
+    
+    // 找到指定索引对应的非系统消息在非系统消息数组中的位置
+    const targetMessage = messages.value[messageIndex];
+    const targetIndexInNonSystem = nonSystemMessages.findIndex(msg => msg.id === targetMessage.id);
+    
+    if (targetIndexInNonSystem === -1) {
+      logger.error("无法在非系统消息中找到目标消息", { messageIndex, targetMessage });
+      return;
+    }
+    
+    // 截断非系统消息
+    const truncatedNonSystemMessages = nonSystemMessages.slice(0, targetIndexInNonSystem + 1);
+    
+    // 重新组合消息：系统消息 + 截断后的非系统消息
+    messages.value = [...systemMessages, ...truncatedNonSystemMessages];
+
+    // 更新聊天历史
+    const chat = chatHistory.value.find((c) => c.id === currentChatId.value);
+    if (chat) {
+      chat.messages = [...messages.value];
+      chat.updatedAt = new Date();
+      saveChatHistory();
+    }
+
+    logger.debug("消息历史已截断", { messageIndex, remainingMessages: messages.value.length });
+  };
+
+  /**
+   * 重新发送消息并获取新回复
+   */
+  const resendMessage = async (messageId: string) => {
+    // 找到要重新发送的消息索引
+    const messageIndex = messages.value.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) {
+      logger.error("未找到要重新发送的消息", { messageId });
+      return;
+    }
+
+    // 确保是用户消息
+    const message = messages.value[messageIndex];
+    if (message.role !== "user") {
+      logger.error("只能重新发送用户消息", { messageId, role: message.role });
+      return;
+    }
+
+    // 截断该消息之后的所有消息
+    truncateMessagesAfter(messageIndex);
+
+    // 使用现有的 sendMessage 方法发送消息
+    await sendMessage(message.content);
+  };
+
+  /**
+   * 编辑并重新发送消息
+   */
+  const editAndResendMessage = async (messageId: string, newContent: string) => {
+    // 找到要编辑的消息索引
+    const messageIndex = messages.value.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) {
+      logger.error("未找到要编辑的消息", { messageId });
+      return;
+    }
+
+    // 确保是用户消息
+    const message = messages.value[messageIndex];
+    if (message.role !== "user") {
+      logger.error("只能编辑用户消息", { messageId, role: message.role });
+      return;
+    }
+
+    // 截断该消息之后的所有消息（不包括该消息本身）
+    truncateMessagesAfter(messageIndex - 1);
+
+    // 使用现有的 sendMessage 方法发送编辑后的消息
+    await sendMessage(newContent);
+  };
+
   return {
     // 状态
     messages,
@@ -840,5 +964,11 @@ export function useChat() {
     hideReferenceDetail,
     getReferenceItemPreview,
     removeReference,
+    
+    // 新增的编辑相关方法
+    editMessage,
+    truncateMessagesAfter,
+    resendMessage,
+    editAndResendMessage,
   };
 }
