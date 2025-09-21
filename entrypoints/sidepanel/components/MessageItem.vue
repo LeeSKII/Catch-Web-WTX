@@ -178,7 +178,7 @@ const formatTime = (timestamp: Date): string => {
   display: flex;
   flex-direction: column;
   margin: 0 12px;
-  max-width: calc(100% - 60px); /* 减去头像和边距的宽度 */
+  max-width: calc(100% - 20px); /* 减去头像和边距的宽度 */
 }
 
 .message.user .message-content {
