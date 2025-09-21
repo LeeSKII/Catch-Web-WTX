@@ -347,6 +347,30 @@ onUnmounted(() => {
   background: var(--section-content-bg);
   word-wrap: break-word;
   word-break: break-all;
+  scroll-behavior: smooth;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--scrollbar-track);
+}
+
+/* Webkit 浏览器滚动条样式 */
+.section-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.section-content::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.section-content::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.section-content::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color-hover);
 }
 
 .btn {
