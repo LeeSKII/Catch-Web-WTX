@@ -209,7 +209,7 @@ const handleSaveSettings = () => {
   settingsStore.updateSettings({ ...localSettings.value });
   // 然后保存到localStorage
   settingsStore.saveSettings();
-  uiStore.showToast("设置已保存", "success");
+  uiStore.showToast("设置已保存！设置将立即生效。", "success");
 };
 
 const handleClearData = () => {

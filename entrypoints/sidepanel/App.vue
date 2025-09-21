@@ -74,10 +74,6 @@ const handleExtractData = async () => {
 
 
 
-const handleSaveSettings = () => {
-  settingsStore.saveSettings();
-  uiStore.showToast("设置已保存！设置将立即生效。", "success");
-};
 
 const handleBookmarkAction = async (isBookmarked: boolean) => {
   // 收藏功能逻辑移至 WebInfoSection 组件内部
@@ -258,9 +254,7 @@ watch(isDarkMode, (newValue) => {
       v-show="uiStore.state.currentTab === 'settings'"
       class="tab-content active"
     >
-      <SettingsPanel
-        @save-settings="handleSaveSettings"
-      />
+      <SettingsPanel />
     </div>
   </div>
 
