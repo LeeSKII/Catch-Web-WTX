@@ -6,6 +6,9 @@ import { UI_CONFIG, PERFORMANCE_CONFIG } from '../constants';
 import { useAbortController } from './useAbortController';
 import { useStores } from '../stores';
 
+// 获取uiStore实例
+const { uiStore } = useStores();
+
 const logger = createLogger('TabListeners');
 
 /**
@@ -52,11 +55,30 @@ export function useTabListeners(
   const setupDOMLoadingListener = (callback: (isLoading: boolean) => void) => {
     // 使用 webNavigation API 监听网页导航状态
     if (browser.webNavigation) {
-      const handleNavigationStart = (details: any) => {
+      const handleNavigationStart = async (details: any) => {
         // 只处理主框架的导航开始
         if (details.frameId === 0) {
           logger.debug('检测到网页导航开始', { url: details.url });
-          callback(true); // 设置 loading 状态为 true
+          
+          // 获取当前活动标签页，只有当导航事件发生在当前活动标签页时才设置loading状态
+          try {
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            // 只有当webNavigation事件的URL与当前活动标签页的URL匹配时，才设置loading状态
+            // 这样可以避免在非活动标签页开始导航时影响当前活动标签页的状态
+            if (tabs[0] && tabs[0].url === details.url) {
+              callback(true); // 设置 loading 状态为 true
+            } else {
+              logger.debug('非活动标签页导航开始，跳过设置loading状态', {
+                webNavigationUrl: details.url,
+                tabUrl: tabs[0]?.url,
+                urlMatch: tabs[0]?.url === details.url
+              });
+            }
+          } catch (error) {
+            logger.error('获取当前活动标签页时出错', error);
+            // 出错时保守处理，设置loading状态
+            callback(true);
+          }
         }
       };
 
@@ -69,8 +91,9 @@ export function useTabListeners(
           // 获取当前活动标签页
           try {
             const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            // 放宽URL匹配条件，只要当前活动标签页存在且URL不为空，并且不是正在处理中，就触发数据提取
-            if (tabs[0] && tabs[0].url && !isProcessing) {
+            // 只有当webNavigation事件的URL与当前活动标签页的URL匹配时，才触发数据提取
+            // 这样可以避免在非活动标签页加载完成时触发当前活动标签页的数据重新加载
+            if (tabs[0] && tabs[0].url && tabs[0].url === details.url && !isProcessing) {
               logger.debug('webNavigation完成时触发数据提取', {
                 webNavigationUrl: details.url,
                 tabUrl: tabs[0].url,
@@ -96,6 +119,7 @@ export function useTabListeners(
               logger.debug('webNavigation完成时跳过数据提取', {
                 hasTab: !!tabs[0],
                 hasUrl: !!tabs[0]?.url,
+                urlMatch: tabs[0]?.url === details.url,
                 isProcessing,
                 webNavigationUrl: details.url,
                 tabUrl: tabs[0]?.url
@@ -107,11 +131,29 @@ export function useTabListeners(
         }
       };
 
-      const handleNavigationError = (details: any) => {
+      const handleNavigationError = async (details: any) => {
         // 只处理主框架的导航错误
         if (details.frameId === 0) {
           logger.debug('检测到网页导航错误', { url: details.url, error: details.error });
-          callback(false); // 设置 loading 状态为 false
+          
+          // 获取当前活动标签页，只有当导航错误发生在当前活动标签页时才取消loading状态
+          try {
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            // 只有当webNavigation事件的URL与当前活动标签页的URL匹配时，才取消loading状态
+            if (tabs[0] && tabs[0].url === details.url) {
+              callback(false); // 设置 loading 状态为 false
+            } else {
+              logger.debug('非活动标签页导航错误，跳过取消loading状态', {
+                webNavigationUrl: details.url,
+                tabUrl: tabs[0]?.url,
+                urlMatch: tabs[0]?.url === details.url
+              });
+            }
+          } catch (error) {
+            logger.error('获取当前活动标签页时出错', error);
+            // 出错时保守处理，取消loading状态
+            callback(false);
+          }
         }
       };
 
@@ -124,8 +166,9 @@ export function useTabListeners(
           // 获取当前活动标签页
           try {
             const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            // 放宽URL匹配条件，只要当前活动标签页存在且URL不为空，并且不是正在处理中，就触发数据提取
-            if (tabs[0] && tabs[0].url && !isProcessing) {
+            // 只有当historyState事件的URL与当前活动标签页的URL匹配时，才触发数据提取
+            // 这样可以避免在非活动标签页路由变化时触发当前活动标签页的数据重新加载
+            if (tabs[0] && tabs[0].url && tabs[0].url === details.url && !isProcessing) {
               logger.debug('SPA路由变化时触发数据提取', {
                 historyStateUrl: details.url,
                 tabUrl: tabs[0].url,
@@ -151,6 +194,7 @@ export function useTabListeners(
               logger.debug('SPA路由变化时跳过数据提取', {
                 hasTab: !!tabs[0],
                 hasUrl: !!tabs[0]?.url,
+                urlMatch: tabs[0]?.url === details.url,
                 isProcessing,
                 historyStateUrl: details.url,
                 tabUrl: tabs[0]?.url
