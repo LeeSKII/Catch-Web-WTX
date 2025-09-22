@@ -148,14 +148,48 @@
       </div>
 
       <button
-        class="btn btn-warning"
+        class="btn btn-primary"
         style="margin-top: 10px"
-        @click="handleClearData"
+        @click="handleViewCache"
       >
-        清除数据
+        查看缓存
       </button>
     </div>
   </div>
+
+  <!-- 缓存数据查看模态框 -->
+  <BaseModal
+    v-model:visible="showCacheModal"
+    title="缓存数据"
+    width="90%"
+    max-width="800px"
+    :show-footer="true"
+    :show-cancel-button="true"
+    :show-confirm-button="false"
+    cancel-text="关闭"
+    @close="handleCloseCacheModal"
+    @cancel="handleCloseCacheModal"
+  >
+    <div class="cache-container">
+      <div v-if="cacheData && Object.keys(cacheData).length > 0" class="cache-content">
+        <div class="cache-section">
+          <h4>设置数据</h4>
+          <pre>{{ formatJson(cacheData.settings) }}</pre>
+        </div>
+        <div class="cache-section">
+          <h4>提取数据</h4>
+          <pre>{{ formatJson(cacheData.extractedData) }}</pre>
+        </div>
+        <div class="cache-section">
+          <h4>其他缓存项</h4>
+          <pre>{{ formatJson(cacheData.otherCache) }}</pre>
+        </div>
+      </div>
+      <div v-else class="empty-cache">
+        暂无缓存数据
+      </div>
+    </div>
+  </BaseModal>
 </template>
 
 <script lang="ts" setup>
@@ -165,6 +199,7 @@ import { API_CONFIG } from '../constants';
 import { useStores } from '../stores';
 import { useTheme } from '../composables/useTheme';
 import { createLogger } from '../utils/logger';
+import BaseModal from './BaseModal.vue';
 
 // 创建日志器
 const logger = createLogger("SettingsPanel");
@@ -216,10 +251,84 @@ watch(localSettings, (newSettings) => {
 }, { deep: true });
 
 
-const handleClearData = () => {
-  if (confirm("确定要清除所有提取的数据吗？")) {
-    dataStore.clearData();
-    uiStore.showToast("数据已清除", "success");
+// 缓存查看相关状态
+const showCacheModal = ref(false);
+const cacheData = ref<any>(null);
+
+// 查看缓存数据
+const handleViewCache = () => {
+  cacheData.value = getAllCacheData();
+  showCacheModal.value = true;
+};
+
+// 关闭缓存模态框
+const handleCloseCacheModal = () => {
+  showCacheModal.value = false;
+  cacheData.value = null;
+};
+
+// 获取所有缓存数据
+const getAllCacheData = () => {
+  const data: any = {
+    settings: null,
+    extractedData: null,
+    otherCache: {}
+  };
+  
+  // 获取设置数据
+  try {
+    const savedSettings = localStorage.getItem('appSettings');
+    if (savedSettings) {
+      data.settings = JSON.parse(savedSettings);
+    }
+  } catch (error) {
+    data.settings = '解析设置数据失败';
+  }
+  
+  // 获取提取数据
+  try {
+    const savedExtractedData = localStorage.getItem('extractedData');
+    if (savedExtractedData) {
+      data.extractedData = JSON.parse(savedExtractedData);
+    }
+  } catch (error) {
+    data.extractedData = '解析提取数据失败';
+  }
+  
+  // 获取其他缓存项
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !key.includes('password') && !key.includes('token') &&
+          key !== 'appSettings' && key !== 'extractedData') {
+        try {
+          const value = localStorage.getItem(key);
+          if (value) {
+            // 尝试解析JSON，如果失败则直接存储字符串
+            try {
+              data.otherCache[key] = JSON.parse(value);
+            } catch {
+              data.otherCache[key] = value;
+            }
+          }
+        } catch (error) {
+          data.otherCache[key] = '读取失败';
+        }
+      }
+    }
+  } catch (error) {
+    data.otherCache = '读取其他缓存项失败';
+  }
+  
+  return data;
+};
+
+// 格式化JSON显示
+const formatJson = (obj: any) => {
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch (error) {
+    return '格式化数据失败';
   }
 };
 
@@ -363,5 +472,71 @@ input:checked + .slider:before {
 .btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+}
+
+/* 缓存数据模态框样式 */
+.cache-container {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cache-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cache-section {
+  background: var(--section-bg);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  border: 1px solid var(--border-color);
+}
+
+.cache-section h4 {
+  margin: 0 0 10px 0;
+  color: var(--section-title-color);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cache-section pre {
+  background: var(--section-content-bg);
+  padding: 10px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-color);
+}
+
+.empty-cache {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+/* 自定义滚动条样式 */
+.cache-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cache-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+.cache-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.cache-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 </style>
