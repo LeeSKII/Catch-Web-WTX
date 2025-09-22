@@ -68,18 +68,18 @@
         </div>
       </transition>
         <div
-          v-if="message.role === 'assistant'"
-          class="message-text"
-          v-html="parseMarkdown(message.content)"
-        ></div>
-        <div
-          v-else-if="isStreaming && !message.content"
+          v-if="message.role === 'assistant' && isStreaming && !message.content"
           class="message-text typing-indicator"
         >
           <span></span>
           <span></span>
           <span></span>
         </div>
+        <div
+          v-else-if="message.role === 'assistant'"
+          class="message-text"
+          v-html="parseMarkdown(message.content)"
+        ></div>
         <div class="message-time">{{ formatTime(message.timestamp) }}</div>
     </div>
   </div>
@@ -464,6 +464,30 @@ const formatTime = (timestamp: Date): string => {
   height: 8px;
   border-radius: 50%;
   background: var(--markdown-text-light);
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
 }
 
 /* 编辑按钮样式 */
