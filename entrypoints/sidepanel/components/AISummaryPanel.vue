@@ -28,7 +28,7 @@
           :class="isGeneratingAISummary ? 'btn-warning' : 'btn-primary'"
           style="flex: 1"
           @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
-          :disabled="isLoadingAISummary && !isGeneratingAISummary"
+          :disabled="(isLoadingAISummary && !isGeneratingAISummary) || dataStore.state.isLoading || dataStore.state.isPageLoading"
         >
           <span v-if="isGeneratingAISummary">暂停</span>
           <span v-else-if="isLoadingAISummary">生成中...</span>
