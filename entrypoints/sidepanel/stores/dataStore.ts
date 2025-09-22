@@ -17,7 +17,12 @@ export const useDataStore = () => {
 
   const actions = {
     updateExtractedData(data: ExtractedData) {
-      state.extractedData = data
+      // 保留原有的 isBookmarked 状态
+      const currentIsBookmarked = state.extractedData.isBookmarked;
+      state.extractedData = {
+        ...data,
+        isBookmarked: data.isBookmarked !== undefined ? data.isBookmarked : currentIsBookmarked
+      };
     },
     
     setLoading(loading: boolean) {
