@@ -147,9 +147,6 @@
         </div>
       </div>
 
-      <button class="btn btn-primary" @click="handleSaveSettings">
-        保存设置
-      </button>
       <button
         class="btn btn-warning"
         style="margin-top: 10px"
@@ -182,37 +179,42 @@ const { toggle, isDarkMode } = useTheme();
 const localSettings = ref<Settings>({ ...settingsStore.state.settings });
 const isDarkModeToggle = ref(settingsStore.state.settings.darkMode);
 
-// 监听store.settings变化，更新本地副本
+// 监听store.settings变化，更新本地副本（但避免循环更新）
+let isUpdatingFromStore = false;
 watch(() => settingsStore.state.settings, (newSettings) => {
-  localSettings.value = { ...newSettings };
+  if (!isUpdatingFromStore) {
+    isUpdatingFromStore = true;
+    localSettings.value = { ...newSettings };
+    isDarkModeToggle.value = newSettings.darkMode;
+    // 使用 nextTick 避免在同一事件循环中触发监听器
+    setTimeout(() => {
+      isUpdatingFromStore = false;
+    }, 0);
+  }
 }, { deep: true });
-
-// 监听store.settings.darkMode变化，更新本地副本
-watch(() => settingsStore.state.settings.darkMode, (newIsDarkMode) => {
-  isDarkModeToggle.value = newIsDarkMode;
-});
 
 // 监听 useTheme 的 isDarkMode 变化，同步到本地状态
 watch(isDarkMode, (newIsDarkMode) => {
-  isDarkModeToggle.value = newIsDarkMode;
-  settingsStore.updateSettings({ darkMode: newIsDarkMode });
+  if (!isUpdatingFromStore) {
+    isDarkModeToggle.value = newIsDarkMode;
+    // 直接更新本地设置，避免触发自动保存监听器
+    localSettings.value.darkMode = newIsDarkMode;
+  }
 });
 
-// 移除自动保存监听器，改为手动保存
-// watch(localSettings, (newSettings) => {
-//   settingsStore.updateSettings({ ...newSettings });
-// }, { deep: true });
+// 自动保存监听器，设置修改后立即生效（但避免循环更新）
+watch(localSettings, (newSettings) => {
+  if (!isUpdatingFromStore) {
+    isUpdatingFromStore = true;
+    settingsStore.updateSettings({ ...newSettings });
+    settingsStore.saveSettings();
+    // 使用 nextTick 避免在同一事件循环中触发监听器
+    setTimeout(() => {
+      isUpdatingFromStore = false;
+    }, 0);
+  }
+}, { deep: true });
 
-// 组件内部方法
-const handleSaveSettings = () => {
-  // 先更新store中的设置
-  settingsStore.updateSettings({ ...localSettings.value });
-  // 然后保存到localStorage
-  settingsStore.saveSettings();
-  // 重新加载设置以确保所有组件都能获取到最新的设置
-  settingsStore.loadSettings();
-  uiStore.showToast("设置已保存！设置将立即生效。", "success");
-};
 
 const handleClearData = () => {
   if (confirm("确定要清除所有提取的数据吗？")) {
