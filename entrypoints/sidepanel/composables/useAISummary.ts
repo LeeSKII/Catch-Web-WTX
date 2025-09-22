@@ -4,7 +4,7 @@ import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
 import { useAbortController } from "./useAbortController";
-import { useSettings } from "./useSettings";
+import { useStores } from "../stores";
 import { getSupabaseClient } from "./useSupabase";
 import OpenAI from "openai";
 
@@ -12,7 +12,7 @@ import OpenAI from "openai";
 const logger = createLogger("AISummary");
 
 export function useAISummary() {
-  const { settings, loadSettings } = useSettings();
+  const { settingsStore } = useStores();
   const isLoadingAISummary: Ref<boolean> = ref(false);
   const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref("");
@@ -61,10 +61,10 @@ export function useAISummary() {
       }
 
       // 在检查API密钥前重新加载设置，确保获取到最新的API密钥
-      loadSettings();
+      settingsStore.loadSettings();
       
       // 检查API密钥，每次都从最新的设置中获取
-      const apiKey = settings.openaiApiKey;
+      const apiKey = settingsStore.state.settings.openaiApiKey;
       if (!apiKey) {
         logger.debug("请先在设置中配置OpenAI API密钥");
         isLoadingAISummary.value = false;
@@ -97,8 +97,8 @@ export function useAISummary() {
     input: string
   ) => {
     // 每次调用时都从最新的设置中获取配置，确保使用最新的配置
-    const model = settings.aiModel || API_CONFIG.DEFAULT_MODEL;
-    const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
+    const model = settingsStore.state.settings.aiModel || API_CONFIG.DEFAULT_MODEL;
+    const baseUrl = settingsStore.state.settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
 
     logger.debug("使用最新的AI配置", {
       model: model,

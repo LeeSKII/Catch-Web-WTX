@@ -3,15 +3,15 @@ import { browser } from "wxt/browser";
 import { storage } from "#imports";
 import { createLogger } from "../utils/logger";
 import { useToast } from "./useToast";
-import { useSettings } from "./useSettings";
 import { useAbortController } from "./useAbortController";
+import { useStores } from "../stores";
 import OpenAI from "openai";
 import { API_CONFIG } from "../constants";
 import { ExtractedData } from "../types";
 
 const logger = createLogger("Chat");
 const { success, error, warning, info } = useToast();
-const { settings, loadSettings } = useSettings();
+const { settingsStore } = useStores();
 const {
   createAbortController,
   abortRequest,
@@ -75,7 +75,7 @@ export function useChat() {
   const streamingContent = ref<string>("");
   const isStreaming = ref<boolean>(false);
   // 使用全局设置，确保实时响应设置变化
-  const currentModel = computed(() => settings.aiModel || API_CONFIG.DEFAULT_MODEL);
+  const currentModel = computed(() => settingsStore.state.settings.aiModel || API_CONFIG.DEFAULT_MODEL);
   const maxTokens = computed(() => API_CONFIG.MAX_TOKENS); // 使用配置文件中的值
   const temperature = computed(() => API_CONFIG.TEMPERATURE); // 使用配置文件中的值
 
@@ -266,8 +266,8 @@ export function useChat() {
     onStreamUpdate?: (content: string) => void
   ) => {
     // 每次调用时都从最新的设置中获取配置，确保使用最新的配置
-    const model = settings.aiModel || API_CONFIG.DEFAULT_MODEL;
-    const actualBaseUrl = settings.openaiBaseUrl || baseUrl || API_CONFIG.DEFAULT_BASE_URL;
+    const model = settingsStore.state.settings.aiModel || API_CONFIG.DEFAULT_MODEL;
+    const actualBaseUrl = settingsStore.state.settings.openaiBaseUrl || baseUrl || API_CONFIG.DEFAULT_BASE_URL;
     
     logger.debug("使用最新的AI配置", {
       model: model,
@@ -398,11 +398,11 @@ export function useChat() {
 
     try {
       // 在发送消息前重新加载设置，确保获取到最新的API密钥
-      loadSettings();
+      settingsStore.loadSettings();
       
       // 获取API密钥和baseUrl，每次都从最新的设置中获取
-      const apiKey = settings.openaiApiKey;
-      const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
+      const apiKey = settingsStore.state.settings.openaiApiKey;
+      const baseUrl = settingsStore.state.settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
 
       if (!apiKey) {
         throw new Error("请先在设置中配置OpenAI API密钥");
@@ -961,11 +961,11 @@ export function useChat() {
 
     try {
       // 在发送消息前重新加载设置，确保获取到最新的API密钥
-      loadSettings();
+      settingsStore.loadSettings();
 
       // 获取API密钥和baseUrl，每次都从最新的设置中获取
-      const apiKey = settings.openaiApiKey;
-      const baseUrl = settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
+      const apiKey = settingsStore.state.settings.openaiApiKey;
+      const baseUrl = settingsStore.state.settings.openaiBaseUrl || API_CONFIG.DEFAULT_BASE_URL;
 
       if (!apiKey) {
         throw new Error("请先在设置中配置OpenAI API密钥");

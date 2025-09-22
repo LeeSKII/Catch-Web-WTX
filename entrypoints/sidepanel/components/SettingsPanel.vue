@@ -209,6 +209,8 @@ const handleSaveSettings = () => {
   settingsStore.updateSettings({ ...localSettings.value });
   // 然后保存到localStorage
   settingsStore.saveSettings();
+  // 重新加载设置以确保所有组件都能获取到最新的设置
+  settingsStore.loadSettings();
   uiStore.showToast("设置已保存！设置将立即生效。", "success");
 };
 
