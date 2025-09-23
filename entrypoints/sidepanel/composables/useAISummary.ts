@@ -221,7 +221,7 @@ export function useAISummary() {
     }
   };
 
-  const saveAISummary = (url: string, content: string, summaryType: string) => {
+  const saveAISummary = async (url: string, content: string, summaryType: string) => {
     const summaryData: AISummaryData = {
       content: content,
       summaryType: summaryType,
@@ -231,20 +231,20 @@ export function useAISummary() {
 
     // 使用URL和总结类型作为key存储AI总结，这样不同类型的总结可以分别保存
     const key = `aiSummary_${url}_${summaryType}`;
-    localStorage.setItem(key, JSON.stringify(summaryData));
+    await browser.storage.local.set({ [key]: summaryData });
   };
 
-  const loadAISummary = (
+  const loadAISummary = async (
     url: string,
     summaryType: string
-  ): AISummaryData | null => {
+  ): Promise<AISummaryData | null> => {
     // 使用URL和总结类型作为key加载AI总结
     const key = `aiSummary_${url}_${summaryType}`;
-    const summaryDataStr = localStorage.getItem(key);
+    const result = await browser.storage.local.get(key);
 
-    if (summaryDataStr) {
+    if (result[key]) {
       try {
-        return JSON.parse(summaryDataStr);
+        return result[key] as AISummaryData;
       } catch (error) {
         logger.error('解析AI总结数据失败', error);
         return null;
@@ -254,10 +254,10 @@ export function useAISummary() {
     return null;
   };
 
-  const clearAISummaryCache = (url: string, summaryType: string) => {
+  const clearAISummaryCache = async (url: string, summaryType: string) => {
     // 使用URL和总结类型作为key清除AI总结缓存
     const key = `aiSummary_${url}_${summaryType}`;
-    localStorage.removeItem(key);
+    await browser.storage.local.remove(key);
     aiSummaryStatus.value = "";
   };
 
@@ -269,7 +269,7 @@ export function useAISummary() {
 
     try {
       // 首先尝试从storage加载AI总结（立即显示，不阻塞UI）
-      const summaryData = loadAISummary(url, aiSummaryType.value);
+      const summaryData = await loadAISummary(url, aiSummaryType.value);
 
       if (summaryData) {
         logger.debug(`从${source}的storage中找到总结数据`);
@@ -319,7 +319,7 @@ export function useAISummary() {
 
     try {
       // 仅从storage中查找总结数据，不查询数据库
-      const summaryData = loadAISummary(url, summaryType);
+      const summaryData = await loadAISummary(url, summaryType);
 
       if (summaryData) {
         logger.debug(`从storage中找到${summaryType}类型的总结数据`);
@@ -394,7 +394,7 @@ export function useAISummary() {
             url: url,
           };
           const fullKey = `aiSummary_${url}_full`;
-          localStorage.setItem(fullKey, JSON.stringify(fullSummaryData));
+          await browser.storage.local.set({ [fullKey]: fullSummaryData });
         }
         
         // 如果有ai_key_info数据，保存到storage
@@ -406,7 +406,7 @@ export function useAISummary() {
             url: url,
           };
           const keyInfoKey = `aiSummary_${url}_keyinfo`;
-          localStorage.setItem(keyInfoKey, JSON.stringify(keyInfoSummaryData));
+          await browser.storage.local.set({ [keyInfoKey]: keyInfoSummaryData });
         }
         
         logger.debug("预加载数据库数据到storage完成", { url });
@@ -416,22 +416,22 @@ export function useAISummary() {
     }
   };
 
-  // 保存自定义 prompts 到 localStorage
-  const saveCustomPrompts = (prompts: { full: string; keyinfo: string }) => {
+  // 保存自定义 prompts 到 browser.storage.local
+  const saveCustomPrompts = async (prompts: { full: string; keyinfo: string }) => {
     customPrompts.value = prompts;
-    localStorage.setItem('customAIPrompts', JSON.stringify(prompts));
+    await browser.storage.local.set({ customAIPrompts: prompts });
     logger.debug("自定义 prompts 已保存", prompts);
   };
 
-  // 从 localStorage 加载自定义 prompts
-  const loadCustomPrompts = () => {
+  // 从 browser.storage.local 加载自定义 prompts
+  const loadCustomPrompts = async () => {
     try {
-      const savedPrompts = localStorage.getItem('customAIPrompts');
+      const result = await browser.storage.local.get('customAIPrompts');
+      const savedPrompts = result.customAIPrompts;
       if (savedPrompts) {
-        const parsed = JSON.parse(savedPrompts);
         customPrompts.value = {
-          full: parsed.full || "",
-          keyinfo: parsed.keyinfo || ""
+          full: savedPrompts.full || "",
+          keyinfo: savedPrompts.keyinfo || ""
         };
         logger.debug("自定义 prompts 已加载", customPrompts.value);
       } else {
@@ -462,9 +462,9 @@ export function useAISummary() {
   };
 
   // 恢复默认 prompts
-  const restoreDefaultPrompts = () => {
+  const restoreDefaultPrompts = async () => {
     customPrompts.value = { ...defaultPrompts };
-    localStorage.setItem('customAIPrompts', JSON.stringify(customPrompts.value));
+    await browser.storage.local.set({ customAIPrompts: customPrompts.value });
     logger.debug("已恢复默认 prompts");
   };
 
