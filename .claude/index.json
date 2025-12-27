@@ -1,0 +1,153 @@
+{
+  "timestamp": "2025-12-27T07:25:01Z",
+  "projectName": "Catch-Web-WTX",
+  "projectType": "browser-extension",
+  "framework": "WXT + Vue 3 + TypeScript",
+  "scanCoverage": {
+    "totalFiles": 55,
+    "scannedFiles": 45,
+    "coveragePercentage": 81.8,
+    "ignoredFiles": 10
+  },
+  "modules": [
+    {
+      "name": "entrypoints",
+      "path": "entrypoints",
+      "type": "core",
+      "language": "TypeScript",
+      "framework": "WXT",
+      "description": "浏览器扩展入口点",
+      "entryPoints": [
+        {
+          "name": "sidepanel",
+          "path": "entrypoints/sidepanel",
+          "type": "vue-app",
+          "entryFile": "entrypoints/sidepanel/main.ts",
+          "htmlFile": "entrypoints/sidepanel/index.html",
+          "framework": "Vue 3"
+        },
+        {
+          "name": "background",
+          "path": "entrypoints/background.ts",
+          "type": "background-script",
+          "description": "后台服务脚本"
+        },
+        {
+          "name": "content",
+          "path": "entrypoints/content.ts",
+          "type": "content-script",
+          "description": "内容脚本（注入页面）"
+        }
+      ],
+      "hasTests": false,
+      "hasConfig": true,
+      "configFile": "wxt.config.ts"
+    }
+  ],
+  "subModules": [
+    {
+      "name": "sidepanel",
+      "path": "entrypoints/sidepanel",
+      "parent": "entrypoints",
+      "type": "vue-app",
+      "language": "TypeScript + Vue",
+      "components": 15,
+      "composables": 10,
+      "stores": 3,
+      "utils": 4,
+      "entryFile": "entrypoints/sidepanel/main.ts",
+      "mainComponent": "entrypoints/sidepanel/App.vue",
+      "hasTests": false,
+      "keyFiles": [
+        "entrypoints/sidepanel/App.vue",
+        "entrypoints/sidepanel/composables/useDataExtractor.ts",
+        "entrypoints/sidepanel/composables/useAISummary.ts",
+        "entrypoints/sidepanel/stores/dataStore.ts",
+        "entrypoints/sidepanel/stores/settingsStore.ts",
+        "entrypoints/sidepanel/types/index.ts"
+      ]
+    }
+  ],
+  "technologies": {
+    "frontend": ["Vue 3", "TypeScript", "Vite", "WXT"],
+    "ui": ["CSS Variables", "Markdown (marked)"],
+    "stateManagement": ["Vue Reactivity API", "Custom Stores"],
+    "backend": ["OpenAI SDK", "Supabase JS"],
+    "buildTools": ["Vite", "vue-tsc", "pnpm"],
+    "testing": [],
+    "browserApis": ["chrome.tabs", "chrome.scripting", "chrome.storage", "chrome.sidePanel"]
+  },
+  "keyDependencies": {
+    "production": {
+      "vue": "^3.5.21",
+      "openai": "^5.20.3",
+      "@supabase/supabase-js": "^2.57.4",
+      "marked": "^16.2.1"
+    },
+    "development": {
+      "wxt": "^0.20.6",
+      "@wxt-dev/module-vue": "^1.0.2",
+      "typescript": "^5.9.2",
+      "vue-tsc": "^3.0.6"
+    }
+  },
+  "documentation": {
+    "root": "CLAUDE.md",
+    "modules": [
+      "entrypoints/CLAUDE.md",
+      "entrypoints/sidepanel/CLAUDE.md"
+    ],
+    "generatedAt": "2025-12-27T07:25:01Z"
+  },
+  "gaps": [
+    {
+      "category": "测试",
+      "description": "项目缺少自动化测试",
+      "recommendation": "添加 Vitest 进行单元测试，Playwright 进行 E2E 测试",
+      "priority": "high"
+    },
+    {
+      "category": "文档",
+      "description": "缺少 README.md 详细说明",
+      "recommendation": "补充安装、配置、使用说明",
+      "priority": "medium"
+    },
+    {
+      "category": "错误处理",
+      "description": "部分错误处理不够完善",
+      "recommendation": "增强全局错误捕获和用户提示",
+      "priority": "medium"
+    }
+  ],
+  "nextSteps": [
+    "为 composables 添加单元测试（useDataExtractor, useAISummary 等）",
+    "为主要组件添加组件测试（TabNavigation, WebInfoSection 等）",
+    "完善 README.md 项目说明文档",
+    "添加错误边界和全局错误处理",
+    "优化 AI 总结的流式显示性能",
+    "添加数据导出功能的完整实现"
+  ],
+  "ignoredPatterns": [
+    "node_modules/**",
+    ".git/**",
+    ".github/**",
+    ".output/**",
+    ".wxt/**",
+    "dist/**",
+    "build/**",
+    "*.log",
+    "*.lock",
+    "*.bin",
+    "*.pdf",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.mp4",
+    "*.zip",
+    "*.tar",
+    "*.gz"
+  ],
+  "truncated": false,
+  "truncationReason": null
+}
