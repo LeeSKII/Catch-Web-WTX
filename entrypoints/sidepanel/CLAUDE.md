@@ -20,8 +20,7 @@
 2. **AI 智能总结**：调用 OpenAI API（兼容阿里云等）生成全文总结和关键信息提取
 3. **对话功能**：基于提取的内容进行 AI 对话
 4. **设置管理**：管理 API 密钥、提取选项、主题等配置
-5. **书签管理**：保存和管理提取的数据
-6. **数据导出**：导出提取的数据为 JSON/CSV 格式
+5. **数据导出**：导出提取的数据为 JSON 格式
 
 ---
 
@@ -146,10 +145,8 @@ export function useChat() {
 
 #### Composables（逻辑复用）
 - **useDataExtractor**：数据提取逻辑（303 行）
-- **useAISummary**：AI 总结逻辑（499 行）
+- **useAISummary**：AI 总结逻辑
 - **useChat**：对话功能
-- **useBookmark**：书签管理
-- **useSupabase**：Supabase 客户端
 - **useTheme**：主题切换
 - **useTabListeners**：标签页监听
 - **useAbortController**：请求中止控制
@@ -167,7 +164,6 @@ export function useChat() {
 #### 生产依赖
 - `vue`：前端框架
 - `openai`：OpenAI SDK
-- `@supabase/supabase-js`：Supabase 客户端
 - `marked`：Markdown 解析器
 
 #### 开发依赖
@@ -300,7 +296,6 @@ interface AISummaryData {
 - **提取的数据**：存储在 `dataStore.state.extractedData`（内存）
 - **AI 总结**：存储在 `localStorage`（键名格式：`aiSummary_<url>_<summaryType>`）
 - **用户设置**：存储在 `localStorage`（键名：`appSettings`）
-- **书签**：存储在 Supabase 云端数据库（需配置）
 
 ### Q4: 如何调试 Sidepanel？
 **A**:
@@ -340,10 +335,8 @@ abortRequest('aiSummary');  // 中止 AI 总结请求
 
 ### Composables（composables/）
 - `useDataExtractor.ts`：数据提取（303 行）
-- `useAISummary.ts`：AI 总结（499 行）
+- `useAISummary.ts`：AI 总结
 - `useChat.ts`：对话功能
-- `useBookmark.ts`：书签管理
-- `useSupabase.ts`：Supabase 客户端
 - `useTheme.ts`：主题切换
 - `useTabListeners.ts`：标签页监听
 - `useAbortController.ts`：请求中止控制

@@ -19,8 +19,7 @@
 
 - **网页数据提取**：从当前页面提取 HTML、文本、图片、链接、元数据、样式、脚本和文章内容
 - **AI 智能总结**：集成 OpenAI API（兼容阿里云等），提供全文总结和关键信息提取
-- **数据持久化**：支持本地存储和 Supabase 云端存储
-- **书签管理**：将提取的数据保存为书签
+- **数据持久化**：使用浏览器 localStorage 本地存储
 - **数据导出**：支持导出提取的数据
 
 ### 目标用户
@@ -50,7 +49,6 @@
 
 #### 后端集成
 - **OpenAI SDK**：AI 总结功能
-- **Supabase JS**：云端数据存储
 - **Chrome Extension API**：浏览器扩展能力
 
 #### 开发工具
@@ -88,8 +86,6 @@ graph TD
     I --> S["useDataExtractor<br/>数据提取"];
     I --> T["useAISummary<br/>AI总结"];
     I --> U["useChat<br/>对话功能"];
-    I --> V["useBookmark<br/>书签管理"];
-    I --> W["useSupabase<br/>云端存储"];
 
     click B "#entrypoints-模块" "查看 entrypoints 模块文档"
     click E "#sidepanel-模块" "查看 sidepanel 模块文档"
@@ -242,7 +238,6 @@ pnpm compile
 ### 生产依赖
 - `vue@^3.5.21`：前端框架
 - `openai@^5.20.3`：OpenAI SDK
-- `@supabase/supabase-js@^2.57.4`：Supabase 客户端
 - `marked@^16.2.1`：Markdown 解析器
 
 ### 开发依赖
@@ -270,8 +265,8 @@ pnpm compile
 
 ### Q3: 数据存储在哪里？
 **A**:
-- **本地存储**：使用 `localStorage` 存储提取的数据和 AI 总结
-- **云端存储**：使用 Supabase 存储（需配置）
+- 所有数据使用浏览器 `localStorage` 本地存储
+- 数据完全保存在本地，不上传任何第三方服务器
 
 ### Q4: 如何添加新的浏览器支持？
 **A**: WXT 已支持主流浏览器，运行 `pnpm dev:firefox` 可构建 Firefox 版本。
@@ -305,7 +300,6 @@ pnpm compile
 - [Vue 3 官方文档](https://vuejs.org/)
 - [Chrome Extension API](https://developer.chrome.com/docs/extensions/)
 - [OpenAI API 文档](https://platform.openai.com/docs/)
-- [Supabase 文档](https://supabase.com/docs)
 
 ---
 

@@ -1,11 +1,10 @@
 import { ref, Ref } from "vue";
-import { AISummaryData, NewsData } from "../types";
+import { AISummaryData } from "../types";
 import { createLogger } from "../utils/logger";
 import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
 import { useAbortController } from "./useAbortController";
 import { useStores } from "../stores";
-import { getSupabaseClient } from "./useSupabase";
 import OpenAI from "openai";
 
 // 创建日志器
@@ -14,7 +13,6 @@ const logger = createLogger("AISummary");
 export function useAISummary() {
   const { settingsStore } = useStores();
   const isLoadingAISummary: Ref<boolean> = ref(false);
-  const isQueryingDatabase: Ref<boolean> = ref(false);
   const aiSummaryContent: Ref<string> = ref("");
   const aiSummaryStatus: Ref<string> = ref("");
   const aiSummaryType: Ref<string> = ref("full");
@@ -354,68 +352,6 @@ export function useAISummary() {
   };
 
 
-  // 从数据库获取新闻数据
-  const getNews = async (url: string): Promise<NewsData[]> => {
-    isQueryingDatabase.value = true;
-    try {
-      const client = getSupabaseClient();
-      const { data, error } = await client
-        .from("News")
-        .select("url, summarizer, ai_key_info")
-        .eq("url", url);
-
-      if (error) {
-        logger.error("从数据库获取新闻数据失败", error);
-        return [];
-      }
-
-      return data as NewsData[] || [];
-    } catch (error) {
-      logger.error("获取新闻数据时出错", error);
-      return [];
-    } finally {
-      isQueryingDatabase.value = false;
-    }
-  };
-
-  // 预加载数据库数据到storage
-  const preloadDataToStorage = async (url: string): Promise<void> => {
-    try {
-      const newsData = await getNews(url);
-      if (newsData && newsData.length > 0) {
-        const news = newsData[0];
-        
-        // 如果有summarizer数据，保存到storage
-        if (news.summarizer) {
-          const fullSummaryData: AISummaryData = {
-            content: news.summarizer,
-            summaryType: "full",
-            createdAt: new Date().toISOString(),
-            url: url,
-          };
-          const fullKey = `aiSummary_${url}_full`;
-          await browser.storage.local.set({ [fullKey]: fullSummaryData });
-        }
-        
-        // 如果有ai_key_info数据，保存到storage
-        if (news.ai_key_info) {
-          const keyInfoSummaryData: AISummaryData = {
-            content: news.ai_key_info,
-            summaryType: "keyinfo",
-            createdAt: new Date().toISOString(),
-            url: url,
-          };
-          const keyInfoKey = `aiSummary_${url}_keyinfo`;
-          await browser.storage.local.set({ [keyInfoKey]: keyInfoSummaryData });
-        }
-        
-        logger.debug("预加载数据库数据到storage完成", { url });
-      }
-    } catch (error) {
-      logger.error("预加载数据库数据到storage失败", error);
-    }
-  };
-
   // 保存自定义 prompts 到 browser.storage.local
   const saveCustomPrompts = async (prompts: { full: string; keyinfo: string }) => {
     customPrompts.value = prompts;
@@ -475,7 +411,6 @@ export function useAISummary() {
 
   return {
     isLoadingAISummary,
-    isQueryingDatabase,
     aiSummaryContent,
     aiSummaryStatus,
     aiSummaryType,
@@ -488,8 +423,6 @@ export function useAISummary() {
     clearAISummaryCache,
     loadAndDisplayAISummary,
     switchSummaryType,
-    getNews,
-    preloadDataToStorage,
     saveCustomPrompts,
     loadCustomPrompts,
     getCurrentPrompt,
