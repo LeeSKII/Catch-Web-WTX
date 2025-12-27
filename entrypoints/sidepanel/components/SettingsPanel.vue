@@ -377,14 +377,34 @@ const handleToggleDarkMode = () => {
   box-shadow: var(--box-shadow);
 }
 
+/* 提取选项和应用设置使用水平布局 */
+.section:nth-of-type(1),
+.section:nth-of-type(2) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 15px;
+}
+
 .section-title {
   margin-bottom: 15px;
   font-weight: 600;
   color: var(--section-title-color);
 }
 
+/* 水平布局时标题跨两列 */
+.section:nth-of-type(1) .section-title,
+.section:nth-of-type(2) .section-title {
+  grid-column: 1 / -1;
+}
+
 .setting-item {
   margin-bottom: 15px;
+}
+
+/* 水平布局时移除底部间距 */
+.section:nth-of-type(1) .setting-item,
+.section:nth-of-type(2) .setting-item {
+  margin-bottom: 0;
 }
 
 .setting-label {
