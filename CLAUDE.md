@@ -1,306 +1,195 @@
-# Catch-Web-WTX 项目文档
+# CLAUDE.md
 
-> 最后更新：2025-12-27T07:25:01Z
-
----
-
-## 变更记录 (Changelog)
-
-### 2025-12-27
-- 初始化项目架构文档
-- 完成全仓扫描与模块识别
-- 生成根级与模块级文档
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
-## 项目愿景
+## 项目概述
 
-**Catch-Web-WTX** 是一个基于 Web 技术的浏览器扩展，用于智能提取和分析网页内容。主要功能包括：
+**Catch-Web-WTX** 是一个基于 WXT 框架的浏览器扩展，用于智能提取网页内容并提供 AI 总结功能。
 
-- **网页数据提取**：从当前页面提取 HTML、文本、图片、链接、元数据、样式、脚本和文章内容
-- **AI 智能总结**：集成 OpenAI API（兼容阿里云等），提供全文总结和关键信息提取
-- **数据持久化**：使用浏览器 localStorage 本地存储
-- **数据导出**：支持导出提取的数据
-
-### 目标用户
-- 研究人员需要快速提取和总结网页内容
-- 内容创作者需要收集和整理网络资源
-- 数据分析师需要批量获取网页结构化数据
+- **框架**: WXT 0.20 + Vue 3 (Composition API) + TypeScript
+- **包管理**: pnpm
+- **主界面**: 浏览器侧边栏 (Side Panel)
+- **AI 集成**: OpenAI SDK（兼容阿里云 DashScope 等兼容接口）
 
 ---
 
-## 架构总览
+## 常用命令
 
-### 技术栈
-
-#### 前端框架
-- **Vue 3**：渐进式 JavaScript 框架，使用 Composition API
-- **TypeScript**：类型安全的 JavaScript 超集
-- **WXT**：现代浏览器扩展开发框架（基于 Vite）
-
-#### UI 与样式
-- 纯 CSS 变量系统（支持亮色/暗色主题）
-- 响应式侧边栏布局
-- Markdown 渲染（使用 marked 库）
-
-#### 状态管理
-- Vue 3 Reactivity API
-- 自定义 Stores（dataStore、settingsStore、uiStore）
-
-#### 后端集成
-- **OpenAI SDK**：AI 总结功能
-- **Chrome Extension API**：浏览器扩展能力
-
-#### 开发工具
-- **Vite**：快速构建工具
-- **vue-tsc**：TypeScript 类型检查
-- **pnpm**：高效的包管理器
-
----
-
-## 模块结构图
-
-```mermaid
-graph TD
-    A["(根) Catch-Web-WTX<br/>浏览器扩展"] --> B["entrypoints"];
-    A --> C["public"];
-    A --> D["components"];
-
-    B --> E["sidepanel<br/>侧边栏主界面"];
-    B --> F["background.ts<br/>后台脚本"];
-    B --> G["content.ts<br/>内容脚本"];
-
-    E --> H["components<br/>UI组件"];
-    E --> I["composables<br/>逻辑复用"];
-    E --> J["stores<br/>状态管理"];
-    E --> K["utils<br/>工具函数"];
-    E --> L["types<br/>类型定义"];
-    E --> M["constants<br/>常量配置"];
-
-    H --> N["TabNavigation<br/>标签导航"];
-    H --> O["WebInfoSection<br/>网页信息"];
-    H --> P["AISummaryPanel<br/>AI总结"];
-    H --> Q["ChatPanel<br/>对话面板"];
-    H --> R["SettingsPanel<br/>设置面板"];
-
-    I --> S["useDataExtractor<br/>数据提取"];
-    I --> T["useAISummary<br/>AI总结"];
-    I --> U["useChat<br/>对话功能"];
-
-    click B "#entrypoints-模块" "查看 entrypoints 模块文档"
-    click E "#sidepanel-模块" "查看 sidepanel 模块文档"
-```
-
----
-
-## 模块索引
-
-| 模块路径 | 职责 | 技术栈 | 文档 |
-|---------|------|--------|------|
-| `entrypoints/` | 扩展入口点 | TypeScript, WXT | [查看文档](#entrypoints-模块) |
-| `entrypoints/sidepanel/` | 侧边栏主界面 | Vue 3, TypeScript | [查看文档](#sidepanel-模块) |
-| `entrypoints/background.ts` | 后台服务脚本 | TypeScript | - |
-| `entrypoints/content.ts` | 内容脚本（注入页面） | TypeScript | - |
-| `components/` | 全局共享组件 | Vue 3 | - |
-| `public/` | 静态资源 | - | - |
-
----
-
-## 运行与开发
-
-### 环境要求
-- Node.js >= 18
-- pnpm >= 8
-
-### 安装依赖
 ```bash
-pnpm install
-```
-
-### 开发模式
-
-#### Chrome/Edge
-```bash
+# 开发模式 (Chrome/Edge)
 pnpm dev
-```
 
-#### Firefox
-```bash
+# 开发模式 (Firefox)
 pnpm dev:firefox
-```
 
-### 构建
-
-#### Chrome/Edge
-```bash
+# 生产构建
 pnpm build
-```
-
-#### Firefox
-```bash
 pnpm build:firefox
-```
 
-### 打包
-```bash
-pnpm zip
-```
-
-### 类型检查
-```bash
+# 类型检查
 pnpm compile
+
+# 打包扩展
+pnpm zip
+pnpm zip:firefox
 ```
 
----
-
-## 测试策略
-
-当前项目**暂无自动化测试**。
-
-### 推荐测试策略
-1. **单元测试**：使用 Vitest 测试 composables 和 utils
-2. **组件测试**：使用 Vue Test Utils 测试 Vue 组件
-3. **E2E 测试**：使用 Playwright 测试浏览器扩展功能
-4. **手动测试**：在 Chrome/Edge/Firefox 中加载未打包的扩展进行测试
+### 调试扩展
+1. 运行 `pnpm dev` 生成 `.output/chrome-mv3`
+2. 在浏览器中打开 `chrome://extensions/`
+3. 启用"开发者模式"，点击"加载已解压的扩展程序"
+4. 选择 `.output/chrome-mv3` 目录
 
 ---
 
-## 编码规范
+## 架构关键点
 
-### TypeScript
-- 使用严格模式（`strict: true`）
-- 优先使用 `interface` 定义对象类型
-- 使用 `type` 定义联合类型、交叉类型
-- 避免使用 `any`，使用 `unknown` 代替
+### 入口点结构
 
-### Vue 3
-- 使用 Composition API（`<script setup>`）
-- 组件文件使用 PascalCase 命名
-- Composables 使用 `use` 前缀
-- Props 定义使用 TypeScript 类型
+```
+entrypoints/
+├── sidepanel/          # Vue 3 侧边栏应用（主界面）
+│   ├── App.vue         # 应用根组件
+│   ├── main.ts         # 启动文件
+│   ├── components/     # UI 组件
+│   ├── composables/    # 组合式函数（业务逻辑）
+│   ├── stores/         # 响应式状态管理
+│   ├── types/          # TypeScript 类型定义
+│   └── constants/      # 常量配置
+├── background.ts       # 后台脚本（监听扩展图标点击、打开侧边栏）
+└── content.ts          # 内容脚本（注入到网页，用于 DOM 操作）
+```
 
-### CSS
-- 使用 CSS 变量定义主题颜色
-- 使用 BEM 命名规范（可选）
-- 响应式设计优先移动端
+### 数据流架构
 
-### 提交规范
-使用约定式提交（Conventional Commits）：
-- `feat:` 新功能
-- `fix:` 修复 bug
-- `docs:` 文档更新
-- `style:` 代码格式调整
-- `refactor:` 重构
-- `test:` 测试相关
-- `chore:` 构建/工具链更新
+```
+用户操作 → Sidepanel UI
+              ↓
+         Composables (业务逻辑)
+              ↓
+         browser.tabs.executeScript
+              ↓
+         Content Script (DOM 提取)
+              ↓
+         返回 ExtractedData
+              ↓
+         Store (状态管理)
+              ↓
+         UI 更新
+```
+
+### 状态管理 (Stores)
+
+三个独立的 Store，使用 Vue 3 Reactivity API：
+
+| Store | 文件 | 职责 |
+|-------|------|------|
+| dataStore | `stores/dataStore.ts` | 提取的数据、加载状态、错误信息 |
+| settingsStore | `stores/settingsStore.ts` | 用户设置（API 密钥、提取选项） |
+| uiStore | `stores/uiStore.ts` | UI 状态（当前标签页、Toast、主题） |
+
+### 核心 Composables
+
+| Composable | 文件 | 职责 |
+|------------|------|------|
+| useDataExtractor | `composables/useDataExtractor.ts` | 从当前标签页提取数据 |
+| useAISummary | `composables/useAISummary.ts` | AI 总结生成和流式输出 |
+| useChat | `composables/useChat.ts` | AI 对话功能 |
+| useTabListeners | `composables/useTabListeners.ts` | 监听标签页切换自动提取数据 |
 
 ---
 
-## AI 使用指引
+## 重要类型定义
 
-### 项目结构理解
-1. **入口点**：`entrypoints/sidepanel/App.vue` 是侧边栏主应用
-2. **状态管理**：`stores/` 目录下有三个 store（data、settings、ui）
-3. **业务逻辑**：`composables/` 目录下包含所有可复用的业务逻辑
-4. **类型定义**：`types/index.ts` 包含所有 TypeScript 类型
+所有类型定义在 `entrypoints/sidepanel/types/index.ts`：
 
-### 常见任务
+- `ExtractedData`: 提取的网页数据
+- `Settings`: 用户设置
+- `AISummaryData`: AI 总结数据
+- `StructuredSummaryItem` / `StructuredSummaryData`: 结构化总结
+- `HtmlBlock`: HTML 区块信息
 
-#### 添加新的提取选项
+---
+
+## 添加新功能的典型流程
+
+### 添加新的数据提取类型
 1. 在 `types/index.ts` 中更新 `ExtractedData` 和 `Settings` 接口
 2. 在 `useDataExtractor.ts` 的 `getPageData` 函数中添加提取逻辑
 3. 在 `SettingsPanel.vue` 中添加配置选项
 
-#### 添加新的 AI 功能
-1. 在 `useAISummary.ts` 中添加新的函数
+### 添加新的 AI 功能
+1. 在 `useAISummary.ts` 中添加新函数
 2. 在 `AISummaryPanel.vue` 中添加 UI 组件
-3. 在 `constants/index.ts` 中添加新的配置常量
+3. 在 `constants/index.ts` 中添加配置常量（如需要）
 
-#### 修改主题
-1. 在 `style.css` 中修改 CSS 变量
-2. 在 `useTheme.ts` 中调整主题切换逻辑
-
-### 关键文件说明
-
-| 文件路径 | 作用 | 修改频率 |
-|---------|------|---------|
-| `entrypoints/sidepanel/App.vue` | 应用主入口 | 低 |
-| `entrypoints/sidepanel/composables/useDataExtractor.ts` | 数据提取逻辑 | 中 |
-| `entrypoints/sidepanel/composables/useAISummary.ts` | AI 总结逻辑 | 中 |
-| `entrypoints/sidepanel/stores/settingsStore.ts` | 设置存储 | 低 |
-| `entrypoints/sidepanel/types/index.ts` | 类型定义 | 低 |
-| `entrypoints/sidepanel/constants/index.ts` | 常量配置 | 中 |
+### 添加新的标签页
+1. 在 `components/` 中创建新组件
+2. 在 `App.vue` 中注册组件和标签
+3. 更新 `TabNavigation.vue` 的标签列表
 
 ---
 
-## 关键依赖
+## 关键配置文件
 
-### 生产依赖
-- `vue@^3.5.21`：前端框架
-- `openai@^5.20.3`：OpenAI SDK
-- `marked@^16.2.1`：Markdown 解析器
+| 文件 | 用途 |
+|------|------|
+| `wxt.config.ts` | WXT 框架配置、权限声明、快捷键 |
+| `tsconfig.json` | TypeScript 配置 |
+| `entrypoints/manifest.ts` | 扩展 manifest 配置（如需自定义） |
 
-### 开发依赖
-- `wxt@^0.20.6`：浏览器扩展框架
-- `@wxt-dev/module-vue@^1.0.2`：WXT Vue 模块
-- `typescript@^5.9.2`：TypeScript 编译器
-- `vue-tsc@^3.0.6`：Vue TypeScript 类型检查
-
----
-
-## 常见问题 (FAQ)
-
-### Q1: 如何调试浏览器扩展？
-**A**: 在 Chrome 中：
-1. 打开 `chrome://extensions/`
-2. 启用"开发者模式"
-3. 点击"加载已解压的扩展程序"
-4. 选择项目的 `.output/<browser>-mv3` 目录
-
-### Q2: AI 总结功能如何配置？
-**A**:
-1. 在设置面板中输入 OpenAI API Key
-2. 配置 Base URL（默认为阿里云 DashScope）
-3. 选择 AI 模型（默认为 qwen-turbo）
-
-### Q3: 数据存储在哪里？
-**A**:
-- 所有数据使用浏览器 `localStorage` 本地存储
-- 数据完全保存在本地，不上传任何第三方服务器
-
-### Q4: 如何添加新的浏览器支持？
-**A**: WXT 已支持主流浏览器，运行 `pnpm dev:firefox` 可构建 Firefox 版本。
+### 快捷键配置
+- `Ctrl+B` (Mac: `Command+B`): 点击扩展图标
+- `Ctrl+Shift+B` (Mac: `Command+Shift+B`): 打开侧边栏
 
 ---
 
-## 扩展权限说明
+## AI API 配置
 
-该扩展需要以下权限：
-- `activeTab`：访问当前活动标签页
-- `declarativeContent`：根据页面内容启用/禁用扩展
-- `scripting`：在页面中注入脚本
-- `downloads`：下载功能（预留）
-- `storage`：本地数据存储
-- `sidePanel`：侧边栏功能
-- `tabs`：标签页管理
-- `webNavigation`：网页导航监听
-- `https://*/*`, `http://*/*`：所有网站的访问权限
+扩展支持 OpenAI 及兼容接口（如阿里云 DashScope）：
 
----
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| Base URL | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API 基础地址 |
+| 模型 | `qwen-turbo` | AI 模型标识 |
+| 最大 Token | 4000 | 单次请求最大 tokens |
 
-## 许可证
-
-本项目为私有项目（`private: true`）。
+用户在侧边栏"设置"标签中配置 API Key 和其他参数。
 
 ---
 
-## 相关资源
+## 数据存储策略
 
-- [WXT 官方文档](https://wxt.dev/)
-- [Vue 3 官方文档](https://vuejs.org/)
-- [Chrome Extension API](https://developer.chrome.com/docs/extensions/)
-- [OpenAI API 文档](https://platform.openai.com/docs/)
+- **提取数据**: 内存 (dataStore)，刷新页面后丢失
+- **AI 总结**: localStorage (键名: `aiSummary_<url>_<type>`)
+- **用户设置**: localStorage (键名: `appSettings`)
 
 ---
 
-[返回顶部](#catch-web-wtx-项目文档)
+## 组件命名约定
+
+- **组件文件**: PascalCase (如 `AISummaryPanel.vue`)
+- **Composables**: `use` 前缀 (如 `useDataExtractor.ts`)
+- **Stores**: `*Store` 后缀 (如 `dataStore.ts`)
+- **类型文件**: `index.ts` 统一导出
+
+---
+
+## 浏览器扩展权限
+
+在 `wxt.config.ts` 中配置：
+- `activeTab`: 访问当前活动标签页
+- `scripting`: 在页面中注入脚本
+- `storage`: 本地数据存储
+- `sidePanel`: 侧边栏功能
+- `tabs`: 标签页管理
+- `webNavigation`: 网页导航监听
+- `host_permissions`: `https://*/*`, `http://*/*`
+
+---
+
+## 当前测试状态
+
+项目暂无自动化测试。手动测试通过加载未打包的扩展进行。
