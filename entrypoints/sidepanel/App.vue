@@ -7,6 +7,7 @@ import { browser } from "wxt/browser";
 import { createLogger } from "./utils/logger";
 import { PERFORMANCE_CONFIG } from "./constants";
 import { useStores } from "./stores";
+import { cleanupAllExpiredData } from "./utils/dataCleanup";
 
 // 导入组件
 import TabNavigation from "./components/TabNavigation.vue";
@@ -168,6 +169,15 @@ onMounted(async () => {
       clearPanelData();
     }
   });
+
+  // 应用初始化时调用清理函数
+  try {
+    logger.info("应用初始化，开始清理过期数据");
+    await cleanupAllExpiredData();
+    logger.info("应用初始化，数据清理完成");
+  } catch (error) {
+    logger.error("应用初始化时数据清理失败", error);
+  }
 
   // 初始加载时自动提取当前页面数据
   await refreshDataForNewTab();

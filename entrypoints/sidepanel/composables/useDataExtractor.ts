@@ -273,7 +273,7 @@ export function useDataExtractor() {
     return data;
   };
 
-  const saveExtractedData = (data: ExtractedData) => {
+  const saveExtractedData = async (data: ExtractedData) => {
     // 只保存必要的数据，避免存储过大
     const dataToSave = {
       meta: data.meta,
@@ -283,10 +283,11 @@ export function useDataExtractor() {
       imagesCount: data.images ? data.images.length : 0,
       linksCount: data.links ? data.links.length : 0,
       article: data.article,
-      extractedAt: data.extractedAt,
+      extractedAt: data.extractedAt || new Date().toISOString(), // 确保时间戳存在
     };
 
-    localStorage.setItem('extractedData', JSON.stringify(dataToSave));
+    // 使用 browser.storage.local 替代 localStorage
+    await browser.storage.local.set({ extractedData: dataToSave });
   };
 
   const clearExtractedData = () => {

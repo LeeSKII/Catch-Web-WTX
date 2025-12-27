@@ -1,6 +1,5 @@
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import { browser } from "wxt/browser";
-import { storage } from "#imports";
 import { createLogger } from "../utils/logger";
 import { useToast } from "./useToast";
 import { useAbortController } from "./useAbortController";
@@ -102,10 +101,10 @@ export function useChat() {
    */
   const loadChatHistory = async () => {
     try {
-      const chatHistoryData = await storage.getItem("local:chatHistory");
+      const result = await browser.storage.local.get('chatHistory');
+      const chatHistoryData = result.chatHistory;
       if (chatHistoryData) {
-        const parsedData = JSON.parse(chatHistoryData as string);
-        chatHistory.value = parsedData.map((chat: any) => ({
+        chatHistory.value = chatHistoryData.map((chat: any) => ({
           ...chat,
           createdAt: new Date(chat.createdAt),
           updatedAt: new Date(chat.updatedAt),
@@ -121,10 +120,9 @@ export function useChat() {
    */
   const saveChatHistory = async () => {
     try {
-      await storage.setItem(
-        "local:chatHistory",
-        JSON.stringify(chatHistory.value)
-      );
+      await browser.storage.local.set({
+        chatHistory: chatHistory.value
+      });
     } catch (err) {
       logger.error("保存聊天历史失败", err);
     }
@@ -136,17 +134,17 @@ export function useChat() {
   const loadReferenceList = async () => {
     try {
       logger.debug("开始加载引用列表");
-      const referenceListData = await storage.getItem("local:referenceList");
+      const result = await browser.storage.local.get('referenceList');
+      const referenceListData = result.referenceList;
       logger.debug("从storage获取的引用列表数据:", referenceListData);
 
       if (referenceListData) {
-        const parsedData = JSON.parse(referenceListData as string);
         logger.debug(
           "找到引用列表数据，数量:",
-          Array.isArray(parsedData) ? parsedData.length : "不是数组"
+          Array.isArray(referenceListData) ? referenceListData.length : "不是数组"
         );
         // 确保 referenceList 是一个数组
-        referenceList.value = Array.isArray(parsedData) ? parsedData : [];
+        referenceList.value = Array.isArray(referenceListData) ? referenceListData : [];
         logger.debug(
           "引用列表已加载到响应式变量，当前数量:",
           referenceList.value.length
@@ -173,15 +171,14 @@ export function useChat() {
     try {
       logger.debug("开始保存引用列表，当前数量:", referenceList.value.length);
       logger.debug("引用列表内容:", JSON.stringify(referenceList.value));
-      await storage.setItem(
-        "local:referenceList",
-        JSON.stringify(referenceList.value)
-      );
+      await browser.storage.local.set({
+        referenceList: referenceList.value
+      });
       logger.debug("引用列表已保存到storage");
 
       // 验证保存是否成功
-      const result = await storage.getItem("local:referenceList");
-      logger.debug("验证保存结果:", result);
+      const result = await browser.storage.local.get('referenceList');
+      logger.debug("验证保存结果:", result.referenceList);
     } catch (err) {
       logger.error("保存引用列表失败", err);
     }
