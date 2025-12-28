@@ -77,7 +77,7 @@
 
   <!-- 引用列表模态对话框 -->
   <ReferenceList
-    :visible="showReferenceListModal"
+    :visible="modalState.showReferenceListModal"
     :reference-list="referenceList"
     @show-detail="showReferenceDetail"
     @remove-reference="removeReference"
@@ -86,9 +86,9 @@
 
   <!-- 引用详情模态对话框 -->
   <ReferenceDetail
-    :visible="showReferenceModal"
+    :visible="modalState.showReferenceModal"
     :reference-info="referenceInfo"
-    :reference-preview="getReferencePreview"
+    :reference-preview="referencePreview"
     @update:visible="hideReferenceDetail"
   />
 
@@ -109,7 +109,7 @@ import Confirm from "./Confirm.vue";
 import MessageItem from "./MessageItem.vue";
 import ReferenceList from "./ReferenceList.vue";
 import ReferenceDetail from "./ReferenceDetail.vue";
-import { useChat } from "../composables/useChat";
+import { useChat } from "../composables/chat";
 import { useStores } from "../stores";
 import { createLogger } from "../utils/logger";
 import type { ExtractedData } from "../types";
@@ -129,10 +129,6 @@ const {
   referenceText,
   systemPrompt,
   systemMessage,
-  showReferenceModal,
-  showReferenceListModal,
-  selectedReferenceIndex,
-  getReferencePreview,
   streamingContent,
   isStreaming,
   sendMessage: sendChatMessage,
@@ -144,7 +140,9 @@ const {
   updateChatTitle,
   exportChat,
   abortCurrentRequest,
-  addReferenceToChat,
+  modalState,
+  referencePreview,
+  addReference: addReferenceToChat,
   showReferenceList,
   hideReferenceList,
   showReferenceDetail,
@@ -529,7 +527,7 @@ const saveChat = () => {
 
 const addReference = () => {
   if (extractedData.value.text) {
-    addReferenceToChat(extractedData.value.text, extractedData.value);
+    addReferenceToChat(extractedData.value);
   } else {
     uiStore.showToast("没有可引用的文本内容，请先提取数据", "warning");
   }

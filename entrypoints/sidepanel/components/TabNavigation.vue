@@ -32,15 +32,17 @@
 </template>
 
 <script lang="ts" setup>
+import type { TabName } from '../stores/types'
+
 defineProps<{
-  currentTab: string;
+  currentTab: TabName;
 }>();
 
 const emit = defineEmits<{
-  "tab-change": [tabName: string];
+  "tab-change": [tabName: TabName];
 }>();
 
-const switchTab = (tabName: string) => {
+const switchTab = (tabName: TabName) => {
   emit("tab-change", tabName);
 };
 </script>

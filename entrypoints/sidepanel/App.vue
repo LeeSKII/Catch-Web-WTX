@@ -8,6 +8,7 @@ import { createLogger } from "./utils/logger";
 import { PERFORMANCE_CONFIG } from "./constants";
 import { useStores } from "./stores";
 import { cleanupAllExpiredData } from "./utils/dataCleanup";
+import type { TabName } from "./stores/types";
 
 // 导入组件
 import TabNavigation from "./components/TabNavigation.vue";
@@ -30,7 +31,7 @@ const { extractData } = useDataExtractor();
 const webInfoSectionRef = ref<InstanceType<typeof WebInfoSection> | null>(null);
 
 // 方法
-const switchTab = (tabName: string) => {
+const switchTab = (tabName: TabName) => {
   uiStore.switchTab(tabName);
 };
 

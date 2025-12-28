@@ -12,7 +12,6 @@ export function useAbortController() {
     dataExtraction: null as AbortController | null,
     bookmarkCheck: null as AbortController | null,
     aiSummary: null as AbortController | null,
-    databaseQuery: null as AbortController | null,
     chat: null as AbortController | null,
   };
 
