@@ -1,3 +1,59 @@
+<!--
+  @component BaseModal
+  @description
+    通用模态框组件，提供可复用的弹窗容器。
+    支持自定义头部、主体内容和底部按钮区域。
+
+  @features
+    - 自定义标题
+    - 可配置宽度和最大宽度
+    - 默认插槽用于主体内容
+    - 具名插槽（footer）用于自定义底部
+    - 可选的确认/取消按钮
+    - 点击遮罩层关闭（可配置）
+    - 使用 v-model 双向绑定显示状态
+
+  @usage
+    <BaseModal
+      v-model:visible="showModal"
+      title="标题"
+      width="600px"
+      :show-footer="true"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    >
+      <p>模态框内容</p>
+      <template #footer>
+        <button @click="handleCustomAction">自定义操作</button>
+      </template>
+    </BaseModal>
+
+  @props
+    @param {boolean} visible - 控制模态框显示/隐藏（支持 v-model）
+    @param {string} title - 模态框标题
+    @param {string} width - 模态框宽度，默认"90%"
+    @param {string} maxWidth - 模态框最大宽度，默认"600px"
+    @param {boolean} showFooter - 是否显示底部，默认 false
+    @param {boolean} showCancelButton - 是否显示取消按钮，默认 true
+    @param {boolean} showConfirmButton - 是否显示确认按钮，默认 true
+    @param {string} cancelText - 取消按钮文本，默认"取消"
+    @param {string} confirmText - 确认按钮文本，默认"确认"
+    @param {boolean} closeOnClickOverlay - 是否允许点击遮罩关闭，默认 true
+
+  @slots
+    @slot default - 主体内容插槽
+    @slot footer - 底部内容插槽（覆盖默认按钮）
+
+  @emits
+    @event {boolean} update:visible - 显示状态改变时触发
+    @event {void} close - 模态框关闭时触发
+    @event {void} cancel - 用户点击取消按钮时触发
+    @event {void} confirm - 用户点击确认按钮时触发
+
+  @see
+    - Confirm.vue - 确认对话框组件（基于此组件封装）
+-->
+
 <template>
   <!-- 通用模态对话框 -->
   <div

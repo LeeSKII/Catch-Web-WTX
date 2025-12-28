@@ -1,3 +1,41 @@
+<!--
+  @component ImageGrid
+  @description
+    图片网格预览组件，展示从网页中提取的图片缩略图。
+    支持图片筛选、预览（最多显示 12 张）和批量下载功能。
+
+  @features
+    - 2 列网格布局展示图片缩略图
+    - 鼠标悬停显示图片尺寸信息
+    - 实时搜索/过滤图片
+    - "查看全部"按钮打开完整图片列表
+    - "下载全部"按钮批量下载所有图片
+    - 最多预览 12 张，超过时显示剩余数量
+
+  @usage
+    <ImageGrid
+      :extracted-data="extractedData"
+      :image-filter="imageFilter"
+      @update:image-filter="imageFilter = $event"
+      @view-all-images="handleViewAllImages"
+      @download-all-images="handleDownloadAllImages"
+    />
+
+  @props
+    @param {ExtractedData} extractedData - 提取的数据，包含 images 数组
+    @param {string} imageFilter - 图片过滤关键字
+
+  @emits
+    @event {void} view-all-images - 用户点击"查看全部"时触发
+    @event {void} download-all-images - 用户点击"下载全部"时触发
+    @event {string} update:imageFilter - 过滤关键字改变时触发
+
+  @see
+    - ImageModal.vue - 查看全部图片的模态框
+    - WebInfoSection.vue - 使用此组件的父组件
+    - composables/useDataExport.ts - 下载逻辑实现
+-->
+
 <template>
   <div v-if="extractedData.images && extractedData.images.length > 0" class="section">
     <div class="section-title">

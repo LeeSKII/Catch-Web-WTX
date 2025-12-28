@@ -1,3 +1,52 @@
+<!--
+  @component WebInfoSection
+  @description
+    网页信息展示面板，用于展示从当前标签页提取的数据。
+    包括页面统计信息、标题、域名、文章内容，以及图片和链接的预览和管理功能。
+
+  @features
+    - 页面加载状态指示器（显示加载动画）
+    - 统计信息展示（图片数、链接数、字数）
+    - 网页基本信息（标题、域名、文章内容）
+    - 图片网格预览，支持筛选和查看全部
+    - 链接列表预览，支持筛选和查看全部
+    - 数据导出功能（复制全部、导出 JSON）
+    - 刷新数据按钮（带防抖状态）
+    - 图片批量下载功能
+
+  @usage
+    <WebInfoSection @refresh-data="handleRefreshData" />
+
+  @emits
+    @event {void} refresh-data - 用户点击刷新按钮时触发，请求重新提取当前页面数据
+
+  @exposed
+    @method resetButtonStates - 重置刷新按钮的禁用状态
+
+  @example
+    <script setup>
+    import WebInfoSection from '@/components/WebInfoSection.vue'
+
+    const handleRefreshData = () => {
+      // 重新提取当前页面数据
+      refreshDataForNewTab()
+    }
+    </script>
+
+    <template>
+      <WebInfoSection @refresh-data="handleRefreshData" />
+    </template>
+
+  @see
+    - StatsDisplay.vue - 统计信息子组件
+    - ImageGrid.vue - 图片网格子组件
+    - ImageModal.vue - 图片模态框子组件
+    - LinkList.vue - 链接列表子组件
+    - LinkModal.vue - 链接模态框子组件
+    - composables/useDataExport.ts - 数据导出逻辑
+    - stores/dataStore.ts - 数据存储
+-->
+
 <template>
   <div class="settings-container custom-scrollbar">
     <!-- 页面加载状态指示器 -->

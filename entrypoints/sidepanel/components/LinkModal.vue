@@ -1,3 +1,40 @@
+<!--
+  @component LinkModal
+  @description
+    链接全量查看模态框组件，以弹窗形式展示所有提取的链接。
+    支持搜索/过滤功能，可在新标签页中打开链接。
+
+  @features
+    - 全屏模态框展示所有链接
+    - 实时搜索/过滤链接
+    - 显示链接文本和 URL
+    - 链接在新标签页中打开
+    - 点击遮罩层关闭模态框
+    - 空状态提示（无匹配链接）
+
+  @usage
+    <LinkModal
+      :show="showModal"
+      :links="extractedData.links"
+      :link-filter="linkFilter"
+      @close="showModal = false"
+      @update:link-filter="linkFilter = $event"
+    />
+
+  @props
+    @param {boolean} show - 控制模态框显示/隐藏
+    @param {LinkData[]} links - 链接数据数组
+    @param {string} linkFilter - 链接过滤关键字
+
+  @emits
+    @event {void} close - 用户点击关闭按钮或遮罩层时触发
+    @event {string} update:linkFilter - 过滤关键字改变时触发
+
+  @see
+    - LinkList.vue - 链接列表预览组件
+    - types/index.ts - LinkData 类型定义
+-->
+
 <template>
   <div v-if="show" class="modal-overlay" @click="$emit('close')">
     <div class="modal-content" @click.stop>

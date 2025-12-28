@@ -1,3 +1,43 @@
+<!--
+  @component SettingsPanel
+  @description
+    设置面板组件，提供应用配置的完整界面。
+    包括提取选项、应用设置、AI 配置三个主要区域。
+
+  @features
+    - **提取选项**：配置要提取的网页数据类型（HTML、文本、图片、链接、元数据、文章内容、样式、脚本）
+    - **应用设置**：
+      - 显示图片预览开关
+      - 暗色模式切换
+      - 数据保留时间选择
+    - **AI 设置**：
+      - OpenAI API 密钥配置
+      - API 基础 URL 配置
+      - AI 模型选择
+    - 实时保存到 localStorage
+    - 设置输入验证和提示
+
+  @usage
+    <SettingsPanel />
+
+  @events
+    无直接事件，内部通过 settingsStore 处理所有逻辑
+
+  @example
+    <script setup>
+    import SettingsPanel from '@/components/SettingsPanel.vue'
+    </script>
+
+    <template>
+      <SettingsPanel />
+    </template>
+
+  @see
+    - stores/settingsStore.ts - 设置存储逻辑
+    - types/index.ts - Settings 类型定义
+    - App.vue - 使用此组件的父组件
+-->
+
 <template>
   <div class="settings-container custom-scrollbar">
     <div class="section">

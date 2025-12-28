@@ -1,3 +1,39 @@
+<!--
+  @component ReferenceList
+  @description
+    引用列表模态框组件，显示所有已添加的网页引用。
+    用于 AI 对话时提供上下文参考信息。
+
+  @features
+    - 展示所有引用项（标题、URL、内容预览）
+    - 点击查看引用详情
+    - 删除引用项
+    - 空状态提示
+    - 悬停效果提升交互体验
+
+  @usage
+    <ReferenceList
+      v-model:visible="modalState.showReferenceListModal"
+      :reference-list="referenceList"
+      @show-detail="handleShowReferenceDetail"
+      @remove-reference="removeReference"
+    />
+
+  @props
+    @param {boolean} visible - 控制模态框显示/隐藏（支持 v-model）
+    @param {ReferenceItem[]} referenceList - 引用项数组
+
+  @emits
+    @event {boolean} update:visible - 显示状态改变时触发
+    @event {number} show-detail - 用户点击引用项时触发，传递索引
+    @event {number} remove-reference - 用户点击删除按钮时触发，传递索引
+
+  @see
+    - BaseModal.vue - 基础模态框组件
+    - ReferenceDetail.vue - 引用详情模态框
+    - composables/chat/useChatReference.ts - 引用管理逻辑
+-->
+
 <template>
   <!-- 引用列表模态对话框 -->
   <BaseModal

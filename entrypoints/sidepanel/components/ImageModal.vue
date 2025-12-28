@@ -1,3 +1,35 @@
+<!--
+  @component ImageModal
+  @description
+    图片全量查看模态框组件，以弹窗形式展示所有提取的图片。
+    使用响应式网格布局，适配不同屏幕尺寸。
+
+  @features
+    - 全屏模态框展示所有图片
+    - 响应式网格布局（自动填充列）
+    - 显示图片尺寸和描述信息
+    - 点击遮罩层关闭模态框
+    - 自定义滚动条样式
+
+  @usage
+    <ImageModal
+      :show="showModal"
+      :images="extractedData.images"
+      @close="showModal = false"
+    />
+
+  @props
+    @param {boolean} show - 控制模态框显示/隐藏
+    @param {ImageData[]} images - 图片数据数组
+
+  @emits
+    @event {void} close - 用户点击关闭按钮或遮罩层时触发
+
+  @see
+    - ImageGrid.vue - 图片网格预览组件
+    - types/index.ts - ImageData 类型定义
+-->
+
 <template>
   <div v-if="show" class="modal-overlay" @click="$emit('close')">
     <div class="modal-content" @click.stop>

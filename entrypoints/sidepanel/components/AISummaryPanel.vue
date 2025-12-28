@@ -1,3 +1,43 @@
+<!--
+  @component AISummaryPanel
+  @description
+    AI 总结面板组件，提供智能网页内容总结功能。
+    支持全文总结和关键信息提取两种模式，使用流式输出实时显示 AI 响应。
+
+  @features
+    - 折叠式控制面板，默认折叠节省空间
+    - 两种总结模式：全文总结、关键信息提取
+    - 自定义 Prompt 编辑功能
+    - 流式输出，实时显示 AI 响应内容
+    - 支持暂停和恢复总结生成
+    - Markdown 格式渲染
+    - 总结内容缓存（按 URL 和类型存储）
+    - 标签页切换时自动加载对应页面的缓存总结
+    - 复制总结内容到剪贴板
+    - 清除缓存功能
+
+  @usage
+    <AISummaryPanel />
+
+  @events
+    无直接事件，内部通过 composables 处理所有逻辑
+
+  @example
+    <script setup>
+    import AISummaryPanel from '@/components/AISummaryPanel.vue'
+    </script>
+
+    <template>
+      <AISummaryPanel />
+    </template>
+
+  @see
+    - composables/useAISummary.ts - AI 总结核心逻辑
+    - PromptEditModal.vue - Prompt 编辑模态框
+    - stores/dataStore.ts - 数据存储
+    - stores/settingsStore.ts - API 配置
+-->
+
 <template>
   <div class="ai-summary-panel">
     <!-- 折叠式控制栏 -->

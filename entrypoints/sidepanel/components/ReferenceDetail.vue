@@ -1,3 +1,37 @@
+<!--
+  @component ReferenceDetail
+  @description
+    引用详情模态框组件，展示单个引用项的完整信息。
+    包括标题、URL、主机、内容预览、字数统计、提取时间等。
+
+  @features
+    - 显示引用的完整信息
+    - 跳转到原文页面（智能检测已打开的标签页）
+    - 显示提取时间和字数统计
+    - 内容预览自动截断
+    - 空状态提示
+
+  @usage
+    <ReferenceDetail
+      v-model:visible="modalState.showReferenceDetailModal"
+      :reference-info="referenceInfo"
+      :reference-preview="referencePreview"
+    />
+
+  @props
+    @param {boolean} visible - 控制模态框显示/隐藏（支持 v-model）
+    @param {ReferenceInfo | null} referenceInfo - 引用信息对象
+    @param {string} referencePreview - 引用内容预览文本
+
+  @emits
+    @event {boolean} update:visible - 显示状态改变时触发
+
+  @see
+    - BaseModal.vue - 基础模态框组件
+    - ReferenceList.vue - 引用列表组件
+    - composables/chat/useChatReference.ts - 引用管理逻辑
+-->
+
 <template>
   <BaseModal
     :visible="visible"

@@ -1,3 +1,38 @@
+<!--
+  @component LinkList
+  @description
+    链接列表预览组件，展示从网页中提取的链接列表。
+    支持链接筛选、预览（最多显示 10 条）和查看全部功能。
+
+  @features
+    - 链接文本和 URL 展示
+    - 实时搜索/过滤链接
+    - 超长文本自动截断显示
+    - 链接在新标签页中打开
+    - "查看全部"按钮触发模态框显示所有链接
+    - 最多预览 10 条，超过时显示剩余数量
+
+  @usage
+    <LinkList
+      :extracted-data="extractedData"
+      :link-filter="linkFilter"
+      @update:link-filter="linkFilter = $event"
+      @view-all-links="handleViewAllLinks"
+    />
+
+  @props
+    @param {ExtractedData} extractedData - 提取的数据，包含 links 数组
+    @param {string} linkFilter - 链接过滤关键字
+
+  @emits
+    @event {void} view-all-links - 用户点击"查看全部"时触发
+    @event {string} update:linkFilter - 过滤关键字改变时触发
+
+  @see
+    - LinkModal.vue - 查看全部链接的模态框
+    - WebInfoSection.vue - 使用此组件的父组件
+-->
+
 <template>
   <div v-if="extractedData.links && extractedData.links.length > 0" class="section">
     <div class="section-title">

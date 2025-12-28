@@ -1,3 +1,40 @@
+<!--
+  @component MessageItem
+  @description
+    聊天消息项组件，展示用户或 AI 的单条消息。
+    支持消息编辑、Markdown 渲染、流式传输状态显示等功能。
+
+  @features
+    - 区分用户消息和 AI 消息的样式
+    - 用户消息支持编辑功能（悬停显示编辑按钮）
+    - AI 消息支持 Markdown 渲染
+    - 流式传输状态显示（打字动画）
+    - 停止生成按钮（流式传输时显示）
+    - 消息时间戳显示
+    - 响应式文本编辑器高度
+    - 支持 Shift+Enter 快捷键保存编辑
+
+  @usage
+    <MessageItem
+      :message="message"
+      :is-streaming="isStreaming"
+      @edit-message="handleEditMessage"
+      @stop-streaming="handleStopStreaming"
+    />
+
+  @props
+    @param {ChatMessage} message - 消息对象
+    @param {boolean} isStreaming - 是否正在流式传输
+
+  @emits
+    @event {Object} edit-message - 保存编辑后的消息时触发，传递 { messageId, newContent }
+    @event {void} stop-streaming - 用户点击停止按钮时触发
+
+  @see
+    - ChatPanel.vue - 使用此组件的父组件
+    - composables/chat/useChatMessages.ts - 消息管理逻辑
+-->
+
 <template>
   <div
     :class="['message', message.role, { 'streaming': isStreaming }]"

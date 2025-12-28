@@ -1,3 +1,46 @@
+<!--
+  @component ChatPanel
+  @description
+    AI 对话面板组件，提供完整的聊天交互界面。
+    支持消息发送、编辑、引用管理、对话历史等功能。
+
+  @features
+    - 消息发送与接收
+    - 流式响应实时显示
+    - 用户消息编辑（编辑后重新发送）
+    - 添加/查看/删除网页引用
+    - 清空对话
+    - 保存对话到历史
+    - 聊天历史侧边栏
+    - 自动滚动到最新消息
+    - 手动滚动时暂停自动滚动
+    - 空状态提示
+    - 消息编辑状态管理
+    - 确认对话框（删除聊天等操作）
+
+  @usage
+    <ChatPanel />
+
+  @events
+    无直接事件，内部通过 useChat composable 处理所有逻辑
+
+  @example
+    <script setup>
+    import ChatPanel from '@/components/ChatPanel.vue'
+    </script>
+
+    <template>
+      <ChatPanel />
+    </template>
+
+  @see
+    - MessageItem.vue - 消息项子组件
+    - ReferenceList.vue - 引用列表模态框
+    - ReferenceDetail.vue - 引用详情模态框
+    - Confirm.vue - 确认对话框组件
+    - composables/chat/index.ts - 聊天功能组合模块
+-->
+
 <template>
   <div class="chat-panel">
     <div class="chat-header">

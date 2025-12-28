@@ -1,3 +1,43 @@
+<!--
+  @component PromptEditModal
+  @description
+    AI 总结 Prompt 编辑模态框组件，用于自定义全文总结和关键信息提取的 Prompt 模板。
+
+  @features
+    - 切换编辑不同类型的 Prompt（全文/关键信息）
+    - 支持恢复默认 Prompt
+    - 两种类型的 Prompt 可分别保存
+    - 使用 v-model 双向绑定显示状态
+    - 自动加载当前自定义 Prompt 或默认 Prompt
+
+  @usage
+    <PromptEditModal
+      v-model:visible="showPromptModal"
+      :current-prompt-type="aiSummaryType"
+      :custom-prompts="customPrompts"
+      :default-prompts="getDefaultPrompts()"
+      @save-prompts="handleSavePrompts"
+    />
+
+  @props
+    @param {boolean} visible - 控制模态框显示/隐藏（支持 v-model）
+    @param {"full" | "keyinfo"} currentPromptType - 当前 Prompt 类型
+    @param {Object} customPrompts - 自定义 Prompt 对象
+    @param {string} customPrompts.full - 全文总结 Prompt
+    @param {string} customPrompts.keyinfo - 关键信息 Prompt
+    @param {Object} defaultPrompts - 默认 Prompt 对象
+    @param {string} defaultPrompts.full - 默认全文总结 Prompt
+    @param {string} defaultPrompts.keyinfo - 默认关键信息 Prompt
+
+  @emits
+    @event {boolean} update:visible - 显示状态改变时触发
+    @event {Object} save-prompts - 保存 Prompt 时触发，传递新的 prompts 对象
+
+  @see
+    - BaseModal.vue - 基础模态框组件
+    - AISummaryPanel.vue - 使用此组件的父组件
+-->
+
 <template>
   <BaseModal
     :visible="visible"
