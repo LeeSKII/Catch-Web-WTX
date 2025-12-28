@@ -34,6 +34,9 @@ pnpm compile
 # 打包扩展
 pnpm zip
 pnpm zip:firefox
+
+# 自动准备 WXT 类型（postinstall 后自动执行）
+wxt prepare
 ```
 
 ### 调试扩展
@@ -115,6 +118,27 @@ import { dataStore, uiStore, settingsStore } from '@/stores'
 | useChat | `composables/chat/index.ts` | AI 对话功能（模块化入口） |
 | useTabListeners | `composables/useTabListeners.ts` | 监听标签页切换自动提取数据 |
 | useDataExport | `composables/useDataExport.ts` | 数据导出（复制、JSON 导出、图片下载） |
+| useAbortController | `composables/useAbortController.ts` | 网络请求中止控制（自动清理防止内存泄漏） |
+
+### 工具模块 (utils/)
+
+| 模块 | 文件 | 职责 |
+|------|------|------|
+| logger | `utils/logger.ts` | 统一日志记录器（createLogger） |
+| dataCleanup | `utils/dataCleanup.ts` | 数据清理策略（过期数据清理） |
+| debounce | `utils/debounce.ts` | 防抖函数 |
+| throttle | `utils/throttle.ts` | 节流函数 |
+
+### 常量配置 (constants/)
+
+所有常量定义在 `constants/index.ts`：
+
+- `API_CONFIG` - API 配置（Base URL、模型、超时）
+- `TIMEOUTS` - 超时配置（请求超时、数据提取超时）
+- `UI_CONFIG` - UI 配置（显示数量、防抖延迟）
+- `STORAGE_CONFIG` - 存储配置（键名、前缀）
+- `DATA_RETENTION` - 数据保留策略（最小/最大天数）
+- `PERFORMANCE_CONFIG` - 性能配置（延迟、并发限制）
 
 ### 聊天模块架构（composables/chat/）
 
@@ -226,8 +250,26 @@ const { messages, sendMessage, addReference } = useChat()
 ## 数据存储策略
 
 - **提取数据**: 内存 (dataStore)，刷新页面后丢失
-- **AI 总结**: localStorage (键名: `aiSummary_<url>_<type>`)
-- **用户设置**: localStorage (键名: `appSettings`)
+- **AI 总结**: browser.storage.local (键名: `aiSummary_<url>_<type>`)
+- **用户设置**: browser.storage.local (键名: `appSettings`)
+- **聊天历史**: browser.storage.local (键名: `chatHistory`)
+- **引用列表**: browser.storage.local (键名: `referenceList`)
+
+### 数据清理策略
+
+使用 `utils/dataCleanup` 模块统一管理：
+
+```ts
+import { cleanupAllExpiredData, manualCleanup } from '@/utils/dataCleanup'
+
+// 自动清理（使用设置的保留天数）
+await cleanupAllExpiredData()
+
+// 手动清理（指定保留天数）
+await manualCleanup(7)  // 清理7天前的数据
+```
+
+清理逻辑在应用初始化时自动执行（`App.vue:onMounted`）。
 
 ---
 
@@ -270,6 +312,10 @@ const { messages, sendMessage, addReference } = useChat()
 - **模块拆分**：大型模块（如 useChat）按上下文拆分为多个子模块
 - **类型优先**：所有核心数据结构都有明确的 TypeScript 类型定义
 
+### 内存管理
+- **自动清理**：使用 `useAbortController` 时，组件卸载会自动清理所有请求
+- **数据清理**：应用初始化时自动清理过期数据
+
 ### 代码组织
 - **组件文档**：每个 `.vue` 组件文件顶部都有 JSDoc 风格的文档注释
 - **模块文档**：核心模块（stores、composables）包含完整的 JSDoc 文档
@@ -282,3 +328,9 @@ const { messages, sendMessage, addReference } = useChat()
 - 使用 Vue 3 `reactive` API 实现轻量级状态管理
 - 全局单例 Store 模式，通过 `useStores()` hook 统一访问
 - 类型导出完整，支持严格的 TypeScript 类型检查
+
+### 日志规范
+- 使用 `createLogger` 创建命名日志器
+- 开发环境：`logger.debug()` 用于调试信息
+- 生产环境：仅记录 `logger.error()` 错误信息
+- 避免直接使用 `console.log/error`
