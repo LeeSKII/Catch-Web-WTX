@@ -1,14 +1,30 @@
 import { ref, Ref } from "vue";
-import { AISummaryData } from "../types";
-import { createLogger } from "../utils/logger";
-import { API_CONFIG } from "../constants";
 import { browser } from "wxt/browser";
+import { AISummaryData, ExtractedData } from "../types";
+import { createLogger } from "../utils/logger";
+import { API_CONFIG, STORAGE_CONFIG } from "../constants";
+import { getDefaultPrompt } from "../constants/prompts";
+import { getCurrentTab } from "../utils/browser";
 import { useAbortController } from "./useAbortController";
 import { useStores } from "../stores";
 import OpenAI from "openai";
 
 // 创建日志器
 const logger = createLogger("AISummary");
+
+/**
+ * 生成 AI 总结存储键
+ *
+ * @description
+ * 根据 URL 和总结类型生成统一的存储键名
+ *
+ * @param url - 页面 URL
+ * @param summaryType - 总结类型 ('full' | 'keyinfo')
+ * @returns 存储键名
+ */
+const getStorageKey = (url: string, summaryType: string): string => {
+  return `${STORAGE_CONFIG.AI_SUMMARY_PREFIX}${url}_${summaryType}`;
+};
 
 export function useAISummary() {
   const { settingsStore } = useStores();
@@ -21,12 +37,6 @@ export function useAISummary() {
     keyinfo: ""
   });
   const isGeneratingAISummary: Ref<boolean> = ref(false);
-  
-  // 默认 prompts
-  const defaultPrompts = {
-    full: "对用户提供的内容进行总结，要求简洁明了，突出重点，禁止遗漏任何关键和重要信息，回复语言：简体中文。",
-    keyinfo: "对用户提供的内容提取关键信息，包括：主要主题、重要数据、关键人物、时间地点等核心信息，回复语言：简体中文。"
-  };
 
   // 防重复调用：记录当前正在处理的URL
   const currentProcessingUrl: Ref<string> = ref("");
@@ -34,7 +44,7 @@ export function useAISummary() {
   const { createAbortController, cleanupAbortController, abortRequest } =
     useAbortController();
 
-  const generateAISummary = async (content: string, extractedData: any) => {
+  const generateAISummary = async (content: string, extractedData: ExtractedData) => {
     if (isLoadingAISummary.value) {
       return;
     }
@@ -151,16 +161,10 @@ export function useAISummary() {
       }
 
       // 流结束后保存AI总结到localStorage
-      const tabs = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tabs && tabs[0]) {
-        const url = tabs[0].url;
-        if (url) {
-          saveAISummary(url, accumulatedContent, aiSummaryType.value);
-          aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
-        }
+      const tab = await getCurrentTab();
+      if (tab?.url) {
+        saveAISummary(tab.url, accumulatedContent, aiSummaryType.value);
+        aiSummaryStatus.value = `已保存 - ${new Date().toLocaleString()}`;
       }
 
       // 流结束后，确保生成状态为false
@@ -192,19 +196,13 @@ export function useAISummary() {
     try {
       // 中止AI总结请求
       abortRequest("aiSummary");
-      
+
       // 保存当前已生成的内容
-      const tabs = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      
-      if (tabs && tabs[0] && tabs[0].url) {
-        const url = tabs[0].url;
-        if (url && aiSummaryContent.value) {
-          saveAISummary(url, aiSummaryContent.value, aiSummaryType.value);
-          aiSummaryStatus.value = `已暂停并保存 - ${new Date().toLocaleString()}`;
-        }
+      const tab = await getCurrentTab();
+
+      if (tab?.url && aiSummaryContent.value) {
+        saveAISummary(tab.url, aiSummaryContent.value, aiSummaryType.value);
+        aiSummaryStatus.value = `已暂停并保存 - ${new Date().toLocaleString()}`;
       }
       
       isGeneratingAISummary.value = false;
@@ -227,8 +225,7 @@ export function useAISummary() {
       url: url,
     };
 
-    // 使用URL和总结类型作为key存储AI总结，这样不同类型的总结可以分别保存
-    const key = `aiSummary_${url}_${summaryType}`;
+    const key = getStorageKey(url, summaryType);
     await browser.storage.local.set({ [key]: summaryData });
   };
 
@@ -236,8 +233,7 @@ export function useAISummary() {
     url: string,
     summaryType: string
   ): Promise<AISummaryData | null> => {
-    // 使用URL和总结类型作为key加载AI总结
-    const key = `aiSummary_${url}_${summaryType}`;
+    const key = getStorageKey(url, summaryType);
     const result = await browser.storage.local.get(key);
 
     if (result[key]) {
@@ -253,8 +249,7 @@ export function useAISummary() {
   };
 
   const clearAISummaryCache = async (url: string, summaryType: string) => {
-    // 使用URL和总结类型作为key清除AI总结缓存
-    const key = `aiSummary_${url}_${summaryType}`;
+    const key = getStorageKey(url, summaryType);
     await browser.storage.local.remove(key);
     aiSummaryStatus.value = "";
   };
@@ -392,21 +387,24 @@ export function useAISummary() {
     if (customPrompt && customPrompt.trim()) {
       return customPrompt;
     }
-    
+
     // 如果没有自定义 prompt，使用默认的
-    return defaultPrompts[summaryType as keyof typeof defaultPrompts] || "对用户提供的内容进行总结，回复语言：简体中文。";
+    return getDefaultPrompt(summaryType as 'full' | 'keyinfo');
   };
 
-  // 恢复默认 prompts
+  // 恢复默认 prompts（清空自定义 prompts，将使用内置默认值）
   const restoreDefaultPrompts = async () => {
-    customPrompts.value = { ...defaultPrompts };
+    customPrompts.value = { full: "", keyinfo: "" };
     await browser.storage.local.set({ customAIPrompts: customPrompts.value });
     logger.debug("已恢复默认 prompts");
   };
 
-  // 获取默认 prompts
+  // 获取默认 prompts（从常量配置中获取）
   const getDefaultPrompts = () => {
-    return { ...defaultPrompts };
+    return {
+      full: getDefaultPrompt('full'),
+      keyinfo: getDefaultPrompt('keyinfo')
+    };
   };
 
   return {

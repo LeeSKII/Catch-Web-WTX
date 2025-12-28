@@ -91,15 +91,50 @@ entrypoints/
 | settingsStore | `stores/settingsStore.ts` | 用户设置（API 密钥、提取选项） |
 | uiStore | `stores/uiStore.ts` | UI 状态（当前标签页、Toast、主题） |
 
+**推荐访问方式** - 使用 `useStores()` hook：
+```ts
+import { useStores } from '@/stores'
+const { dataStore, uiStore, settingsStore } = useStores()
+
+dataStore.updateExtractedData({ ... })
+uiStore.switchTab('chat')
+settingsStore.updateSettings({ darkMode: true })
+```
+
+**直接导入方式**（向后兼容）：
+```ts
+import { dataStore, uiStore, settingsStore } from '@/stores'
+```
+
 ### 核心 Composables
 
 | Composable | 文件 | 职责 |
 |------------|------|------|
 | useDataExtractor | `composables/useDataExtractor.ts` | 从当前标签页提取数据 |
 | useAISummary | `composables/useAISummary.ts` | AI 总结生成和流式输出 |
-| useChat | `composables/useChat.ts` | AI 对话功能 |
+| useChat | `composables/chat/index.ts` | AI 对话功能（模块化入口） |
 | useTabListeners | `composables/useTabListeners.ts` | 监听标签页切换自动提取数据 |
 | useDataExport | `composables/useDataExport.ts` | 数据导出（复制、JSON 导出、图片下载） |
+
+### 聊天模块架构（composables/chat/）
+
+`useChat` 已拆分为多个专注的子模块：
+
+```
+composables/chat/
+├── index.ts                 # 主入口，组合所有子模块
+├── types.ts                 # 聊天相关类型定义
+├── useChatMessages.ts       # 消息 CRUD 和发送
+├── useChatHistory.ts        # 聊天会话历史管理
+├── useChatReference.ts      # 网页引用上下文管理
+└── useChatStream.ts         # OpenAI API 流式调用
+```
+
+**使用方式**：
+```ts
+import { useChat } from '@/composables/chat'
+const { messages, sendMessage, addReference } = useChat()
+```
 
 ---
 
@@ -223,3 +258,27 @@ entrypoints/
 ## 当前测试状态
 
 项目暂无自动化测试。手动测试通过加载未打包的扩展进行。
+
+---
+
+## 架构设计原则
+
+本项目由 AI 辅助开发，代码结构遵循以下原则：
+
+### 模块化与可维护性
+- **单一职责**：每个 composable 和组件只负责一个明确的功能域
+- **模块拆分**：大型模块（如 useChat）按上下文拆分为多个子模块
+- **类型优先**：所有核心数据结构都有明确的 TypeScript 类型定义
+
+### 代码组织
+- **组件文档**：每个 `.vue` 组件文件顶部都有 JSDoc 风格的文档注释
+- **模块文档**：核心模块（stores、composables）包含完整的 JSDoc 文档
+- **命名规范**：
+  - 组件：PascalCase（如 `AISummaryPanel.vue`）
+  - Composables：`use` 前缀（如 `useDataExtractor.ts`）
+  - Stores：`*Store` 后缀（如 `dataStore.ts`）
+
+### 状态管理模式
+- 使用 Vue 3 `reactive` API 实现轻量级状态管理
+- 全局单例 Store 模式，通过 `useStores()` hook 统一访问
+- 类型导出完整，支持严格的 TypeScript 类型检查

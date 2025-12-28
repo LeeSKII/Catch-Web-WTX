@@ -11,6 +11,16 @@ export const API_CONFIG = {
   TEMPERATURE: 0.7,
 } as const;
 
+// 超时配置
+export const TIMEOUTS = {
+  /** 默认请求超时（毫秒） */
+  DEFAULT_REQUEST: 30000,
+  /** 数据提取超时（毫秒） */
+  DATA_EXTRACTION: 10000,
+  /** AI API 调用超时（毫秒） */
+  AI_API_CALL: 60000,
+} as const;
+
 // UI相关配置
 export const UI_CONFIG = {
   DEFAULT_IMAGE_DISPLAY_COUNT: 12,
