@@ -6,27 +6,27 @@
   --accent-color: #7209b7;
   --success-color: #4cc9f0;
   --warning-color: #f72585;
-  
+
   /* 基础颜色 */
   --light-color: #f8f9fa;
   --dark-color: #212529;
-  
+
   /* 布局变量 */
   --border-radius: 8px;
   --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  
+
   /* 组件背景色 */
   --section-bg: white;
   --section-content-bg: #f9f9f9;
   --border-color: #eee;
   --tab-bg: white;
-  
+
   /* 文本颜色 */
   --section-title-color: var(--secondary-color);
   --section-title-dark-color: #8b9cff;
   --tab-text-color: var(--dark-color);
   --tab-text-dark-color: #ffffff;
-  
+
   /* Markdown样式颜色 */
   --markdown-bg-light: #f0f0f0;
   --markdown-bg-dark: #2d2d2d;
@@ -34,6 +34,11 @@
   --markdown-border-dark: #555;
   --markdown-text-light: #666;
   --markdown-text-dark: #ccc;
+
+  /* 滚动条颜色 */
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #c1c1c1;
+  --scrollbar-thumb-hover: #a8a8a8;
 }
 
 /* 暗色主题变量 */
@@ -57,6 +62,11 @@
   --accent-color: #9b4fd0;
   --success-color: #4db8d8;
   --warning-color: #e63946;
+
+  /* 滚动条颜色 */
+  --scrollbar-track: #2d2d2d;
+  --scrollbar-thumb: #555;
+  --scrollbar-thumb-hover: #777;
 }
 
 /* 全局基础样式 */
@@ -71,7 +81,8 @@ body {
   color: var(--dark-color);
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   height: 100vh;
   overflow: hidden;
 }
@@ -333,55 +344,31 @@ body {
   }
 }
 
-/* 通用加载动画样式 */
-.loading-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  gap: 15px;
-  color: var(--text-color);
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.loading-text {
-  font-size: 14px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-/* 通用滚动条样式 */
+/* 通用自定义滚动条样式 - 添加到需要自定义滚动条的容器上 */
 .custom-scrollbar {
+  /* Firefox 滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+/* Webkit 浏览器滚动条样式 */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--scrollbar-track, #f1f1f1);
+  background: var(--scrollbar-track);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, #c1c1c1);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, #a8a8a8);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* 响应式设计 */
@@ -389,11 +376,11 @@ body {
   .tabs {
     flex-direction: row;
   }
-  
+
   .tab {
     margin-bottom: 2px;
   }
-  
+
   .image-grid {
     grid-template-columns: repeat(1, 1fr);
   }

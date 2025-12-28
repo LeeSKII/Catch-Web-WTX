@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-container">
+  <div class="settings-container custom-scrollbar">
     <!-- 页面加载状态指示器 -->
     <div v-if="isPageLoading" class="loading-indicator">
       <div class="loading-spinner"></div>
@@ -214,24 +214,6 @@ const handleViewAllLinks = () => {
   padding-right: 10px;
 }
 
-/* 自定义滚动条样式 */
-.settings-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.settings-container::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 3px;
-}
-
-.settings-container::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 3px;
-}
-
-.settings-container::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
 .section {
   background: var(--section-bg);
   border-radius: var(--border-radius);

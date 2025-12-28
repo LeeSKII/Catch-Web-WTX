@@ -86,7 +86,7 @@
         v-if="aiSummaryContent"
         id="streaming-content"
         v-html="parsedMarkdown"
-        class="result-content"
+        class="result-content custom-scrollbar"
       ></div>
       <div v-else class="result-empty">
         <div v-if="isLoadingAISummary" class="loading-state">
@@ -573,28 +573,7 @@ onUnmounted(() => {
   word-wrap: break-word;
   word-break: break-word;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary-color) var(--scrollbar-track);
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-}
-
-/* Webkit 滚动条样式 */
-.result-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.result-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.result-content::-webkit-scrollbar-thumb {
-  background: var(--primary-color);
-  border-radius: 3px;
-  opacity: 0.5;
-}
-
-.result-content::-webkit-scrollbar-thumb:hover {
-  opacity: 0.8;
 }
 
 .result-empty {

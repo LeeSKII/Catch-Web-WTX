@@ -53,6 +53,7 @@ entrypoints/
 ├── sidepanel/          # Vue 3 侧边栏应用（主界面）
 │   ├── App.vue         # 应用根组件
 │   ├── main.ts         # 启动文件
+│   ├── style.css       # 全局样式（CSS 变量、通用类）
 │   ├── components/     # UI 组件
 │   ├── composables/    # 组合式函数（业务逻辑）
 │   ├── stores/         # 响应式状态管理
@@ -98,6 +99,33 @@ entrypoints/
 | useAISummary | `composables/useAISummary.ts` | AI 总结生成和流式输出 |
 | useChat | `composables/useChat.ts` | AI 对话功能 |
 | useTabListeners | `composables/useTabListeners.ts` | 监听标签页切换自动提取数据 |
+| useDataExport | `composables/useDataExport.ts` | 数据导出（复制、JSON 导出、图片下载） |
+
+---
+
+## 样式架构
+
+### 全局样式 (style.css)
+
+**CSS 变量** - 定义在 `:root` 和 `[data-theme="dark"]`：
+- 主题颜色：`--primary-color`, `--secondary-color`, `--accent-color`
+- 布局变量：`--border-radius`, `--box-shadow`
+- 组件背景：`--section-bg`, `--section-content-bg`, `--border-color`
+- 滚动条颜色：`--scrollbar-track`, `--scrollbar-thumb`, `--scrollbar-thumb-hover`
+
+**通用类**：
+- `.custom-scrollbar` - 通用自定义滚动条样式（4px 宽度，支持 Firefox 和 Webkit）
+- `.toast-*` - Toast 通知系统样式
+- `@keyframes spin/slideIn/slideOut` - 全局动画
+
+### 组件样式原则
+
+| 类型 | 位置 | 示例 |
+|------|------|------|
+| 通用样式 | `style.css` | CSS 变量、`.custom-scrollbar`、动画关键帧 |
+| 组件特定样式 | `*.vue` `<style scoped>` | 布局、组件特有交互效果 |
+
+**注意**：滚动条样式使用全局 `.custom-scrollbar` 类。组件需要自定义滚动条时，添加该类到容器元素。但有特殊视觉需求（如不同颜色、宽度）的组件可保留自己的滚动条样式（如 `ChatPanel.vue` 的 `.chat-messages` 使用 8px 宽度和 primary 颜色）。
 
 ---
 
@@ -187,6 +215,8 @@ entrypoints/
 - `tabs`: 标签页管理
 - `webNavigation`: 网页导航监听
 - `host_permissions`: `https://*/*`, `http://*/*`
+- `downloads`: 下载文件（图片、导出数据）
+- `declarativeContent`: 声明式内容
 
 ---
 
