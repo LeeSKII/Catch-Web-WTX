@@ -125,6 +125,9 @@
 <script lang="ts" setup>
 import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { marked } from "marked";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("MessageItem");
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -255,13 +258,13 @@ const parseMarkdown = (content: string): string => {
     // 使用 marked 的同步解析方式，参考 AISummaryPanel.vue
     return content ? (marked.parse(content, { async: false }) as string) : "";
   } catch (error) {
-    console.error("Markdown parsing error:", error);
+    logger.error("Markdown parsing error:", error);
     return content;
   }
 };
 
 // 调试日志：组件挂载和更新时的消息状态
-console.log("MessageItem: 渲染消息", {
+logger.debug("MessageItem: 渲染消息", {
   role: props.message.role,
   contentLength: props.message.content?.length || 0,
   isStreaming: props.isStreaming,

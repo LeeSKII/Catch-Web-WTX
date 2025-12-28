@@ -237,7 +237,7 @@ const emit = defineEmits<{
 const setupTabListeners = () => {
   // 监听新标签页创建事件
   browser.tabs.onCreated.addListener(async (tab) => {
-    console.log("新标签页创建:", tab);
+    logger.debug("新标签页创建:", tab);
 
     // 等待一小段时间确保标签页信息已经更新
     setTimeout(async () => {
@@ -257,7 +257,7 @@ const setupTabListeners = () => {
             }
 
             if (isInReferenceList) {
-              console.log("新标签页URL匹配引用列表，将更新标题:", tab.url);
+              logger.debug("新标签页URL匹配引用列表，将更新标题:", tab.url);
 
               // 添加前缀
               const newTitle = addReferencePrefix(
@@ -274,9 +274,9 @@ const setupTabListeners = () => {
                     },
                     args: [newTitle],
                   });
-                  console.log("新标签页标题已更新:", newTitle);
+                  logger.debug("新标签页标题已更新:", newTitle);
                 } catch (error) {
-                  console.error("更新新标签页标题失败:", error);
+                  logger.error("更新新标签页标题失败:", error);
                 }
               }
             } else {
@@ -291,16 +291,16 @@ const setupTabListeners = () => {
                     },
                     args: [cleanTitle],
                   });
-                  console.log("新标签页标题已恢复为原始标题:", cleanTitle);
+                  logger.debug("新标签页标题已恢复为原始标题:", cleanTitle);
                 } catch (error) {
-                  console.error("恢复新标签页标题失败:", error);
+                  logger.error("恢复新标签页标题失败:", error);
                 }
               }
             }
           }
         }
       } catch (error) {
-        console.error("处理新标签页时出错:", error);
+        logger.error("处理新标签页时出错:", error);
       }
     }, 500); // 等待500ms确保标签页加载完成
   });
@@ -309,7 +309,7 @@ const setupTabListeners = () => {
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // 只处理URL变化且页面加载完成的情况
     if (changeInfo.status === "complete" && tab.url && tab.id) {
-      console.log("标签页URL更新:", tab.url);
+      logger.debug("标签页URL更新:", tab.url);
 
       // 检查更新后的URL是否在引用列表中
       const isInReferenceList = isUrlInReferenceList(tab.url);
@@ -320,7 +320,7 @@ const setupTabListeners = () => {
       }
 
       if (isInReferenceList) {
-        console.log("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
+        logger.debug("标签页URL更新后匹配引用列表，将更新标题:", tab.url);
 
         // 添加前缀
         const originalTitleForUrl =
@@ -337,9 +337,9 @@ const setupTabListeners = () => {
               },
               args: [newTitle],
             });
-            console.log("URL更新后标签页标题已更新:", newTitle);
+            logger.debug("URL更新后标签页标题已更新:", newTitle);
           } catch (error) {
-            console.error("URL更新后标签页标题更新失败:", error);
+            logger.error("URL更新后标签页标题更新失败:", error);
           }
         }
       } else {
@@ -354,9 +354,9 @@ const setupTabListeners = () => {
               },
               args: [cleanTitle],
             });
-            console.log("URL更新后标签页标题已恢复为原始标题:", cleanTitle);
+            logger.debug("URL更新后标签页标题已恢复为原始标题:", cleanTitle);
           } catch (error) {
-            console.error("URL更新后标签页标题恢复失败:", error);
+            logger.error("URL更新后标签页标题恢复失败:", error);
           }
         }
       }
@@ -494,14 +494,14 @@ const updateAllTabTitles = async () => {
             },
             args: [newTitle],
           });
-          console.log(`标签页 ${tab.id} 标题已更新为: ${newTitle}`);
+          logger.debug(`标签页 ${tab.id} 标题已更新为: ${newTitle}`);
         } catch (error) {
-          console.error(`更新标签页 ${tab.id} 标题失败:`, error);
+          logger.error(`更新标签页 ${tab.id} 标题失败:`, error);
         }
       }
     }
   } catch (error) {
-    console.error("更新所有标签页标题失败:", error);
+    logger.error("更新所有标签页标题失败:", error);
   }
 };
 
@@ -597,7 +597,7 @@ const handleEditMessage = async (messageId: string, newContent: string) => {
     // 显示成功提示
     uiStore.showToast("消息已编辑并重新发送", "success");
   } catch (error) {
-    console.error("编辑消息失败:", error);
+    logger.error("编辑消息失败:", error);
     uiStore.showToast("编辑消息失败，请重试", "error");
   } finally {
     // 重置编辑状态
@@ -818,7 +818,7 @@ onMounted(async () => {
       }
     }
   } catch (error) {
-    console.error("初始化标签页标题失败:", error);
+    logger.error("初始化标签页标题失败:", error);
   }
 });
 

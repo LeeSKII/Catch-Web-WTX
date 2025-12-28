@@ -25,7 +25,7 @@ const { dataStore, uiStore, settingsStore } = useStores();
 
 // 使用 Composables
 const { isDarkMode, initialize: initializeTheme } = useTheme();
-const { extractData } = useDataExtractor();
+const { extractAndToast } = useDataExtractor();
 
 // 响应式数据
 const webInfoSectionRef = ref<InstanceType<typeof WebInfoSection> | null>(null);
@@ -36,41 +36,11 @@ const switchTab = (tabName: TabName) => {
 };
 
 const handleExtractData = async () => {
-  try {
-    dataStore.setLoading(true);
-    
-    const options = {
-      html: settingsStore.state.settings.extractHtml,
-      text: settingsStore.state.settings.extractText,
-      images: settingsStore.state.settings.extractImages,
-      links: settingsStore.state.settings.extractLinks,
-      meta: settingsStore.state.settings.extractMeta,
-      styles: settingsStore.state.settings.extractStyles,
-      scripts: settingsStore.state.settings.extractScripts,
-      article: settingsStore.state.settings.extractArticle,
-    };
+  await extractAndToast();
 
-    const extractResult = await extractData(options);
-
-    if (extractResult.success && extractResult.data) {
-      dataStore.updateExtractedData(extractResult.data);
-      uiStore.showToast("数据提取成功！", "success");
-    } else {
-      dataStore.setError(extractResult.message || "数据提取失败");
-      uiStore.showToast(extractResult.message || "数据提取失败", "error");
-    }
-  } catch (err) {
-    logger.error("数据提取过程中出错", err);
-    dataStore.setError("数据提取失败，请重试");
-    uiStore.showToast("数据提取失败，请重试", "error");
-  } finally {
-    dataStore.setLoading(false);
-    dataStore.setPageLoading(false);
-    
-    // 重置刷新按钮状态
-    if (webInfoSectionRef.value) {
-      webInfoSectionRef.value.resetButtonStates();
-    }
+  // 重置刷新按钮状态
+  if (webInfoSectionRef.value) {
+    webInfoSectionRef.value.resetButtonStates();
   }
 };
 
@@ -155,7 +125,7 @@ const { setupTabListeners, removeTabListeners } = useTabListeners(
 
 // 生命周期钩子
 onMounted(async () => {
-  console.log("[DEBUG MODE:browser]", browser);
+  logger.debug("[DEBUG MODE:browser]", browser);
   
   // 初始化主题
   initializeTheme();

@@ -42,6 +42,16 @@ export const STORAGE_CONFIG = {
   DEFAULT_DATA_RETENTION_DAYS: 7,
 } as const;
 
+// 数据保留配置
+export const DATA_RETENTION = {
+  /** 默认保留天数 */
+  DEFAULT_DAYS: 7,
+  /** 最小保留天数 */
+  MIN_DAYS: 1,
+  /** 最大保留天数 */
+  MAX_DAYS: 30,
+} as const;
+
 // 调试配置
 export const DEBUG_CONFIG = {
   ENABLED: process.env.NODE_ENV === "development",

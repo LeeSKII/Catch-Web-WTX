@@ -202,10 +202,10 @@ export function useChatReference() {
    * 添加网页内容作为引用，自动生成系统提示词
    */
   const addReference = async (extractedData: ExtractedData): Promise<boolean> => {
-    console.log('addReference 被调用，参数:', { extractedData })
+    logger.debug('addReference 被调用，参数:', { extractedData })
 
     if (!extractedData.url) {
-      console.log('引用数据没有 URL，返回 false')
+      logger.debug('引用数据没有 URL，返回 false')
       return false
     }
 
@@ -214,23 +214,23 @@ export function useChatReference() {
       (item) => item.url === extractedData.url
     )
     if (isDuplicate) {
-      console.log('检测到重复引用，URL:', extractedData.url)
+      logger.debug('检测到重复引用，URL:', extractedData.url)
       warning('该网页引用已经存在，请勿重复添加')
       return false
     }
 
-    console.log(
+    logger.debug(
       '将引用添加到列表，当前列表数量:',
       referenceList.value.length
     )
     referenceList.value.push(extractedData)
     referenceInfo.value = extractedData
-    console.log('引用已添加到列表，新数量:', referenceList.value.length)
+    logger.debug('引用已添加到列表，新数量:', referenceList.value.length)
 
     // 保存引用列表到 storage
-    console.log('准备保存引用列表到 storage')
+    logger.debug('准备保存引用列表到 storage')
     await saveReferenceList()
-    console.log('引用列表已保存到 storage，函数即将返回 true')
+    logger.debug('引用列表已保存到 storage，函数即将返回 true')
 
     success('引用已添加')
 

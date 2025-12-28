@@ -1,10 +1,16 @@
+import { onUnmounted } from 'vue';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('AbortController');
 
 /**
  * 网络请求中断控制器
- * 用于管理和中断正在进行的网络请求
+ *
+ * @description
+ * 用于管理和中断正在进行的网络请求。
+ * 组件卸载时会自动清理所有 AbortController，防止内存泄漏。
+ *
+ * @module composables/useAbortController
  */
 export function useAbortController() {
   // 存储各种类型的AbortController
@@ -14,6 +20,21 @@ export function useAbortController() {
     aiSummary: null as AbortController | null,
     chat: null as AbortController | null,
   };
+
+  // 组件卸载时自动清理所有 AbortController，防止内存泄漏
+  onUnmounted(() => {
+    Object.values(abortControllers).forEach(controller => {
+      if (controller) {
+        controller.abort();
+      }
+    });
+    // 清空引用
+    (abortControllers as any).dataExtraction = null;
+    (abortControllers as any).bookmarkCheck = null;
+    (abortControllers as any).aiSummary = null;
+    (abortControllers as any).chat = null;
+    logger.debug('组件卸载，已清理所有 AbortController');
+  });
 
   /**
    * 创建并存储新的AbortController

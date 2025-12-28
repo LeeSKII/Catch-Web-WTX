@@ -60,6 +60,26 @@ export interface ChatHistory {
   updatedAt: Date
 }
 
+/**
+ * 聊天历史记录（存储格式）
+ *
+ * @description
+ * 从 browser.storage.local 加载的聊天会话记录（列表视图）
+ * 与 ChatHistory 不同，这里存储的是消息数量而非完整消息列表
+ */
+export interface ChatHistoryRecord {
+  /** 会话唯一标识 */
+  id: string
+  /** 会话标题 */
+  title: string
+  /** 创建时间 */
+  createdAt: string
+  /** 更新时间 */
+  updatedAt: string
+  /** 消息数量 */
+  messageCount: number
+}
+
 // ============================================================================
 // 引用相关类型
 // ============================================================================

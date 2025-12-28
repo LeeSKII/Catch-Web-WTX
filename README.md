@@ -184,20 +184,80 @@ pnpm dev
 ```
 Catch-Web-WTX/
 ├── entrypoints/
-│   ├── sidepanel/          # 侧边栏主界面
+│   ├── sidepanel/          # 侧边栏主界面 (Vue 3)
 │   │   ├── components/     # UI 组件
-│   │   ├── composables/    # 组合式函数
+│   │   │   ├── AISummaryPanel.vue    # AI 总结面板
+│   │   │   ├── ChatPanel.vue         # 对话面板
+│   │   │   ├── SettingsPanel.vue     # 设置面板
+│   │   │   ├── WebInfoSection.vue    # 网页信息展示
+│   │   │   └── ...                   # 其他组件
+│   │   ├── composables/    # 组合式函数 (业务逻辑)
+│   │   │   ├── chat/                  # 对话模块子目录
+│   │   │   │   ├── useChatMessage.ts  # 消息管理
+│   │   │   │   ├── useChatStream.ts   # 流式响应
+│   │   │   │   ├── useChatHistory.ts  # 历史记录
+│   │   │   │   ├── useChatReference.ts# 参考内容
+│   │   │   │   └── useChatExport.ts   # 对话导出
+│   │   │   ├── useAISummary.ts        # AI 总结
+│   │   │   ├── useDataExtractor.ts    # 数据提取
+│   │   │   ├── useTabListeners.ts     # 标签页监听
+│   │   │   ├── useTheme.ts            # 主题切换
+│   │   │   └── ...                    # 其他 composables
 │   │   ├── stores/         # 状态管理
+│   │   │   ├── dataStore.ts           # 数据状态
+│   │   │   ├── settingsStore.ts       # 设置状态
+│   │   │   ├── uiStore.ts             # UI 状态
+│   │   │   └── index.ts               # 统一导出
 │   │   ├── utils/          # 工具函数
-│   │   ├── types/          # 类型定义
-│   │   └── constants/      # 常量配置
+│   │   │   ├── browser.ts             # 浏览器 API 封装
+│   │   │   ├── logger.ts              # 日志记录
+│   │   │   ├── debounce.ts            # 防抖
+│   │   │   ├── throttle.ts            # 节流
+│   │   │   └── dom.ts                 # DOM 操作
+│   │   ├── types/          # TypeScript 类型定义
+│   │   ├── constants/      # 常量配置
+│   │   │   ├── index.ts               # 通用常量
+│   │   │   └── prompts.ts             # AI Prompt 模板
+│   │   ├── App.vue          # 根组件
+│   │   ├── main.ts          # 入口文件
+│   │   └── style.css        # 全局样式
 │   ├── background.ts       # 后台脚本
 │   └── content.ts          # 内容脚本
-├── components/             # 全局共享组件
+├── .wxt/                   # WXT 生成的类型定义
 ├── public/                 # 静态资源
 ├── wxt.config.ts           # WXT 配置
 ├── tsconfig.json           # TypeScript 配置
-└── package.json            # 项目配置
+├── package.json            # 项目配置
+└── CLAUDE.md               # Claude Code 项目指南
+```
+
+### 架构设计原则
+
+项目遵循以下软件工程最佳实践：
+
+| 原则 | 应用 |
+|------|------|
+| **SOLID** | 单一职责：Composable、组件、Store 各司其职 |
+| **DRY** | 提取公共逻辑到工具函数 (`utils/browser.ts`) |
+| **KISS** | 简洁的 API 设计，易于理解和使用 |
+| **YAGNI** | 仅实现必需功能，避免过度设计 |
+
+### 数据流架构
+
+```
+用户操作 → Sidepanel UI
+              ↓
+         Composables (业务逻辑)
+              ↓
+         browser.scripting.executeScript
+              ↓
+         Content Script (DOM 提取)
+              ↓
+         返回 ExtractedData
+              ↓
+         Store (状态管理)
+              ↓
+         UI 更新
 ```
 
 ### 常用命令
@@ -224,10 +284,64 @@ pnpm compile
 
 ### 添加新功能
 
-1. 在 `types/index.ts` 中定义类型
-2. 在 `composables/` 中创建业务逻辑
-3. 在 `components/` 中创建 UI 组件
-4. 在 `stores/` 中管理状态（如需要）
+#### 1. 添加新的数据提取类型
+```typescript
+// 1. 在 types/index.ts 中更新类型
+interface ExtractedData {
+  newField?: string;
+}
+
+// 2. 在 composables/useDataExtractor.ts 中添加提取逻辑
+function extractNewField() { ... }
+
+// 3. 在 stores/settingsStore.ts 中添加配置选项
+interface Settings {
+  extractNewField: boolean;
+}
+
+// 4. 在 components/SettingsPanel.vue 中添加 UI 开关
+```
+
+#### 2. 添加新的 Composable
+```typescript
+// 在 composables/ 目录下创建 useXxx.ts
+import { ref } from 'vue';
+
+export function useXxx() {
+  const state = ref('');
+
+  function doSomething() {
+    // 业务逻辑
+  }
+
+  return { state, doSomething };
+}
+```
+
+#### 3. 添加新的 UI 组件
+```vue
+<!-- 在 components/ 目录下创建 XxxPanel.vue -->
+<script setup lang="ts">
+// 导入需要的 composables
+import { useXxx } from '../composables/useXxx';
+
+const { state, doSomething } = useXxx();
+</script>
+
+<template>
+  <div class="xxx-panel">
+    <!-- 组件内容 -->
+  </div>
+</template>
+```
+
+#### 4. 添加常量配置
+```typescript
+// 在 constants/ 目录下添加或更新配置文件
+export const NEW_CONFIG = {
+  value: 'default',
+} as const;
+```
 
 ---
 

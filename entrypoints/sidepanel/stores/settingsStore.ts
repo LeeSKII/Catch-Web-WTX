@@ -31,6 +31,11 @@ import { reactive } from 'vue'
 import type { Settings } from '../types'
 import type { SettingsStore, SettingsStoreFactory } from './types'
 import { browser } from 'wxt/browser'
+import { STORAGE_CONFIG, DATA_RETENTION } from '../constants'
+import { createLogger } from '../utils/logger'
+import { cleanupAllExpiredData } from '../utils/dataCleanup'
+
+const logger = createLogger('SettingsStore')
 
 // ============================================================================
 // 常量定义
@@ -170,6 +175,34 @@ export const useSettingsStore: SettingsStoreFactory = () => {
   }
 
   /**
+   * 从 storage 加载 API 设置
+   *
+   * @description
+   * 辅助函数，用于从单独的 storage 项中加载 API 相关设置
+   *
+   * @internal
+   */
+  const loadAPISettings = async () => {
+    const apiResult = await browser.storage.local.get([
+      STORAGE_KEYS.API_KEY,
+      STORAGE_KEYS.BASE_URL,
+      STORAGE_KEYS.AI_MODEL,
+    ])
+
+    if (apiResult[STORAGE_KEYS.API_KEY] !== null) {
+      state.settings.openaiApiKey = apiResult[STORAGE_KEYS.API_KEY]
+    }
+
+    if (apiResult[STORAGE_KEYS.BASE_URL] !== null) {
+      state.settings.openaiBaseUrl = apiResult[STORAGE_KEYS.BASE_URL]
+    }
+
+    if (apiResult[STORAGE_KEYS.AI_MODEL] !== null) {
+      state.settings.aiModel = apiResult[STORAGE_KEYS.AI_MODEL]
+    }
+  }
+
+  /**
    * 从 browser.storage.local 加载设置
    *
    * @description
@@ -192,51 +225,16 @@ export const useSettingsStore: SettingsStoreFactory = () => {
       try {
         // 合并默认设置和保存的设置，确保所有字段都有值
         state.settings = { ...defaultSettings, ...savedSettings }
-
-        // 特别处理 API 相关设置，确保从单独的 storage 项中读取（如果存在）
-        const apiResult = await browser.storage.local.get([
-          STORAGE_KEYS.API_KEY,
-          STORAGE_KEYS.BASE_URL,
-          STORAGE_KEYS.AI_MODEL,
-        ])
-
-        if (apiResult[STORAGE_KEYS.API_KEY] !== null) {
-          state.settings.openaiApiKey = apiResult[STORAGE_KEYS.API_KEY]
-        }
-
-        if (apiResult[STORAGE_KEYS.BASE_URL] !== null) {
-          state.settings.openaiBaseUrl = apiResult[STORAGE_KEYS.BASE_URL]
-        }
-
-        if (apiResult[STORAGE_KEYS.AI_MODEL] !== null) {
-          state.settings.aiModel = apiResult[STORAGE_KEYS.AI_MODEL]
-        }
       } catch (error) {
-        console.error('解析设置失败，使用默认设置:', error)
+        logger.error('解析设置失败，使用默认设置:', error)
         state.settings = { ...defaultSettings }
       }
     } else {
       state.settings = { ...defaultSettings }
-
-      // 如果没有 appSettings，尝试从单独的 storage 项中加载 API 相关设置
-      const apiResult = await browser.storage.local.get([
-        STORAGE_KEYS.API_KEY,
-        STORAGE_KEYS.BASE_URL,
-        STORAGE_KEYS.AI_MODEL,
-      ])
-
-      if (apiResult[STORAGE_KEYS.API_KEY] !== null) {
-        state.settings.openaiApiKey = apiResult[STORAGE_KEYS.API_KEY]
-      }
-
-      if (apiResult[STORAGE_KEYS.BASE_URL] !== null) {
-        state.settings.openaiBaseUrl = apiResult[STORAGE_KEYS.BASE_URL]
-      }
-
-      if (apiResult[STORAGE_KEYS.AI_MODEL] !== null) {
-        state.settings.aiModel = apiResult[STORAGE_KEYS.AI_MODEL]
-      }
     }
+
+    // 加载 API 相关设置（从单独的 storage 项中读取，向后兼容）
+    await loadAPISettings()
 
     state.isLoaded = true
   }
@@ -307,7 +305,7 @@ export const useSettingsStore: SettingsStoreFactory = () => {
    * 清理过期数据
    *
    * @description
-   * 根据数据保留设置清理过期的提取数据、AI 总结和聊天历史。
+   * 委托给 dataCleanup 模块处理所有清理逻辑。
    *
    * 如果保留天数设置为 0，则表示永久保存，不执行清理。
    *
@@ -317,126 +315,7 @@ export const useSettingsStore: SettingsStoreFactory = () => {
    * ```
    */
   const cleanupExpiredData = async () => {
-    try {
-      const retentionDays = parseInt(state.settings.dataRetention || '7')
-
-      if (retentionDays === 0) return // 永久保存，不清理
-
-      const cutoffDate = new Date()
-      cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
-
-      console.log(`开始清理超过 ${retentionDays} 天的数据，截止日期: ${cutoffDate.toISOString()}`)
-
-      // 清理过期的提取数据
-      await cleanupExtractedData(cutoffDate)
-
-      // 清理过期的 AI 总结数据
-      await cleanupAISummaryData(cutoffDate)
-
-      // 清理过期的聊天历史
-      await cleanupChatHistory(cutoffDate)
-
-      console.log('数据清理完成')
-    } catch (error) {
-      console.error('数据清理失败:', error)
-    }
-  }
-
-  /**
-   * 清理过期的提取数据
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   *
-   * @example
-   * ```ts
-   * const cutoffDate = new Date()
-   * cutoffDate.setDate(cutoffDate.getDate() - 7)
-   * await settingsStore.cleanupExtractedData(cutoffDate)
-   * ```
-   */
-  const cleanupExtractedData = async (cutoffDate: Date) => {
-    const result = await browser.storage.local.get(STORAGE_KEYS.EXTRACTED_DATA)
-    const extractedData = result[STORAGE_KEYS.EXTRACTED_DATA]
-
-    if (extractedData && extractedData.extractedAt) {
-      const extractedDate = new Date(extractedData.extractedAt)
-      if (extractedDate < cutoffDate) {
-        await browser.storage.local.remove(STORAGE_KEYS.EXTRACTED_DATA)
-        console.log('已清理过期的提取数据')
-      }
-    }
-  }
-
-  /**
-   * 清理过期的 AI 总结数据
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   *
-   * @description
-   * 遍历所有以 'aiSummary_' 开头的 storage 项，
-   * 清理创建时间早于截止日期的数据。
-   *
-   * @example
-   * ```ts
-   * const cutoffDate = new Date()
-   * cutoffDate.setDate(cutoffDate.getDate() - 7)
-   * await settingsStore.cleanupAISummaryData(cutoffDate)
-   * ```
-   */
-  const cleanupAISummaryData = async (cutoffDate: Date) => {
-    const allData = await browser.storage.local.get(null)
-
-    for (const key in allData) {
-      if (key.startsWith('aiSummary_')) {
-        try {
-          const summaryData = allData[key]
-          if (summaryData && summaryData.createdAt) {
-            const createdDate = new Date(summaryData.createdAt)
-            if (createdDate < cutoffDate) {
-              await browser.storage.local.remove(key)
-              console.log(`已清理过期的 AI 总结数据: ${key}`)
-            }
-          }
-        } catch (error) {
-          console.error(`清理 AI 总结数据 ${key} 时出错:`, error)
-        }
-      }
-    }
-  }
-
-  /**
-   * 清理过期的聊天历史
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   *
-   * @description
-   * 过滤聊天历史，保留更新时间晚于截止日期的记录。
-   *
-   * @example
-   * ```ts
-   * const cutoffDate = new Date()
-   * cutoffDate.setDate(cutoffDate.getDate() - 7)
-   * await settingsStore.cleanupChatHistory(cutoffDate)
-   * ```
-   */
-  const cleanupChatHistory = async (cutoffDate: Date) => {
-    const result = await browser.storage.local.get(STORAGE_KEYS.CHAT_HISTORY)
-    const chatHistory = result[STORAGE_KEYS.CHAT_HISTORY] || []
-
-    const filteredHistory = chatHistory.filter((chat: any) => {
-      if (chat.updatedAt) {
-        const updatedDate = new Date(chat.updatedAt)
-        return updatedDate >= cutoffDate
-      }
-      return true // 如果没有时间戳，保留
-    })
-
-    if (filteredHistory.length !== chatHistory.length) {
-      await browser.storage.local.set({ [STORAGE_KEYS.CHAT_HISTORY]: filteredHistory })
-      console.log(
-        `已清理过期的聊天历史，从 ${chatHistory.length} 条减少到 ${filteredHistory.length} 条`
-      )
-    }
+    await cleanupAllExpiredData()
   }
 
   // ========================================================================
@@ -450,8 +329,5 @@ export const useSettingsStore: SettingsStoreFactory = () => {
     saveSettings,
     clearData,
     cleanupExpiredData,
-    cleanupExtractedData,
-    cleanupAISummaryData,
-    cleanupChatHistory,
   }
 }

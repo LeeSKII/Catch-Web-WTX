@@ -30,7 +30,7 @@ import { ref, onMounted } from 'vue'
 import { browser } from 'wxt/browser'
 import { createLogger } from '../../utils/logger'
 import { useToast } from '../useToast'
-import type { ChatHistory, ChatMessage } from './types'
+import type { ChatHistory, ChatMessage, ChatHistoryRecord } from './types'
 
 const logger = createLogger('ChatHistory')
 const { success, error, warning, info } = useToast()
@@ -81,7 +81,7 @@ export function useChatHistory() {
       const chatHistoryData = result.chatHistory
 
       if (chatHistoryData) {
-        chatHistory.value = chatHistoryData.map((chat: any) => ({
+        chatHistory.value = chatHistoryData.map((chat: ChatHistoryRecord) => ({
           ...chat,
           createdAt: new Date(chat.createdAt),
           updatedAt: new Date(chat.updatedAt),

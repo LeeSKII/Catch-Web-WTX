@@ -85,6 +85,9 @@
 import { browser } from "wxt/browser";
 import BaseModal from './BaseModal.vue';
 import { useToast } from '../composables/useToast';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger("ReferenceDetail");
 
 const { info } = useToast();
 
@@ -144,12 +147,12 @@ const navigateToOriginalPage = async (url: string) => {
     // 关闭模态框
     // 注意：这里我们无法直接访问父组件的emit，所以需要在父组件中处理这个事件
   } catch (error) {
-    console.error("跳转到原文失败:", error);
+    logger.error("跳转到原文失败:", error);
     // 如果出错，尝试直接打开新标签页
     try {
       await browser.tabs.create({ url });
     } catch (fallbackError) {
-      console.error("打开新标签页失败:", fallbackError);
+      logger.error("打开新标签页失败:", fallbackError);
     }
   }
 };

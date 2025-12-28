@@ -259,30 +259,10 @@ export interface SettingsStoreActions {
    * 清理过期数据
    *
    * @description
-   * 根据数据保留设置清理过期的提取数据、AI 总结和聊天历史
+   * 委托给 dataCleanup 模块处理所有清理逻辑。
+   * 根据数据保留设置清理过期的提取数据、AI 总结、聊天历史和引用列表。
    */
   cleanupExpiredData(): Promise<void>
-
-  /**
-   * 清理过期的提取数据
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   */
-  cleanupExtractedData(cutoffDate: Date): Promise<void>
-
-  /**
-   * 清理过期的 AI 总结数据
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   */
-  cleanupAISummaryData(cutoffDate: Date): Promise<void>
-
-  /**
-   * 清理过期的聊天历史
-   *
-   * @param cutoffDate - 截止日期，早于此日期的数据将被清理
-   */
-  cleanupChatHistory(cutoffDate: Date): Promise<void>
 }
 
 /**
@@ -305,9 +285,6 @@ export interface SettingsStore {
   saveSettings: SettingsStoreActions['saveSettings']
   clearData: SettingsStoreActions['clearData']
   cleanupExpiredData: SettingsStoreActions['cleanupExpiredData']
-  cleanupExtractedData: SettingsStoreActions['cleanupExtractedData']
-  cleanupAISummaryData: SettingsStoreActions['cleanupAISummaryData']
-  cleanupChatHistory: SettingsStoreActions['cleanupChatHistory']
 }
 
 // ============================================================================

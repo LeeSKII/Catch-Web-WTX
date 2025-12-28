@@ -5,6 +5,7 @@ import { createLogger } from '../utils/logger';
 import { UI_CONFIG, PERFORMANCE_CONFIG } from '../constants';
 import { useAbortController } from './useAbortController';
 import { useStores } from '../stores';
+import type { WebNavigationDetails } from '../types/browser';
 
 // 获取uiStore实例
 const { uiStore } = useStores();
@@ -55,7 +56,7 @@ export function useTabListeners(
   const setupDOMLoadingListener = (callback: (isLoading: boolean) => void) => {
     // 使用 webNavigation API 监听网页导航状态
     if (browser.webNavigation) {
-      const handleNavigationStart = async (details: any) => {
+      const handleNavigationStart = async (details: WebNavigationDetails) => {
         // 只处理主框架的导航开始
         if (details.frameId === 0) {
           logger.debug('检测到网页导航开始', { url: details.url });
@@ -82,7 +83,7 @@ export function useTabListeners(
         }
       };
 
-      const handleNavigationComplete = async (details: any) => {
+      const handleNavigationComplete = async (details: WebNavigationDetails) => {
         // 只处理主框架的导航完成
         if (details.frameId === 0) {
           logger.debug('检测到网页导航完成', { url: details.url });
@@ -131,7 +132,7 @@ export function useTabListeners(
         }
       };
 
-      const handleNavigationError = async (details: any) => {
+      const handleNavigationError = async (details: WebNavigationDetails) => {
         // 只处理主框架的导航错误
         if (details.frameId === 0) {
           logger.debug('检测到网页导航错误', { url: details.url, error: details.error });
@@ -158,7 +159,7 @@ export function useTabListeners(
       };
 
       // 处理SPA路由变化（history.pushState/replaceState）
-      const handleHistoryStateUpdated = async (details: any) => {
+      const handleHistoryStateUpdated = async (details: WebNavigationDetails) => {
         // 只处理主框架的历史状态更新
         if (details.frameId === 0) {
           logger.debug('检测到SPA路由变化', { url: details.url });

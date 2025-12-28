@@ -1,9 +1,10 @@
 import { ref, Ref } from 'vue';
-import { ExtractedData } from '../types';
+import type { ExtractedData, ScriptInjectionResult } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
 import { useAbortController } from './useAbortController';
 import { useStores } from '../stores';
+import type { Settings } from '../types';
 
 // 创建日志器
 const logger = createLogger('DataExtractor');
@@ -12,7 +13,7 @@ export function useDataExtractor() {
   const extractedData: Ref<ExtractedData> = ref({});
   const isLoading: Ref<boolean> = ref(false);
   const { createAbortController, cleanupAbortController } = useAbortController();
-  const { dataStore, uiStore } = useStores();
+  const { dataStore, uiStore, settingsStore } = useStores();
 
   const extractData = async (options: {
     html: boolean;
@@ -104,10 +105,10 @@ export function useDataExtractor() {
               args: [options],
             }),
             abortPromise
-          ]) as any;
+          ]) as ScriptInjectionResult[];
 
           if (results && results[0] && results[0].result) {
-            extractedData.value = results[0].result as ExtractedData;
+            extractedData.value = results[0].result;
             // 更新全局状态
             dataStore.updateExtractedData(extractedData.value);
             isLoading.value = false;
@@ -142,6 +143,55 @@ export function useDataExtractor() {
       return { success: false, message: '提取数据时发生错误' };
     } finally {
       cleanupAbortController('dataExtraction');
+    }
+  };
+
+  /**
+   * 提取数据并显示 Toast 通知
+   *
+   * @description
+   * 封装完整的数据提取流程，包括：
+   * - 从设置中获取提取选项
+   * - 管理加载状态
+   * - 显示 Toast 通知
+   * - 错误处理
+   *
+   * @returns 提取结果
+   */
+  const extractAndToast = async () => {
+    try {
+      dataStore.setLoading(true);
+
+      const options = {
+        html: settingsStore.state.settings.extractHtml,
+        text: settingsStore.state.settings.extractText,
+        images: settingsStore.state.settings.extractImages,
+        links: settingsStore.state.settings.extractLinks,
+        meta: settingsStore.state.settings.extractMeta,
+        styles: settingsStore.state.settings.extractStyles,
+        scripts: settingsStore.state.settings.extractScripts,
+        article: settingsStore.state.settings.extractArticle,
+      };
+
+      const extractResult = await extractData(options);
+
+      if (extractResult.success && extractResult.data) {
+        dataStore.updateExtractedData(extractResult.data);
+        uiStore.showToast('数据提取成功！', 'success');
+      } else {
+        dataStore.setError(extractResult.message || '数据提取失败');
+        uiStore.showToast(extractResult.message || '数据提取失败', 'error');
+      }
+
+      return extractResult;
+    } catch (err) {
+      logger.error('数据提取过程中出错', err);
+      dataStore.setError('数据提取失败，请重试');
+      uiStore.showToast('数据提取失败，请重试', 'error');
+      return { success: false, message: '数据提取失败，请重试' };
+    } finally {
+      dataStore.setLoading(false);
+      dataStore.setPageLoading(false);
     }
   };
 
@@ -298,6 +348,7 @@ export function useDataExtractor() {
     extractedData,
     isLoading,
     extractData,
+    extractAndToast,
     saveExtractedData,
     clearExtractedData
   };

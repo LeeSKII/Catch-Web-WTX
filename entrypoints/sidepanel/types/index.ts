@@ -79,3 +79,27 @@ export interface AISummaryData {
   url: string;
 }
 
+/**
+ * Script 注入返回结果类型
+ *
+ * @description
+ * browser.scripting.executeScript 的返回值类型
+ */
+export interface ScriptInjectionResult {
+  result: ExtractedData;
+}
+
+/**
+ * 聊天历史记录类型
+ *
+ * @description
+ * 从 storage 加载的聊天会话记录
+ */
+export interface ChatHistoryRecord {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
