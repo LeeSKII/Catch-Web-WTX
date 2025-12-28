@@ -14,9 +14,9 @@
           :stats="stats.value"
           :extracted-data="extractedData"
         />
-        <div class="action-section">
-          <div class="action-title">数据管理</div>
-          <div class="action-buttons">
+        <div class="section-title">
+          <span>网页信息</span>
+          <div class="title-actions">
             <button
               :class="[
                 'btn btn-refresh',
@@ -27,11 +27,6 @@
             >
               {{ isRefreshButtonDisabled ? "刷新中" : "刷新数据" }}
             </button>
-          </div>
-        </div>
-        <div class="section-title">
-          <span>网页信息</span>
-          <div>
             <button class="btn btn-secondary" @click="handleCopyAllData">
               复制全部
             </button>
@@ -295,26 +290,9 @@ const handleViewAllLinks = () => {
   color: var(--section-title-color);
 }
 
-.action-section {
+.title-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  background: var(--section-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-}
-
-.action-title {
-  font-weight: 600;
-  color: var(--section-title-color);
-  font-size: 14px;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .section-content {

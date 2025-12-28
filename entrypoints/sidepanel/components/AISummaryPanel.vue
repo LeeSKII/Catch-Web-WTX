@@ -1,97 +1,124 @@
 <template>
-  <div>
-    <div class="section">
-      <div class="section-title">
-        <span>AI总结选项</span>
+  <div class="ai-summary-panel">
+    <!-- 折叠式控制栏 -->
+    <div class="control-panel" :class="{ 'collapsed': isControlPanelCollapsed }">
+      <!-- 折叠态 - 紧凑单行 -->
+      <div v-if="isControlPanelCollapsed" class="control-panel-collapsed">
+        <div class="collapsed-left">
+          <span class="current-type-badge">
+            {{ aiSummaryType === 'full' ? '全文总结' : '关键信息' }}
+          </span>
+          <span class="status-hint" v-if="aiSummaryContent">
+            已生成
+          </span>
+        </div>
+        <div class="collapsed-right">
+          <button
+            class="icon-btn"
+            @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
+            :disabled="(isLoadingAISummary && !isGeneratingAISummary) || dataStore.state.isLoading || dataStore.state.isPageLoading"
+            :title="isGeneratingAISummary ? '暂停' : 'AI总结'"
+          >
+            <span v-if="isGeneratingAISummary" class="pause-icon">⏸</span>
+            <span v-else class="generate-icon">✨</span>
+          </button>
+          <button
+            class="icon-btn"
+            @click="isControlPanelCollapsed = false"
+            title="展开选项"
+          >
+            <span class="expand-icon">▾</span>
+          </button>
+        </div>
       </div>
 
-      <div style="display: flex; gap: 10px; margin-bottom: 15px">
-        <label style="flex: 1; text-align: center; margin: 0">
-          <input type="radio" :value="'full'" v-model="aiSummaryType" /> 全文总结
-        </label>
-        <label style="flex: 1; text-align: center; margin: 0">
-          <input type="radio" :value="'keyinfo'" v-model="aiSummaryType" />
-          关键信息
-        </label>
-      </div>
+      <!-- 展开态 - 完整控制 -->
+      <div v-else class="control-panel-expanded">
+        <div class="type-selector">
+          <label
+            class="type-option"
+            :class="{ 'active': aiSummaryType === 'full' }"
+          >
+            <input type="radio" :value="'full'" v-model="aiSummaryType" />
+            <span>全文总结</span>
+          </label>
+          <label
+            class="type-option"
+            :class="{ 'active': aiSummaryType === 'keyinfo' }"
+          >
+            <input type="radio" :value="'keyinfo'" v-model="aiSummaryType" />
+            <span>关键信息</span>
+          </label>
+        </div>
 
-      <div style="display: flex; gap: 10px">
+        <div class="action-buttons">
+          <button
+            class="btn btn-secondary"
+            @click="showPromptModal = true"
+          >
+            编辑 Prompt
+          </button>
+          <button
+            class="btn"
+            :class="isGeneratingAISummary ? 'btn-warning' : 'btn-primary'"
+            @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
+            :disabled="(isLoadingAISummary && !isGeneratingAISummary) || dataStore.state.isLoading || dataStore.state.isPageLoading"
+          >
+            <span v-if="isGeneratingAISummary">⏸ 暂停</span>
+            <span v-else-if="isLoadingAISummary">⏳ 生成中...</span>
+            <span v-else>✨ AI总结</span>
+          </button>
+        </div>
+
         <button
-          class="btn btn-secondary"
-          style="flex: 1"
-          @click="showPromptModal = true"
+          class="collapse-btn"
+          @click="isControlPanelCollapsed = true"
+          title="折叠"
         >
-          编辑 Prompt
-        </button>
-        <button
-          class="btn"
-          :class="isGeneratingAISummary ? 'btn-warning' : 'btn-primary'"
-          style="flex: 1"
-          @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
-          :disabled="(isLoadingAISummary && !isGeneratingAISummary) || dataStore.state.isLoading || dataStore.state.isPageLoading"
-        >
-          <span v-if="isGeneratingAISummary">暂停</span>
-          <span v-else-if="isLoadingAISummary">生成中...</span>
-          <span v-else>AI总结</span>
+          <span>▴</span>
         </button>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">
-        <span>AI总结结果</span>
-        <div>
-          <button class="btn btn-secondary" @click="handleCopySummary">
-            复制
-          </button>
-          <button class="btn btn-warning" @click="handleClearCache">
-            清除缓存
-          </button>
-        </div>
-      </div>
-      <div class="section-content">
-        <div
-          v-if="aiSummaryContent"
-          id="streaming-content"
-          v-html="parsedMarkdown"
-        ></div>
-        <div
-          v-else
-          style="
-            text-align: center;
-            color: var(--markdown-text-light);
-            padding: 20px;
-          "
-        >
-          <div v-if="isQueryingDatabase && !isLoadingAISummary" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
-            <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
-            <span style="font-size: 14px; color: var(--markdown-text-light);">正在查询数据库...</span>
-          </div>
-          <div v-else-if="isLoadingAISummary && !isQueryingDatabase" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
-            <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
-            <span style="font-size: 14px; color: var(--markdown-text-light);">正在生成AI总结...</span>
-          </div>
-          <div v-else-if="isQueryingDatabase && isLoadingAISummary" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
-            <div class="loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
-            <span style="font-size: 14px; color: var(--markdown-text-light);">正在处理中...</span>
-          </div>
-          <div v-else>
-            点击"AI总结"按钮开始生成网页内容总结
-          </div>
-        </div>
-      </div>
-      <!-- 缓存状态和生成时间显示区域 -->
+    <!-- 结果区域 -->
+    <div class="result-section">
       <div
-        v-if="aiSummaryStatus"
-        style="
-          font-size: 12px;
-          color: var(--markdown-text-light);
-          margin-top: 10px;
-          text-align: center;
-          padding: 0 15px 15px;
-        "
-      >
-        {{ aiSummaryStatus }}
+        v-if="aiSummaryContent"
+        id="streaming-content"
+        v-html="parsedMarkdown"
+        class="result-content"
+      ></div>
+      <div v-else class="result-empty">
+        <div v-if="isLoadingAISummary" class="loading-state">
+          <div class="loading-spinner"></div>
+          <span>正在生成AI总结...</span>
+        </div>
+        <div v-else class="empty-hint">
+          点击 AI总结 按钮开始生成网页内容总结
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <div v-if="aiSummaryStatus || aiSummaryContent" class="status-bar">
+      <span class="status-text">{{ aiSummaryContent ? aiSummaryStatus || '已生成总结' : '' }}</span>
+      <div class="status-actions">
+        <button
+          v-if="aiSummaryContent"
+          class="text-btn"
+          @click="handleCopySummary"
+          title="复制总结"
+        >
+          📋 复制
+        </button>
+        <button
+          v-if="aiSummaryContent"
+          class="text-btn"
+          @click="handleClearCache"
+          title="清除缓存"
+        >
+          🗑 清除
+        </button>
       </div>
     </div>
 
@@ -125,7 +152,6 @@ const { dataStore, uiStore } = useStores();
 // 使用 composables
 const {
   isLoadingAISummary,
-  isQueryingDatabase,
   aiSummaryContent,
   aiSummaryStatus,
   aiSummaryType,
@@ -143,6 +169,8 @@ const {
 
 // 组件内部状态
 const showPromptModal = ref(false);
+const isControlPanelCollapsed = ref(true); // 默认折叠以提高信息密度
+const isUserPaused = ref(false); // 标记是否由用户主动暂停
 
 // 记录上一次处理的URL，避免重复处理
 let lastProcessedUrl = '';
@@ -153,6 +181,9 @@ const extractedData = computed(() => dataStore.state.extractedData);
 
 // 处理生成 AI 总结
 const handleGenerateAISummary = async () => {
+  // 重置用户暂停标志
+  isUserPaused.value = false;
+
   const result = await generateAISummary(
     extractedData.value.text || "",
     extractedData.value
@@ -162,20 +193,28 @@ const handleGenerateAISummary = async () => {
     if (result.success) {
       uiStore.showToast("AI总结生成成功！", "success");
     } else {
-      uiStore.showToast(result.message || "AI总结生成失败", "error");
+      // 如果是用户主动暂停，不显示错误提示（pauseAISummary 已经显示了成功提示）
+      if (!isUserPaused.value) {
+        uiStore.showToast(result.message || "AI总结生成失败", "error");
+      }
     }
   }
 };
 
 // 处理暂停 AI 总结
 const handlePauseAISummary = async () => {
+  // 设置用户主动暂停标志
+  isUserPaused.value = true;
+
   const result = await pauseAISummary();
-  
+
   if (result) {
     if (result.success) {
       uiStore.showToast("AI总结已暂停并保存", "success");
     } else {
       uiStore.showToast(result.message || "暂停AI总结失败", "error");
+      // 暂停失败时重置标志
+      isUserPaused.value = false;
     }
   }
 };
@@ -319,104 +358,366 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.section {
-  background: var(--section-bg);
-  border-radius: var(--border-radius);
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: var(--box-shadow);
+/* ============= 主容器 ============= */
+.ai-summary-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.section-title {
+/* ============= 控制面板（折叠栏） ============= */
+.control-panel {
+  background: var(--section-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin-bottom: 12px;
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 折叠态 - 紧凑单行 */
+.control-panel-collapsed {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 5px;
-  font-weight: 600;
-  color: var(--section-title-color);
+  padding: 8px 12px;
+  min-height: 40px;
+  gap: 10px;
 }
 
-.section-content {
-  max-height: calc(100vh - 300px);
+.collapsed-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.current-type-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: var(--primary-color-hover);
+  padding: 5px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--primary-color);
+  white-space: nowrap;
+}
+
+.status-hint {
+  font-size: 12px;
+  color: var(--markdown-text-light);
+  opacity: 0.8;
+}
+
+.collapsed-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 图标按钮 */
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--section-content-bg);
+  color: var(--primary-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: transparent;
+}
+
+.icon-btn .generate-icon {
+  font-size: 16px;
+}
+
+.icon-btn .pause-icon {
+  font-size: 14px;
+}
+
+.icon-btn .expand-icon {
+  font-size: 12px;
+  color: var(--markdown-text-light);
+}
+
+/* 展开态 - 完整控制 */
+.control-panel-expanded {
+  padding: 12px 40px 12px 12px; /* 右侧留出折叠按钮空间 */
+  position: relative;
+}
+
+.type-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--section-content-bg);
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+}
+
+/* 暗色模式增强边框可见度 */
+.type-option::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--border-radius);
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.type-option input {
+  display: none;
+}
+
+.type-option:hover {
+  border-color: var(--primary-color);
+  background: var(--section-bg);
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.type-option.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px var(--primary-color-hover);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.collapse-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--section-content-bg);
+  color: var(--markdown-text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.collapse-btn:hover {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+/* ============= 结果区域 ============= */
+.result-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.result-content {
+  flex: 1;
+  max-height: calc(100vh - 180px);
   font-size: 15px;
   overflow-y: auto;
   overflow-x: hidden;
   border: 1px solid var(--border-color);
-  padding: 0px 10px;
+  padding: 12px;
   border-radius: var(--border-radius);
   background: var(--section-content-bg);
   word-wrap: break-word;
-  word-break: break-all;
+  word-break: break-word;
   scroll-behavior: smooth;
-  /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: var(--primary-color) var(--scrollbar-track);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Webkit 浏览器滚动条样式 */
-.section-content::-webkit-scrollbar {
-  width: 8px;
+/* Webkit 滚动条样式 */
+.result-content::-webkit-scrollbar {
+  width: 6px;
 }
 
-.section-content::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 4px;
+.result-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.section-content::-webkit-scrollbar-thumb {
+.result-content::-webkit-scrollbar-thumb {
   background: var(--primary-color);
-  border-radius: 4px;
-  transition: background 0.3s ease;
+  border-radius: 3px;
+  opacity: 0.5;
 }
 
-.section-content::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-color-hover);
+.result-content::-webkit-scrollbar-thumb:hover {
+  opacity: 0.8;
 }
 
-.btn {
-  padding: 8px 15px;
+.result-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--markdown-text-light);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--section-content-bg);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: var(--markdown-text-light);
+}
+
+/* ============= 状态栏 ============= */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: var(--section-content-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 12px;
+}
+
+.status-text {
+  color: var(--markdown-text-light);
+}
+
+.status-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.text-btn {
+  background: none;
   border: none;
+  color: var(--markdown-text-light);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.text-btn:hover {
+  background: var(--section-bg);
+  color: var(--primary-color);
+}
+
+/* ============= 按钮样式 ============= */
+.btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid transparent;
   border-radius: var(--border-radius);
   cursor: pointer;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin: 2px;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .btn-primary {
   background: var(--primary-color);
-  color: white;
+  color: #ffffff;
+  border-color: var(--primary-color);
 }
 
 .btn-secondary {
   background: var(--accent-color);
-  color: white;
+  color: #ffffff;
+  border-color: var(--accent-color);
 }
 
 .btn-warning {
   background: var(--warning-color);
-  color: white;
+  color: #ffffff;
+  border-color: var(--warning-color);
 }
 
-.btn:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
+.btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn:disabled {
-  background: #cccccc;
-  color: #666666;
+  background: var(--border-color);
+  color: var(--markdown-text-light);
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
+  box-shadow: none;
 }
 
 .btn:disabled:hover {
-  opacity: 0.6;
   transform: none;
+  filter: none;
 }
 
+/* ============= 加载动画 ============= */
 .loading-spinner {
   border: 3px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;
@@ -429,5 +730,66 @@ onUnmounted(() => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* ============= Markdown 内容样式（保留原有） ============= */
+#streaming-content {
+  line-height: 1.7;
+}
+
+#streaming-content h1,
+#streaming-content h2,
+#streaming-content h3,
+#streaming-content h4,
+#streaming-content h5,
+#streaming-content h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+#streaming-content h1 { font-size: 1.5em; }
+#streaming-content h2 { font-size: 1.3em; }
+#streaming-content h3 { font-size: 1.15em; }
+
+#streaming-content p {
+  margin-bottom: 12px;
+}
+
+#streaming-content ul,
+#streaming-content ol {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+
+#streaming-content li {
+  margin-bottom: 6px;
+}
+
+#streaming-content code {
+  background: var(--section-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+#streaming-content pre {
+  background: var(--section-bg);
+  padding: 12px;
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+#streaming-content pre code {
+  background: none;
+  padding: 0;
+}
+
+#streaming-content blockquote {
+  border-left: 3px solid var(--primary-color);
+  padding-left: 12px;
+  margin: 12px 0;
+  color: var(--markdown-text-light);
 }
 </style>
