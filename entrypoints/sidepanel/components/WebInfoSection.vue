@@ -113,8 +113,8 @@ import LinkModal from "./LinkModal.vue";
 import LinkList from "./LinkList.vue";
 import { useStores } from "../stores";
 import { useAISummary } from "../composables/useAISummary";
+import { useDataExport } from "../composables/useDataExport";
 import { createLogger } from "../utils/logger";
-import { browser } from "wxt/browser";
 
 // 创建日志器
 const logger = createLogger("WebInfoSection");
@@ -124,6 +124,11 @@ const { dataStore, uiStore } = useStores();
 
 // 使用 composables
 const { loadAISummary, generateAISummary, aiSummaryContent, aiSummaryType } = useAISummary();
+const {
+  handleCopyAllData: copyAllData,
+  handleExportData: exportData,
+  handleDownloadAllImages: downloadAllImages
+} = useDataExport();
 
 const emit = defineEmits<{
   "refresh-data": [];
@@ -169,74 +174,27 @@ const handleViewAllImages = () => {
 };
 
 const handleDownloadAllImages = () => {
-  if (!extractedData.value.images || extractedData.value.images.length === 0) {
-    uiStore.showToast("没有可下载的图片", "warning");
-    return;
-  }
-
-  uiStore.showToast(`开始下载 ${extractedData.value.images.length} 张图片`, "success");
-
-  extractedData.value.images?.forEach((img, index) => {
-    if (img && img.src) {
-      browser.downloads.download({
-        url: img.src,
-        filename: `image-${index + 1}.${
-          img.src.split(".").pop()?.split("?")[0] || "jpg"
-        }`,
-        saveAs: false,
-      });
-    }
-  });
+  downloadAllImages(
+    extractedData.value,
+    (msg) => uiStore.showToast(msg, "success"),
+    (msg) => uiStore.showToast(msg, "warning")
+  );
 };
 
 const handleCopyAllData = () => {
-  const text = JSON.stringify(extractedData.value, null, 2);
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      uiStore.showToast("数据已复制到剪贴板！", "success");
-    })
-    .catch((err) => {
-      logger.error("复制失败", err);
-      uiStore.showToast("复制失败，请重试", "error");
-    });
+  copyAllData(
+    extractedData.value,
+    (msg) => uiStore.showToast(msg, "success"),
+    (msg) => uiStore.showToast(msg, "error")
+  );
 };
 
 const handleExportData = () => {
-  if (Object.keys(extractedData.value).length === 0) {
-    uiStore.showToast("没有数据可导出", "warning");
-    return;
-  }
-
-  const blob = new Blob([JSON.stringify(extractedData.value, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-
-  // 获取标题和URL来构建文件名
-  let title = extractedData.value.title || "untitled";
-  let urlPart = extractedData.value.url || "no-url";
-
-  // 清理标题，移除不适合文件名的字符
-  title = title.replace(/[\\/:*?"<>|]/g, "-").substring(0, 50);
-
-  // 从URL中提取域名部分
-  try {
-    const urlObj = new URL(urlPart);
-    urlPart = urlObj.hostname.replace(/^www\./, "");
-  } catch (e) {
-    urlPart = "invalid-url";
-  }
-
-  const date = new Date().toISOString().slice(0, 10);
-  const filename = `${title}-${urlPart}-${date}.json`;
-
-  browser.downloads.download({
-    url: url,
-    filename: filename,
-    saveAs: true,
-  });
+  exportData(
+    extractedData.value,
+    (msg) => uiStore.showToast(msg, "success"),
+    (msg) => uiStore.showToast(msg, "warning")
+  );
 };
 
 const handleViewAllLinks = () => {

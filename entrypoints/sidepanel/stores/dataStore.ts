@@ -3,7 +3,7 @@ import type { ExtractedData } from '../types'
 
 export const useDataStore = () => {
   const state = reactive({
-    extractedData: { isBookmarked: false } as ExtractedData,
+    extractedData: {} as ExtractedData,
     isLoading: false,
     isPageLoading: false,
     lastError: null as string | null
@@ -17,12 +17,7 @@ export const useDataStore = () => {
 
   const actions = {
     updateExtractedData(data: ExtractedData) {
-      // 保留原有的 isBookmarked 状态
-      const currentIsBookmarked = state.extractedData.isBookmarked;
-      state.extractedData = {
-        ...data,
-        isBookmarked: data.isBookmarked !== undefined ? data.isBookmarked : currentIsBookmarked
-      };
+      state.extractedData = { ...data };
     },
     
     setLoading(loading: boolean) {
@@ -38,7 +33,7 @@ export const useDataStore = () => {
     },
     
     clearData() {
-      state.extractedData = { isBookmarked: false } as ExtractedData
+      state.extractedData = {} as ExtractedData
       state.lastError = null
     }
   }

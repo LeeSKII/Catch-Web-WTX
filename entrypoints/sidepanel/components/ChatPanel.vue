@@ -105,7 +105,6 @@
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
 import { browser } from "wxt/browser";
-import { marked } from "marked";
 import Confirm from "./Confirm.vue";
 import MessageItem from "./MessageItem.vue";
 import ReferenceList from "./ReferenceList.vue";

@@ -14,7 +14,6 @@ export interface ExtractedData {
   scripts?: ScriptData[];
   article?: string | null;
   extractedAt?: string;
-  isBookmarked?: boolean;
 }
 
 export interface ImageData {
@@ -80,8 +79,3 @@ export interface AISummaryData {
   url: string;
 }
 
-export interface NewsData {
-  url: string;
-  summarizer: string;
-  ai_key_info?: string;
-}
