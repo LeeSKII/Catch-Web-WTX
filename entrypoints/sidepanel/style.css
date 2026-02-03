@@ -214,23 +214,54 @@ body {
   margin: 5px 0;
 }
 
+/* ========== 表格样式（现代极简风格）========== */
+.markdown-content table,
 #streaming-content table {
   border-collapse: collapse;
   width: 100%;
-  margin-bottom: 4px;
-  font-size: 0.85em;
+  margin: 16px 0;
+  font-size: 0.9em;
+  line-height: 1.6;
 }
 
-#streaming-content th,
-#streaming-content td {
-  border: 1px solid var(--markdown-border-light);
-  padding: 2px 4px;
+/* 表头样式 - 无边框风格 */
+.markdown-content thead th,
+#streaming-content thead th {
+  font-weight: 600;
+  padding: 10px 12px;
   text-align: left;
+  border-bottom: 2px solid var(--primary-color);
+  color: var(--dark-color);
+  background: transparent;
 }
 
+.markdown-content th,
 #streaming-content th {
-  background-color: var(--markdown-bg-light);
-  font-weight: bold;
+  font-weight: 600;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--primary-color);
+  color: var(--dark-color);
+  background: transparent;
+}
+
+/* 数据单元格样式 */
+.markdown-content td,
+#streaming-content td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--markdown-border-light);
+}
+
+/* 最后一行去掉底边框 */
+.markdown-content tbody tr:last-child td,
+#streaming-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 斑马纹效果 */
+.markdown-content tbody tr:nth-child(even),
+#streaming-content tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 /* 暗色模式下的Markdown样式 */
@@ -252,18 +283,24 @@ body {
   border-top: 1px solid var(--markdown-border-dark);
 }
 
-[data-theme="dark"] #streaming-content th,
-[data-theme="dark"] #streaming-content td {
-  border: 1px solid var(--markdown-border-dark);
-}
-
+/* ========== 表格暗色模式样式 ========== */
+[data-theme="dark"] .markdown-content thead th,
+[data-theme="dark"] #streaming-content thead th,
+[data-theme="dark"] .markdown-content th,
 [data-theme="dark"] #streaming-content th {
-  background-color: var(--markdown-bg-dark);
+  border-bottom-color: var(--primary-color);
+  color: var(--dark-color);
+}
+
+[data-theme="dark"] .markdown-content td,
+[data-theme="dark"] #streaming-content td {
+  border-bottom-color: var(--markdown-border-dark);
   color: var(--markdown-text-dark);
 }
 
-[data-theme="dark"] #streaming-content td {
-  color: var(--markdown-text-dark);
+[data-theme="dark"] .markdown-content tbody tr:nth-child(even),
+[data-theme="dark"] #streaming-content tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
 /* Toast通知系统样式 */

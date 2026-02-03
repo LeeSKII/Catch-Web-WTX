@@ -126,7 +126,7 @@
         v-if="aiSummaryContent"
         id="streaming-content"
         v-html="parsedMarkdown"
-        class="result-content custom-scrollbar"
+        class="result-content custom-scrollbar markdown-content"
       ></div>
       <div v-else class="result-empty">
         <div v-if="isLoadingAISummary" class="loading-state">

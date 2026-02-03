@@ -114,7 +114,7 @@
         </div>
         <div
           v-else-if="message.role === 'assistant'"
-          class="message-text"
+          class="message-text markdown-content"
           v-html="parseMarkdown(message.content)"
         ></div>
         <div class="message-time">{{ formatTime(message.timestamp) }}</div>
