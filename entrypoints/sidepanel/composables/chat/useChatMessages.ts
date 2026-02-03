@@ -43,13 +43,15 @@ const { success, error, warning, info } = useToast()
  * @description
  * 提供聊天消息的完整管理功能，包括发送、编辑、重新发送等
  *
+ * @param reference - 引用管理实例（可选，如果不传则创建新实例）
+ *
  * @returns 消息管理状态和方法
  */
-export function useChatMessages() {
+export function useChatMessages(reference?: ReturnType<typeof useChatReference>) {
   const { settingsStore } = useStores()
   const stream = useChatStream()
   const history = useChatHistory()
-  const reference = useChatReference()
+  const referenceInstance = reference || useChatReference()
 
   // ========================================================================
   // 状态
@@ -72,9 +74,9 @@ export function useChatMessages() {
    * 监听引用列表变化，更新系统消息
    */
   watch(
-    () => reference.referenceList.value,
+    () => referenceInstance.referenceList.value,
     () => {
-      if (reference.referenceList.value.length > 0) {
+      if (referenceInstance.referenceList.value.length > 0) {
         updateSystemMessage()
       } else {
         messages.value = messages.value.filter((msg) => msg.role !== 'system')
@@ -106,7 +108,7 @@ export function useChatMessages() {
    * 根据当前引用列表更新系统消息内容
    */
   const updateSystemMessage = () => {
-    if (reference.referenceList.value.length === 0) {
+    if (referenceInstance.referenceList.value.length === 0) {
       messages.value = messages.value.filter((msg) => msg.role !== 'system')
       systemMessage.value = null
       return
@@ -114,7 +116,7 @@ export function useChatMessages() {
 
     systemMessage.value = {
       role: 'system',
-      content: reference.systemPrompt.value,
+      content: referenceInstance.systemPrompt.value,
       timestamp: new Date(),
     }
 
@@ -238,7 +240,7 @@ export function useChatMessages() {
       const messageHistory = prepareMessages()
 
       logger.debug('对话内容', {
-        systemPrompt: reference.systemPrompt.value,
+        systemPrompt: referenceInstance.systemPrompt.value,
         messages: messageHistory,
       })
 

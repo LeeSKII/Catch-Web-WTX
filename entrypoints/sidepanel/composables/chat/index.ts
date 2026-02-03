@@ -90,10 +90,10 @@ export type {
  * ```
  */
 export function useChat() {
-  const messages = useChatMessages()
   const history = useChatHistory()
   const reference = useChatReference()
   const stream = useChatStream()
+  const messages = useChatMessages(reference)
 
   // ========================================================================
   // 返回完整接口（保持与原 useChat.ts 的兼容性）
@@ -149,8 +149,11 @@ export function useChat() {
     updateChatTitle: history.updateChatTitle,
     /** 更新当前聊天消息 */
     updateCurrentChatMessages: history.updateCurrentChatMessages,
-    /** 清空当前对话 */
-    clearChat: history.clearChat,
+    /** 清空当前对话（同时清空UI消息和历史记录） */
+    clearChat: () => {
+      messages.clearMessages()
+      history.clearChat()
+    },
     /** 保存当前对话 */
     saveChat: history.saveChat,
     /** 导出对话 */
