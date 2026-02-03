@@ -466,7 +466,10 @@ export function useChatMessages(reference?: ReturnType<typeof useChatReference>)
     // 更新消息内容
     messages.value[messageIndex].content = newContent
 
-    // 截断后续消息并重新发送
+    // 截断该消息后的所有消息
+    truncateMessagesAfter(messageIndex)
+
+    // 重新发送获取AI回复
     await processStreamResponse(message)
   }
 
