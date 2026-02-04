@@ -7,6 +7,7 @@ import { getDefaultPrompt } from "../constants/prompts";
 import { getCurrentTab } from "../utils/browser";
 import { useAbortController } from "./useAbortController";
 import { useStores } from "../stores";
+import { mergeExtractedText } from "../utils/dataUtils";
 import OpenAI from "openai";
 
 // 创建日志器
@@ -53,13 +54,6 @@ export function useAISummary() {
     isGeneratingAISummary.value = true;
 
     try {
-      if (!content) {
-        logger.debug("未识别到任何需要总结的数据");
-        isLoadingAISummary.value = false;
-        isGeneratingAISummary.value = false;
-        return { success: false, message: "未识别到任何需要总结的数据" };
-      }
-
       // 检查是否已提取数据
       if (Object.keys(extractedData).length === 0) {
         logger.debug("请先提取网页数据");
@@ -68,9 +62,19 @@ export function useAISummary() {
         return { success: false, message: "请先提取网页数据" };
       }
 
+      // 合并主文档和所有 iframe 的文本内容
+      const fullContent = mergeExtractedText(extractedData);
+
+      if (!fullContent) {
+        logger.debug("未识别到任何需要总结的数据");
+        isLoadingAISummary.value = false;
+        isGeneratingAISummary.value = false;
+        return { success: false, message: "未识别到任何需要总结的数据" };
+      }
+
       // 在检查API密钥前重新加载设置，确保获取到最新的API密钥
       settingsStore.loadSettings();
-      
+
       // 检查API密钥，每次都从最新的设置中获取
       const apiKey = settingsStore.state.settings.openaiApiKey;
       if (!apiKey) {
@@ -86,8 +90,8 @@ export function useAISummary() {
       // 根据总结类型获取 prompt
       const system_prompt = getCurrentPrompt(summaryType);
 
-      // 调用OpenAI API
-      const result = await callOpenAI(apiKey, system_prompt, content);
+      // 调用OpenAI API（使用合并后的完整内容）
+      const result = await callOpenAI(apiKey, system_prompt, fullContent);
       isLoadingAISummary.value = false;
       isGeneratingAISummary.value = false;
       return result;

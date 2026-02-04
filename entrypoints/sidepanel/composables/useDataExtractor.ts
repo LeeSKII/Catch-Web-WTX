@@ -1,5 +1,5 @@
 import { ref, Ref } from 'vue';
-import type { ExtractedData, ScriptInjectionResult } from '../types';
+import type { ExtractedData, ScriptInjectionResult, FrameData } from '../types';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../utils/logger';
 import { useAbortController } from './useAbortController';
@@ -84,7 +84,7 @@ export function useDataExtractor() {
           // 使用Promise.race来处理中止信号
           await Promise.race([
             browser.scripting.executeScript({
-              target: { tabId: tabs[0].id },
+              target: { tabId: tabs[0].id, allFrames: true },
               func: waitForDOMReady,
             }),
             abortPromise
@@ -100,19 +100,29 @@ export function useDataExtractor() {
           // DOM准备就绪后，执行数据提取
           const results = await Promise.race([
             browser.scripting.executeScript({
-              target: { tabId: tabs[0].id },
+              target: { tabId: tabs[0].id, allFrames: true },
               func: getPageData,
               args: [options],
             }),
             abortPromise
           ]) as ScriptInjectionResult[];
 
-          if (results && results[0] && results[0].result) {
-            extractedData.value = results[0].result;
+          if (results && results.length > 0) {
+            const processedData = processFrameResults(results);
+            extractedData.value = processedData;
             // 更新全局状态
             dataStore.updateExtractedData(extractedData.value);
             isLoading.value = false;
-            uiStore.showToast('数据提取成功', 'success');
+
+            // 显示提取成功提示，包含 frame 信息
+            let toastMsg = '数据提取成功';
+            if (processedData.frames && processedData.frames.length > 0) {
+              toastMsg += ` (含 ${processedData.frames.length} 个 iframe)`;
+            }
+            if (processedData.crossOriginFrameCount && processedData.crossOriginFrameCount > 0) {
+              toastMsg += `，${processedData.crossOriginFrameCount} 个跨域 iframe 无法访问`;
+            }
+            uiStore.showToast(toastMsg, 'success');
             return { success: true, data: extractedData.value };
           } else {
             isLoading.value = false;
@@ -321,6 +331,52 @@ export function useDataExtractor() {
     data.extractedAt = new Date().toISOString();
 
     return data;
+  };
+
+  /**
+   * 处理多 frame 结果并合并数据
+   *
+   * @param results - executeScript 返回的结果数组
+   * @returns 合并后的提取数据
+   */
+  const processFrameResults = (
+    results: ScriptInjectionResult[]
+  ): ExtractedData => {
+    // 分离成功和失败的结果
+    const validResults = results.filter(r => r.result);
+    const errorResults = results.filter(r => r.error);
+
+    if (validResults.length === 0) {
+      throw new Error('无法从任何 frame 提取数据');
+    }
+
+    // 主文档数据（第一个结果通常是主文档）
+    const mainData = validResults[0].result!;
+
+    if (validResults.length === 1) {
+      return mainData;
+    }
+
+    // 处理 iframe 数据
+    const framesData: FrameData[] = [];
+
+    for (let i = 1; i < validResults.length; i++) {
+      const result = validResults[i];
+      framesData.push({
+        url: result.result!.url,
+        data: result.result!,
+      });
+    }
+
+    // 统计跨域 frame（因同源策略无法访问）
+    const crossOriginCount = errorResults.length;
+
+    // 合并数据
+    return {
+      ...mainData,
+      frames: framesData,
+      crossOriginFrameCount: crossOriginCount,
+    };
   };
 
   const saveExtractedData = async (data: ExtractedData) => {

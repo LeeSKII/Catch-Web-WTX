@@ -30,6 +30,7 @@ import { ref, computed, onMounted } from 'vue'
 import { browser } from 'wxt/browser'
 import { createLogger } from '../../utils/logger'
 import { useToast } from '../useToast'
+import { mergeExtractedText } from '../../utils/dataUtils'
 import type { ExtractedData } from '../../types'
 import type { ReferenceItemPreview, ReferenceModalState } from './types'
 
@@ -81,7 +82,7 @@ export function useChatReference() {
    * 引用文本
    *
    * @description
-   * 根据引用列表生成完整的引用文本
+   * 根据引用列表生成完整的引用文本（包含所有 iframe 内容）
    */
   const referenceText = computed(() => {
     if (referenceList.value.length === 0) return ''
@@ -89,8 +90,9 @@ export function useChatReference() {
     let text = '请基于以下网页内容回答我的问题：\n\n'
 
     referenceList.value.forEach((item, index) => {
-      if (item.text) {
-        text += `网页 ${index + 1}：\n${item.text}\n\n`
+      const fullText = mergeExtractedText(item)
+      if (fullText) {
+        text += `网页 ${index + 1}：\n${fullText}\n\n`
       }
     })
 
@@ -101,7 +103,7 @@ export function useChatReference() {
    * 系统提示词
    *
    * @description
-   * 根据引用列表生成 AI 系统提示词
+   * 根据引用列表生成 AI 系统提示词（包含所有 iframe 内容）
    */
   const systemPrompt = computed(() => {
     if (referenceList.value.length === 0) return ''
@@ -109,8 +111,9 @@ export function useChatReference() {
     let prompt = '请基于以下网页内容回答我的问题：\n\n'
 
     referenceList.value.forEach((item, index) => {
-      if (item.text) {
-        prompt += `网页 ${index + 1}：\n${item.text}\n\n`
+      const fullText = mergeExtractedText(item)
+      if (fullText) {
+        prompt += `网页 ${index + 1}：\n${fullText}\n\n`
       }
     })
 

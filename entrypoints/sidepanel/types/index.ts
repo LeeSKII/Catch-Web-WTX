@@ -14,6 +14,10 @@ export interface ExtractedData {
   scripts?: ScriptData[];
   article?: string | null;
   extractedAt?: string;
+  /** 所有可访问 iframe 的数据数组 */
+  frames?: FrameData[];
+  /** 跨域无法访问的 iframe 数量 */
+  crossOriginFrameCount?: number;
 }
 
 export interface ImageData {
@@ -42,6 +46,19 @@ export interface ScriptData {
   type: string;
   async: boolean;
   defer: boolean;
+}
+
+/**
+ * Frame 数据类型
+ *
+ * @description
+ * 存储从 iframe/frame 中提取的数据
+ */
+export interface FrameData {
+  frameId?: number;
+  parentFrameId?: number;
+  url?: string;
+  data: ExtractedData;
 }
 
 export interface ToastOptions {
@@ -84,9 +101,11 @@ export interface AISummaryData {
  *
  * @description
  * browser.scripting.executeScript 的返回值类型
+ * 支持多 frame 场景下的成功/失败结果
  */
 export interface ScriptInjectionResult {
-  result: ExtractedData;
+  result?: ExtractedData;
+  error?: any;
 }
 
 /**
