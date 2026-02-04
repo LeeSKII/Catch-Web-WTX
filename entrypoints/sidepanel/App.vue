@@ -200,7 +200,10 @@ watch(isDarkMode, (newValue) => {
       v-show="uiStore.state.currentTab === 'ai'"
       class="tab-content active"
     >
-      <AISummaryPanel :extracted-data="dataStore.state.extractedData" />
+      <AISummaryPanel
+        :extracted-data="dataStore.state.extractedData"
+        @refresh-data="handleExtractData"
+      />
     </div>
 
     <!-- 对话标签页内容 -->

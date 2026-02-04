@@ -55,6 +55,14 @@
         <div class="collapsed-right">
           <button
             class="icon-btn"
+            @click="handleRefreshData"
+            :disabled="dataStore.state.isLoading || dataStore.state.isPageLoading"
+            title="刷新数据"
+          >
+            <span class="refresh-icon">🔄</span>
+          </button>
+          <button
+            class="icon-btn"
             @click="isGeneratingAISummary ? handlePauseAISummary() : handleGenerateAISummary()"
             :disabled="(isLoadingAISummary && !isGeneratingAISummary) || dataStore.state.isLoading || dataStore.state.isPageLoading"
             :title="isGeneratingAISummary ? '暂停' : 'AI总结'"
@@ -92,6 +100,13 @@
         </div>
 
         <div class="action-buttons">
+          <button
+            class="btn btn-secondary"
+            @click="handleRefreshData"
+            :disabled="dataStore.state.isLoading || dataStore.state.isPageLoading"
+          >
+            🔄 刷新数据
+          </button>
           <button
             class="btn btn-secondary"
             @click="showPromptModal = true"
@@ -186,6 +201,11 @@ import { createLogger } from '../utils/logger';
 // 创建日志器
 const logger = createLogger("AISummaryPanel");
 
+// 定义事件
+const emit = defineEmits<{
+  'refresh-data': []
+}>()
+
 // 使用全局状态管理
 const { dataStore, uiStore } = useStores();
 
@@ -218,6 +238,11 @@ let isProcessing = false;
 
 // 从store获取数据
 const extractedData = computed(() => dataStore.state.extractedData);
+
+// 处理刷新数据
+const handleRefreshData = () => {
+  emit('refresh-data')
+};
 
 // 处理生成 AI 总结
 const handleGenerateAISummary = async () => {
